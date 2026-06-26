@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>biosphere/02 — a small forest under the stars</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- background layers: nebula gradient, stars, drifting fireflies, ground fog -->
+<canvas id="stars"></canvas>
+<canvas id="constellation"></canvas>
+<div id="aurora"></div>
+<div id="fireflies"></div>
+<div id="fog"></div>
+
+<!-- top bar -->
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">✦</span>
+    <span class="title">biosphere/02</span>
+    <span class="subtitle">a small forest under the stars</span>
+  </div>
+  <div class="clock" id="clock">--:--:--</div>
+</header>
+
+<!-- main desktop area -->
+<main id="desktop">
+
+  <!-- WINDOW: about -->
+  <section class="window" data-id="about" style="left: 60px; top: 80px; width: 380px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/about.md</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content">
+      <h2>hi, welcome in 🌿</h2>
+      <p>this is my corner of the internet — a quiet biosphere sealed in glass, half forest and half star map. drag the windows. plant a seed. draw your own constellation.</p>
+      <p>nothing here is locked. nothing tracks you. it's just a place.</p>
+      <ul class="bullets">
+        <li>built without frameworks (just html / css / vanilla js)</li>
+        <li>everything is draggable, resizable, minimizable</li>
+        <li>your state survives a refresh (localStorage)</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- WINDOW: devlog -->
+  <section class="window" data-id="devlog" style="left: 470px; top: 100px; width: 420px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/devlog/</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content">
+      <article class="logentry">
+        <h3>devlog #03 — <span class="logdate">jun 26</span></h3>
+        <p>added the <em>constellation studio</em>: click sky to drop a star, click two stars to draw a line, double-click to name your shape. shapes persist. now the night sky belongs to whoever visits.</p>
+        <p>also tuned the firefly drift — was too uniform, felt mechanical. switched to perlin-ish wandering and they finally feel alive.</p>
+      </article>
+      <article class="logentry">
+        <h3>devlog #02 — <span class="logdate">jun 24</span></h3>
+        <p>windows now snap to edges, remember position, and bring-to-front correctly. titlebar drag uses pointer events so trackpads / touch work. minimize sends them to the taskbar instead of vanishing.</p>
+        <p>spent way too long picking the green for the moss text. settled on <code>#8fd49a</code> against deep-space navy. feels like phosphorescence.</p>
+      </article>
+      <article class="logentry">
+        <h3>devlog #01 — <span class="logdate">jun 22</span></h3>
+        <p>first paint. star canvas, gradient nebula, three placeholder windows. the guide had a flat desktop background; i wanted the page itself to feel like a habitat, so the background got two parallax layers and a slow aurora wash.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- WINDOW: projects -->
+  <section class="window" data-id="projects" style="left: 80px; top: 380px; width: 360px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/projects/</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content">
+      <div class="proj">
+        <h4>🌱 seed-keeper</h4>
+        <p>a tiny terrarium that lives in your browser tab. plant the seed in the <em>greenhouse</em> window →</p>
+      </div>
+      <div class="proj">
+        <h4>✦ constellation studio</h4>
+        <p>draw your own star shapes. they save. click empty sky to start.</p>
+      </div>
+      <div class="proj">
+        <h4>🪐 ambient orbit</h4>
+        <p>(coming soon) generative slow-music tuned to the time of day.</p>
+      </div>
+      <div class="proj">
+        <h4>🍄 mycelium notes</h4>
+        <p>(coming soon) markdown notes that link to each other like underground roots.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- WINDOW: greenhouse (the custom feature — plant a seed) -->
+  <section class="window glass" data-id="greenhouse" style="left: 480px; top: 410px; width: 380px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/greenhouse 🌿</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content greenhouse">
+      <p class="hint">water your seed to make it grow. each plant remembers how often you've come back.</p>
+      <div class="terrarium" id="terrarium">
+        <svg id="plant-svg" viewBox="0 0 200 200" preserveAspectRatio="xMidYMax meet">
+          <!-- ground -->
+          <ellipse cx="100" cy="190" rx="80" ry="8" fill="#3a5a3a" opacity="0.55"/>
+          <!-- plant grows here via JS -->
+          <g id="plant"></g>
+        </svg>
+        <div class="terrarium-glow"></div>
+      </div>
+      <div class="growbar">
+        <button id="water">💧 water</button>
+        <button id="reset-plant" class="ghost">reset</button>
+        <span id="growth-stage">stage: seed</span>
+      </div>
+      <div class="streak" id="streak">visits: 1 · days seen: 1</div>
+    </div>
+  </section>
+
+  <!-- WINDOW: now-playing / status -->
+  <section class="window mini" data-id="status" style="left: 920px; top: 90px; width: 280px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/status</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content">
+      <div class="status-row"><span>mood</span><b>quiet ✦</b></div>
+      <div class="status-row"><span>reading</span><b>The Overstory</b></div>
+      <div class="status-row"><span>listening</span><b>Hiroshi Yoshimura</b></div>
+      <div class="status-row"><span>moon</span><b id="moon">waxing gibbous</b></div>
+      <div class="status-row"><span>sky here</span><b id="sky">clear · 14°c</b></div>
+    </div>
+  </section>
+
+  <!-- WINDOW: contact -->
+  <section class="window" data-id="contact" style="left: 920px; top: 340px; width: 280px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/contact</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content">
+      <p>say hi:</p>
+      <ul class="bullets">
+        <li><a href="#" onclick="return false">@me on whatever</a></li>
+        <li><a href="#" onclick="return false">email — coming soon</a></li>
+        <li><a href="#" onclick="return false">github — coming soon</a></li>
+      </ul>
+      <p class="tiny">leave a star in the sky on your way out 🌌</p>
+    </div>
+  </section>
+
+  <!-- WINDOW: constellation studio (the custom feature pt.2) -->
+  <section class="window" data-id="studio" style="left: 320px; top: 580px; width: 540px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/constellation-studio ✦</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content">
+      <p class="hint">click anywhere on the sky (outside any window) to drop a star. click two stars in a row to draw a line between them. double-click a star to name your shape. everything persists.</p>
+      <div class="studio-row">
+        <button id="undo-star" class="ghost">undo last</button>
+        <button id="clear-stars" class="ghost danger">clear my sky</button>
+        <span class="studio-counts" id="studio-counts">★ 0 · ─ 0</span>
+      </div>
+      <div class="legend">
+        <span><i class="lg-star"></i> your stars are warmer</span>
+        <span><i class="lg-line"></i> lines glow when hovered</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- taskbar -->
+<footer class="taskbar" id="taskbar">
+  <div class="tasks" id="tasks"></div>
+  <div class="hint-right">drag titlebars · ✦ click sky to draw constellations</div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
