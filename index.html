@@ -56,6 +56,16 @@
     </div>
     <div class="content">
       <article class="logentry">
+        <h3>devlog #06 — <span class="logdate">jun 27, latest</span></h3>
+        <p>okay, additions day. four new things plus one easter egg.</p>
+        <p><strong>settings window.</strong> i kept testing the reduced-motion fix by toggling macos accessibility, which is awful. so there's a proper settings window now: mute audio, force reduce-motion, lock the sky to a specific mood (dawn / day / dusk / night), and a nuclear "reset everything" button that clears your sky, plant, notes, wishes, settings and window positions in one shot.</p>
+        <p><strong>mycelium search.</strong> embarrassed it didn't have this from day one. type into the search input and the note list filters in real time. empty results show a hint.</p>
+        <p><strong>share your sky.</strong> the constellation studio has a "share my sky" button now. it encodes your stars and lines into a base64 url hash, copies it to your clipboard, and anyone who opens that link sees exactly the sky you drew. when you're viewing someone else's sky there's a banner at the top of the studio with a "return to mine" button. i made sure editing is gated while viewing — no accidentally overwriting their sky with your scribbles, no accidentally saving theirs over yours.</p>
+        <p><strong>and the easter egg.</strong> type the konami code anywhere — <code>↑↑↓↓←→←→ba</code> — and an overlay opens asking you to make a wish. type something, hit enter, and a slow shooting star drifts across the sky with your wish trailing behind it in warm gold. the wishes save. your status window shows the count. they're private to you.</p>
+        <p>also discovered while testing: my <code>applyTimeOfDay</code> reassignment didn't work for the periodic 60s tick because <code>setInterval</code> had captured the original function reference at boot. swapped to <code>setInterval(() =&gt; applyTimeOfDay(), 60_000)</code> so it does the name lookup each time. classic.</p>
+        <p>okay. that's enough for one weekend.</p>
+      </article>
+      <article class="logentry">
         <h3>devlog #05 — <span class="logdate">jun 27, later</span></h3>
         <p>shipped five things last night feeling pretty good about myself, then woke up this morning and immediately started finding holes.</p>
         <p>first one: i'd been testing at one browser size the whole time, and window positions live in <code>localStorage</code> forever. shrunk the browser to write this entry and the contact window was just <em>gone</em> — way off the right edge. now positions get clamped back into view on resize (debounced 160ms so it doesn't fight you while you drag the browser corner).</p>
@@ -170,6 +180,7 @@
       <div class="status-row"><span>listening</span><b>Hiroshi Yoshimura</b></div>
       <div class="status-row"><span>moon</span><b id="moon">waxing gibbous</b></div>
       <div class="status-row"><span>sky here</span><b id="sky">clear · 14°c</b></div>
+      <div class="status-row"><span>wishes made</span><b id="wishes-count">0</b></div>
     </div>
   </section>
 
@@ -202,8 +213,13 @@
       <p class="hint">click anywhere on the sky (outside any window) to drop a star. click two stars in a row to draw a line between them. double-click a star to name your shape. everything persists.</p>
       <div class="studio-row">
         <button id="undo-star" class="ghost">undo last</button>
+        <button id="share-sky" class="ghost">share my sky</button>
         <button id="clear-stars" class="ghost danger">clear my sky</button>
         <span class="studio-counts" id="studio-counts">★ 0 · ─ 0</span>
+      </div>
+      <div id="shared-sky-banner" class="shared-banner" hidden>
+        <span>✦ you're viewing a shared sky.</span>
+        <button id="return-to-mine" class="ghost">return to mine</button>
       </div>
       <div class="legend">
         <span><i class="lg-star"></i> your stars are warmer</span>
@@ -255,11 +271,53 @@
           <span id="myc-status"></span>
         </div>
       </div>
+      <input id="myc-search" type="text" class="myc-search" placeholder="🔍 search notes…" />
       <div class="myc-list" id="myc-list"></div>
     </div>
   </section>
 
+  <!-- WINDOW: settings -->
+  <section class="window mini" data-id="settings" style="left: 1240px; top: 90px; width: 240px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/settings ⚙</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content settings">
+      <div class="set-row">
+        <label for="set-mute">mute audio</label>
+        <input id="set-mute" type="checkbox" />
+      </div>
+      <div class="set-row">
+        <label for="set-motion">reduce motion</label>
+        <input id="set-motion" type="checkbox" />
+      </div>
+      <div class="set-row">
+        <label for="set-sky">lock the sky</label>
+        <select id="set-sky">
+          <option value="auto">auto · by your clock</option>
+          <option value="dawn">always dawn 🌅</option>
+          <option value="day">always day ☀️</option>
+          <option value="dusk">always dusk 🌇</option>
+          <option value="night">always night 🌌</option>
+        </select>
+      </div>
+      <hr class="set-sep" />
+      <button id="set-reset" class="set-danger">reset everything</button>
+      <p class="tiny">clears your sky, plant, notes, wishes and window positions.</p>
+    </div>
+  </section>
+
 </main>
+
+<!-- make-a-wish overlay (triggered by konami code) -->
+<div id="wish-overlay" class="palette" hidden>
+  <div class="palette-shell wish-shell">
+    <div class="wish-head">🌠 make a wish</div>
+    <input id="wish-input" type="text" placeholder="whisper it to the sky…" maxlength="120" autocomplete="off" />
+    <div class="palette-hint"><kbd>↵</kbd> send · <kbd>esc</kbd> hold it for next time</div>
+  </div>
+</div>
 
 <!-- command palette (⌘K / /) -->
 <div id="palette" class="palette" hidden>

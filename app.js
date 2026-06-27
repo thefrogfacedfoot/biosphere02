@@ -487,6 +487,10 @@ cCanvas.addEventListener("mousemove", (e) => {
 cCanvas.addEventListener("click", (e) => {
   // ignore clicks on top/bottom bars
   if (e.clientY < 38 || e.clientY > window.innerHeight - 38) return;
+  if (typeof viewingShared !== "undefined" && viewingShared) {
+    toast("this is a shared sky · return to yours to edit");
+    return;
+  }
   const x = e.clientX, y = e.clientY;
   const hit = nearestStar(x, y);
   if (hit !== -1) {
@@ -513,6 +517,10 @@ cCanvas.addEventListener("click", (e) => {
 });
 
 cCanvas.addEventListener("dblclick", (e) => {
+  if (typeof viewingShared !== "undefined" && viewingShared) {
+    toast("this is a shared sky · return to yours to edit");
+    return;
+  }
   const hit = nearestStar(e.clientX, e.clientY);
   if (hit === -1) return;
   const cur = userStars[hit].label || "";
@@ -524,6 +532,10 @@ cCanvas.addEventListener("dblclick", (e) => {
 });
 
 document.getElementById("undo-star").addEventListener("click", () => {
+  if (typeof viewingShared !== "undefined" && viewingShared) {
+    toast("this is a shared sky · return to yours to edit");
+    return;
+  }
   if (userLines.length) userLines.pop();
   else if (userStars.length) {
     const removed = userStars.length - 1;
@@ -534,6 +546,10 @@ document.getElementById("undo-star").addEventListener("click", () => {
   saveConstellation();
 });
 document.getElementById("clear-stars").addEventListener("click", () => {
+  if (typeof viewingShared !== "undefined" && viewingShared) {
+    toast("this is a shared sky · return to yours to edit");
+    return;
+  }
   if (!confirm("clear all your stars and lines? (the ambient background stars stay)")) return;
   userStars = []; userLines = []; pendingStar = null;
   saveConstellation();
@@ -642,7 +658,7 @@ function applyTimeOfDay() {
   }
 }
 applyTimeOfDay();
-setInterval(applyTimeOfDay, 60_000);
+setInterval(() => applyTimeOfDay(), 60_000);
 
 /* ============================================================
    feature: ambient orbit (web audio generative pad)
@@ -1029,3 +1045,341 @@ document.addEventListener("keydown", (e) => {
     closePalette();
   }
 });
+
+/* ============================================================
+   util: toast (used by share / reset / wishes)
+   ============================================================ */
+let _toastTimer;
+function toast(msg, ms = 2400) {
+  let el = document.querySelector(".toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  // force reflow so the transition runs
+  void el.offsetWidth;
+  el.classList.add("show");
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove("show"), ms);
+}
+
+/* ============================================================
+   feature: settings (mute audio, reduce motion, sky lock, reset)
+   ============================================================ */
+const SET_KEY = "biosphere02.settings.v1";
+const defaultSettings = { mute: false, motion: false, sky: "auto" };
+let settings = (() => {
+  try { return Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(SET_KEY) || "{}")); }
+  catch { return { ...defaultSettings }; }
+})();
+
+function saveSettings() {
+  try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch {}
+}
+
+function applySettings() {
+  // motion override
+  document.body.classList.toggle("motion-reduced", !!settings.motion);
+  // mute: stop orbit if playing
+  if (settings.mute && orbit.playing) stopOrbit();
+  // sky lock: bypass clock-based applyTimeOfDay
+  applyTimeOfDay();
+}
+
+function isMotionReduced() {
+  return settings.motion || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// hook up UI
+const setMute = document.getElementById("set-mute");
+const setMotion = document.getElementById("set-motion");
+const setSky = document.getElementById("set-sky");
+setMute.checked = settings.mute;
+setMotion.checked = settings.motion;
+setSky.value = settings.sky;
+
+setMute.addEventListener("change", () => {
+  settings.mute = setMute.checked;
+  saveSettings();
+  if (settings.mute && orbit.playing) stopOrbit();
+});
+setMotion.addEventListener("change", () => {
+  settings.motion = setMotion.checked;
+  saveSettings();
+  applySettings();
+});
+setSky.addEventListener("change", () => {
+  settings.sky = setSky.value;
+  saveSettings();
+  applyTimeOfDay();
+});
+
+document.getElementById("set-reset").addEventListener("click", () => {
+  if (!confirm("reset everything? this clears your sky, plant, notes, wishes, settings, and window positions.")) return;
+  Object.keys(localStorage)
+    .filter(k => k.startsWith("biosphere02."))
+    .forEach(k => localStorage.removeItem(k));
+  toast("biosphere reset · reloading…", 1200);
+  setTimeout(() => location.reload(), 800);
+});
+
+// block orbit start if muted
+const _origStartOrbit = startOrbit;
+startOrbit = function () {
+  if (settings.mute) { toast("audio is muted — toggle in settings ⚙"); return; }
+  _origStartOrbit();
+};
+
+// rewrite applyTimeOfDay to respect sky-lock
+const _origApplyTOD = applyTimeOfDay;
+applyTimeOfDay = function () {
+  if (settings.sky && settings.sky !== "auto") {
+    document.body.classList.remove("dawn", "day", "dusk", "night");
+    document.body.classList.add(settings.sky);
+    const skyEl = document.getElementById("sky");
+    if (skyEl) {
+      const labels = { dawn: "first light · 11°c", day: "open sky · 18°c", dusk: "amber hour · 15°c", night: "clear · 14°c" };
+      skyEl.textContent = labels[settings.sky] + " · locked";
+    }
+    return;
+  }
+  _origApplyTOD();
+};
+
+// gate shooter spawning on the combined motion check (replaces earlier logic)
+const _origMaybeSpawn = maybeSpawnShooter;
+maybeSpawnShooter = function () {
+  if (isMotionReduced()) return;
+  const next = 15000 + Math.random() * 15000;
+  setTimeout(() => { spawnShooter(); maybeSpawnShooter(); }, next);
+};
+
+applySettings();
+
+/* ============================================================
+   feature: konami code → make a wish
+   ============================================================ */
+const KONAMI = ["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","b","a"];
+let konamiBuf = [];
+const wishOverlay = document.getElementById("wish-overlay");
+const wishInput = document.getElementById("wish-input");
+const WISH_KEY = "biosphere02.wishes.v1";
+
+function loadWishes() {
+  try { return JSON.parse(localStorage.getItem(WISH_KEY) || "[]"); } catch { return []; }
+}
+function saveWishes(arr) {
+  try { localStorage.setItem(WISH_KEY, JSON.stringify(arr)); } catch {}
+}
+function renderWishCount() {
+  const el = document.getElementById("wishes-count");
+  if (el) el.textContent = loadWishes().length;
+}
+renderWishCount();
+
+function openWish() {
+  wishOverlay.hidden = false;
+  wishInput.value = "";
+  setTimeout(() => wishInput.focus(), 10);
+}
+function closeWish() { wishOverlay.hidden = true; }
+
+wishOverlay.addEventListener("click", (e) => { if (e.target === wishOverlay) closeWish(); });
+wishInput.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closeWish(); }
+  else if (e.key === "Enter") {
+    e.preventDefault();
+    const text = wishInput.value.trim();
+    if (!text) return;
+    const wishes = loadWishes();
+    wishes.push({ text, when: Date.now() });
+    saveWishes(wishes);
+    renderWishCount();
+    closeWish();
+    sendWishStar(text);
+  }
+});
+
+function sendWishStar(text) {
+  // a slower, brighter, named shooting star drifts across with the wish text
+  const w = window.innerWidth, h = window.innerHeight;
+  const startX = -60;
+  const startY = h * (0.15 + Math.random() * 0.25);
+  const vx = 1.1 + Math.random() * 0.3;
+  const vy = 0.15 + Math.random() * 0.15;
+  const star = { x: startX, y: startY, vx: vx * 8, vy: vy * 8, trail: [], life: 1.4, curve: 0.005 };
+  shooters.push(star);
+
+  const cap = document.createElement("div");
+  cap.className = "wish-trail";
+  cap.textContent = "✦ " + text;
+  document.body.appendChild(cap);
+  let t = 0;
+  const dur = 6500;
+  const startT = performance.now();
+  function frame(now) {
+    t = now - startT;
+    const p = Math.min(1, t / dur);
+    const x = startX + (w + 200) * p;
+    const y = startY + 80 * p;
+    cap.style.left = x + 16 + "px";
+    cap.style.top = y + 12 + "px";
+    if (p < 0.05) cap.classList.add("show");
+    if (p > 0.85) cap.classList.remove("show");
+    if (p < 1) requestAnimationFrame(frame);
+    else cap.remove();
+  }
+  requestAnimationFrame(frame);
+}
+
+document.addEventListener("keydown", (e) => {
+  const inField = document.activeElement &&
+    (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA");
+  if (inField) return;
+  if (!wishOverlay.hidden) return;
+  konamiBuf.push(e.key);
+  if (konamiBuf.length > KONAMI.length) konamiBuf.shift();
+  if (konamiBuf.length === KONAMI.length &&
+      konamiBuf.every((k, i) => k === KONAMI[i])) {
+    konamiBuf = [];
+    openWish();
+  }
+});
+
+/* ============================================================
+   feature: mycelium search
+   ============================================================ */
+const mycSearch = document.getElementById("myc-search");
+let mycFilter = "";
+const _origRenderMyc = renderMyc;
+renderMyc = function () {
+  mycList.innerHTML = "";
+  const q = mycFilter.toLowerCase();
+  const filtered = q
+    ? mycNotes.filter(n => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q))
+    : mycNotes;
+  if (filtered.length === 0) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "color: var(--ink-dim); font-style: italic; font-size: 12px; padding: 8px 4px;";
+    empty.textContent = q ? `no notes matching "${q}"` : "no notes yet — write one above";
+    mycList.appendChild(empty);
+    return;
+  }
+  for (const note of filtered) {
+    const el = document.createElement("div");
+    el.className = "myc-note";
+    el.dataset.id = note.id;
+    el.innerHTML = `
+      <button class="myc-del" title="delete">×</button>
+      <div class="myc-note-title">${escapeHtml(note.title)}</div>
+      <div class="myc-note-body">${renderNoteBody(note.body)}</div>
+    `;
+    mycList.appendChild(el);
+  }
+};
+mycSearch.addEventListener("input", () => {
+  mycFilter = mycSearch.value;
+  renderMyc();
+});
+renderMyc();
+
+/* ============================================================
+   feature: share constellation via URL hash
+   ============================================================ */
+const shareBtn = document.getElementById("share-sky");
+const sharedBanner = document.getElementById("shared-sky-banner");
+const returnBtn = document.getElementById("return-to-mine");
+
+function encodeConstellation(stars, lines) {
+  // round coords to ints to shrink payload
+  const W = window.innerWidth, H = window.innerHeight;
+  const payload = {
+    w: W, h: H,
+    s: stars.map(s => s.label ? [Math.round(s.x), Math.round(s.y), s.label] : [Math.round(s.x), Math.round(s.y)]),
+    l: lines.map(l => [l.a, l.b]),
+  };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+}
+function decodeConstellation(str) {
+  try {
+    const json = decodeURIComponent(escape(atob(str)));
+    const data = JSON.parse(json);
+    if (!data || !Array.isArray(data.s) || !Array.isArray(data.l)) return null;
+    // scale to current viewport
+    const sx = window.innerWidth / (data.w || window.innerWidth);
+    const sy = window.innerHeight / (data.h || window.innerHeight);
+    return {
+      stars: data.s.map(s => ({ x: s[0] * sx, y: s[1] * sy, label: s[2] })),
+      lines: data.l.map(l => ({ a: l[0], b: l[1] })),
+    };
+  } catch { return null; }
+}
+
+let _ownStarsBackup = null;
+let _ownLinesBackup = null;
+let viewingShared = false;
+
+function showSharedBanner(on) {
+  sharedBanner.hidden = !on;
+  viewingShared = on;
+}
+
+function tryLoadFromHash() {
+  const m = location.hash.match(/^#c=([A-Za-z0-9+/=_-]+)/);
+  if (!m) return;
+  const data = decodeConstellation(m[1].replace(/-/g, "+").replace(/_/g, "/"));
+  if (!data) { toast("shared sky link couldn't be read"); return; }
+  _ownStarsBackup = userStars.slice();
+  _ownLinesBackup = userLines.slice();
+  userStars = data.stars;
+  userLines = data.lines;
+  updateStudioCounts();
+  showSharedBanner(true);
+  toast(`viewing a shared sky · ${data.stars.length} stars`);
+}
+tryLoadFromHash();
+
+returnBtn.addEventListener("click", () => {
+  if (_ownStarsBackup) { userStars = _ownStarsBackup; userLines = _ownLinesBackup; }
+  _ownStarsBackup = _ownLinesBackup = null;
+  history.replaceState(null, "", location.pathname);
+  showSharedBanner(false);
+  updateStudioCounts();
+  toast("back to your sky");
+});
+
+shareBtn.addEventListener("click", async () => {
+  // share the user's actual sky, not the shared-view they might be browsing
+  const stars = _ownStarsBackup || userStars;
+  const lines = _ownLinesBackup || userLines;
+  if (stars.length === 0) { toast("no stars to share yet — click the sky to drop one"); return; }
+  const encoded = encodeConstellation(stars, lines).replace(/\+/g, "-").replace(/\//g, "_");
+  const url = `${location.origin}${location.pathname}#c=${encoded}`;
+  if (url.length > 6000) {
+    toast("sky is too big to share in a url — try with fewer stars");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast(`url copied · ${stars.length} stars travel with the link`);
+  } catch {
+    prompt("copy this link:", url);
+  }
+});
+
+/* ============================================================
+   bring all initially-minimized windows into the taskbar
+   (so the settings window etc. show up if their saved state
+   said minimized but the JS init hadn't placed a chip yet)
+   ============================================================ */
+windows.forEach(w => {
+  if (w.classList.contains("minimized") || w.dataset.closed === "1") {
+    if (!taskbar.querySelector(`[data-task="${w.dataset.id}"]`)) addTask(w);
+  }
+});
+
+// clamp once on initial paint so any windows positioned off-screen
+// (e.g. settings at left:1240 on a narrow viewport) get pulled in.
+clampWindowsToViewport();
