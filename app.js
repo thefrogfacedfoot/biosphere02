@@ -522,3 +522,468 @@ setMoon();
 /* ---------- mark first window as active ---------- */
 const first = document.querySelector(".window");
 if (first) bringToFront(first);
+
+/* ============================================================
+   feature: shooting stars
+   spawns the occasional streak across the star canvas
+   ============================================================ */
+const shooters = [];
+function maybeSpawnShooter() {
+  // 15-30s random interval
+  const next = 15000 + Math.random() * 15000;
+  setTimeout(() => { spawnShooter(); maybeSpawnShooter(); }, next);
+}
+function spawnShooter() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const fromLeft = Math.random() < 0.5;
+  const angle = (Math.PI / 5) + Math.random() * (Math.PI / 6); // ~36-66 deg
+  const speed = 0.7 + Math.random() * 0.5;
+  shooters.push({
+    x: fromLeft ? -40 : w + 40,
+    y: Math.random() * h * 0.55,
+    vx: (fromLeft ? 1 : -1) * Math.cos(angle) * speed * 14,
+    vy: Math.sin(angle) * speed * 14,
+    life: 1.0,
+    trail: [],
+    curve: (Math.random() - 0.5) * 0.04,
+  });
+}
+function drawShooters(dt) {
+  for (let i = shooters.length - 1; i >= 0; i--) {
+    const s = shooters[i];
+    // faint arc by rotating velocity each frame
+    const cs = Math.cos(s.curve), sn = Math.sin(s.curve);
+    const nvx = s.vx * cs - s.vy * sn;
+    const nvy = s.vx * sn + s.vy * cs;
+    s.vx = nvx; s.vy = nvy;
+    s.x += s.vx; s.y += s.vy;
+    s.trail.push({ x: s.x, y: s.y });
+    if (s.trail.length > 16) s.trail.shift();
+    s.life -= 0.012;
+
+    sctx.save();
+    for (let j = 0; j < s.trail.length; j++) {
+      const t = j / s.trail.length;
+      sctx.globalAlpha = t * s.life * 0.9;
+      sctx.fillStyle = j > s.trail.length - 4 ? "#fff5e0" : "#ffd9a0";
+      sctx.beginPath();
+      sctx.arc(s.trail[j].x, s.trail[j].y, 1.6 - t * 1.0, 0, Math.PI * 2);
+      sctx.fill();
+    }
+    sctx.restore();
+
+    if (s.life <= 0 || s.x < -100 || s.x > window.innerWidth + 100 || s.y > window.innerHeight + 100) {
+      shooters.splice(i, 1);
+    }
+  }
+}
+maybeSpawnShooter();
+
+// hook shooter drawing into the existing per-frame loop by wrapping drawConstellation
+const _origDrawConst = drawConstellation;
+drawConstellation = function () {
+  _origDrawConst();
+  drawShooters();
+};
+
+/* ============================================================
+   feature: day/night cycle (based on local hour)
+   ============================================================ */
+function applyTimeOfDay() {
+  const h = new Date().getHours();
+  const body = document.body;
+  body.classList.remove("dawn", "day", "dusk", "night");
+  let mood;
+  if (h >= 5 && h < 8) mood = "dawn";
+  else if (h >= 8 && h < 17) mood = "day";
+  else if (h >= 17 && h < 20) mood = "dusk";
+  else mood = "night";
+  body.classList.add(mood);
+  // expose for status window
+  const skyEl = document.getElementById("sky");
+  if (skyEl) {
+    const labels = { dawn: "first light · 11°c", day: "open sky · 18°c", dusk: "amber hour · 15°c", night: "clear · 14°c" };
+    skyEl.textContent = labels[mood];
+  }
+}
+applyTimeOfDay();
+setInterval(applyTimeOfDay, 60_000);
+
+/* ============================================================
+   feature: ambient orbit (web audio generative pad)
+   two detuned saws -> low-pass filter that breathes -> gain
+   plus occasional bell pings on a pentatonic scale
+   ============================================================ */
+const orbit = {
+  ctx: null, master: null, filter: null, lfo: null, lfoGain: null,
+  oscA: null, oscB: null, bellTimer: null,
+  playing: false,
+};
+const orbitToggle = document.getElementById("orbit-toggle");
+const orbitVol = document.getElementById("orbit-vol");
+const orbitNow = document.getElementById("orbit-now");
+const orbitRings = document.querySelector(".orbit-rings");
+
+const pentatonic = [261.63, 311.13, 349.23, 392.00, 466.16, 523.25, 622.25, 698.46];
+
+function startOrbit() {
+  if (orbit.playing) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) { orbitNow.textContent = "no audio support"; return; }
+  if (!orbit.ctx) orbit.ctx = new AC();
+  const ctx = orbit.ctx;
+  if (ctx.state === "suspended") ctx.resume();
+
+  orbit.master = ctx.createGain();
+  orbit.master.gain.value = 0;
+  orbit.master.connect(ctx.destination);
+
+  orbit.filter = ctx.createBiquadFilter();
+  orbit.filter.type = "lowpass";
+  orbit.filter.frequency.value = 600;
+  orbit.filter.Q.value = 3;
+  orbit.filter.connect(orbit.master);
+
+  // breathing lfo on filter cutoff
+  orbit.lfo = ctx.createOscillator();
+  orbit.lfo.frequency.value = 0.06;
+  orbit.lfoGain = ctx.createGain();
+  orbit.lfoGain.gain.value = 380;
+  orbit.lfo.connect(orbit.lfoGain).connect(orbit.filter.frequency);
+  orbit.lfo.start();
+
+  // drone: two detuned saws ~110Hz (a)
+  orbit.oscA = ctx.createOscillator();
+  orbit.oscA.type = "sawtooth";
+  orbit.oscA.frequency.value = 110;
+  orbit.oscA.detune.value = -7;
+  orbit.oscB = ctx.createOscillator();
+  orbit.oscB.type = "sawtooth";
+  orbit.oscB.frequency.value = 110;
+  orbit.oscB.detune.value = +7;
+  const droneGain = ctx.createGain();
+  droneGain.gain.value = 0.45;
+  orbit.oscA.connect(droneGain);
+  orbit.oscB.connect(droneGain);
+  droneGain.connect(orbit.filter);
+  orbit.oscA.start(); orbit.oscB.start();
+
+  // fade in
+  const target = +orbitVol.value / 100 * 0.35;
+  orbit.master.gain.linearRampToValueAtTime(target, ctx.currentTime + 1.5);
+
+  // schedule bells
+  scheduleBell();
+
+  orbit.playing = true;
+  orbitToggle.textContent = "■ stop";
+  orbitToggle.classList.add("playing");
+  orbitNow.textContent = "drone · breathing";
+  orbitRings.classList.add("on");
+}
+
+function scheduleBell() {
+  const wait = 25_000 + Math.random() * 35_000;
+  orbit.bellTimer = setTimeout(() => {
+    if (!orbit.playing) return;
+    playBell();
+    scheduleBell();
+  }, wait);
+}
+
+function playBell() {
+  const ctx = orbit.ctx;
+  const f = pentatonic[Math.floor(Math.random() * pentatonic.length)] * (Math.random() < 0.5 ? 1 : 2);
+  const o = ctx.createOscillator();
+  o.type = "sine";
+  o.frequency.value = f;
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  o.connect(g).connect(orbit.master);
+  const now = ctx.currentTime;
+  g.gain.linearRampToValueAtTime(0.22 * (+orbitVol.value / 100), now + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 4.0);
+  o.start(now);
+  o.stop(now + 4.2);
+  // sparkle UI
+  orbitNow.textContent = `bell · ${Math.round(f)}hz`;
+  setTimeout(() => { if (orbit.playing) orbitNow.textContent = "drone · breathing"; }, 1200);
+}
+
+function stopOrbit() {
+  if (!orbit.playing) return;
+  const ctx = orbit.ctx;
+  orbit.master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6);
+  setTimeout(() => {
+    try { orbit.oscA.stop(); orbit.oscB.stop(); orbit.lfo.stop(); } catch {}
+    orbit.playing = false;
+  }, 700);
+  clearTimeout(orbit.bellTimer);
+  orbitToggle.textContent = "▶ play";
+  orbitToggle.classList.remove("playing");
+  orbitNow.textContent = "silent";
+  orbitRings.classList.remove("on");
+}
+
+orbitToggle.addEventListener("click", () => orbit.playing ? stopOrbit() : startOrbit());
+orbitVol.addEventListener("input", () => {
+  if (orbit.playing && orbit.master) {
+    orbit.master.gain.setTargetAtTime(+orbitVol.value / 100 * 0.35, orbit.ctx.currentTime, 0.2);
+  }
+});
+
+/* ============================================================
+   feature: mycelium notes
+   notes link via [[name]], persist, hover highlights connections
+   ============================================================ */
+const MYC_KEY = "biosphere02.mycelium.v1";
+const mycList = document.getElementById("myc-list");
+const mycTitle = document.getElementById("myc-title");
+const mycBody = document.getElementById("myc-body");
+const mycStatus = document.getElementById("myc-status");
+
+let mycNotes = [];
+try { mycNotes = JSON.parse(localStorage.getItem(MYC_KEY) || "[]"); } catch { mycNotes = []; }
+let editingId = null;
+
+if (mycNotes.length === 0) {
+  // seed with two example notes that link to each other
+  mycNotes = [
+    { id: 1, title: "moss", body: "the soft green carpet on every rock. linked to [[mycelium]]." },
+    { id: 2, title: "mycelium", body: "the underground network. older than trees. quietly running the forest. see also [[moss]]." },
+  ];
+  saveMyc();
+}
+
+function saveMyc() {
+  try { localStorage.setItem(MYC_KEY, JSON.stringify(mycNotes)); } catch {}
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]);
+}
+
+function renderNoteBody(body) {
+  const safe = escapeHtml(body);
+  return safe.replace(/\[\[([^\]]+)\]\]/g, (m, name) => {
+    const target = mycNotes.find(n => n.title.toLowerCase() === name.toLowerCase().trim());
+    const cls = target ? "myc-link" : "myc-link dead";
+    return `<span class="${cls}" data-link="${escapeHtml(name)}">${escapeHtml(name)}</span>`;
+  });
+}
+
+function linksOf(note) {
+  const links = [];
+  const re = /\[\[([^\]]+)\]\]/g;
+  let m;
+  while ((m = re.exec(note.body)) !== null) {
+    const target = mycNotes.find(n => n.title.toLowerCase() === m[1].toLowerCase().trim());
+    if (target) links.push(target.id);
+  }
+  return links;
+}
+
+function renderMyc() {
+  mycList.innerHTML = "";
+  for (const note of mycNotes) {
+    const el = document.createElement("div");
+    el.className = "myc-note";
+    el.dataset.id = note.id;
+    el.innerHTML = `
+      <button class="myc-del" title="delete">×</button>
+      <div class="myc-note-title">${escapeHtml(note.title)}</div>
+      <div class="myc-note-body">${renderNoteBody(note.body)}</div>
+    `;
+    mycList.appendChild(el);
+  }
+}
+
+mycList.addEventListener("mouseover", (e) => {
+  const noteEl = e.target.closest(".myc-note");
+  if (!noteEl) return;
+  const id = +noteEl.dataset.id;
+  const note = mycNotes.find(n => n.id === id);
+  if (!note) return;
+  const linked = new Set(linksOf(note));
+  // also reverse links: notes that point AT this one
+  for (const n of mycNotes) if (linksOf(n).includes(id)) linked.add(n.id);
+  mycList.querySelectorAll(".myc-note").forEach(el => {
+    el.classList.toggle("linked", linked.has(+el.dataset.id));
+  });
+});
+mycList.addEventListener("mouseleave", () => {
+  mycList.querySelectorAll(".myc-note.linked").forEach(el => el.classList.remove("linked"));
+});
+
+mycList.addEventListener("click", (e) => {
+  if (e.target.classList.contains("myc-del")) {
+    const noteEl = e.target.closest(".myc-note");
+    const id = +noteEl.dataset.id;
+    mycNotes = mycNotes.filter(n => n.id !== id);
+    saveMyc(); renderMyc();
+    return;
+  }
+  if (e.target.classList.contains("myc-link")) {
+    const name = e.target.dataset.link.trim();
+    const target = mycNotes.find(n => n.title.toLowerCase() === name.toLowerCase());
+    if (target) {
+      mycTitle.value = target.title;
+      mycBody.value = target.body;
+      editingId = target.id;
+      mycStatus.textContent = "editing";
+    } else {
+      mycTitle.value = name;
+      mycBody.value = "";
+      editingId = null;
+      mycStatus.textContent = "new from link";
+    }
+    mycTitle.focus();
+    return;
+  }
+  // click anywhere else in a note → edit it
+  const noteEl = e.target.closest(".myc-note");
+  if (noteEl) {
+    const id = +noteEl.dataset.id;
+    const note = mycNotes.find(n => n.id === id);
+    if (note) {
+      mycTitle.value = note.title;
+      mycBody.value = note.body;
+      editingId = id;
+      mycStatus.textContent = "editing";
+    }
+  }
+});
+
+document.getElementById("myc-save").addEventListener("click", () => {
+  const t = mycTitle.value.trim();
+  const b = mycBody.value.trim();
+  if (!t) { mycStatus.textContent = "needs a title"; return; }
+  if (editingId !== null) {
+    const note = mycNotes.find(n => n.id === editingId);
+    if (note) { note.title = t; note.body = b; }
+  } else {
+    const id = (mycNotes.reduce((m, n) => Math.max(m, n.id), 0)) + 1;
+    mycNotes.push({ id, title: t, body: b });
+    editingId = id;
+  }
+  saveMyc(); renderMyc();
+  mycStatus.textContent = "saved";
+  setTimeout(() => { if (mycStatus.textContent === "saved") mycStatus.textContent = ""; }, 1500);
+});
+document.getElementById("myc-new").addEventListener("click", () => {
+  mycTitle.value = ""; mycBody.value = "";
+  editingId = null;
+  mycStatus.textContent = "";
+  mycTitle.focus();
+});
+renderMyc();
+
+/* ============================================================
+   feature: command palette (⌘K / ctrl+K / "/")
+   ============================================================ */
+const palette = document.getElementById("palette");
+const palInput = document.getElementById("palette-input");
+const palListEl = document.getElementById("palette-list");
+let palSel = 0;
+let palItems = [];
+
+function openPalette() {
+  palette.hidden = false;
+  palInput.value = "";
+  renderPalette("");
+  setTimeout(() => palInput.focus(), 10);
+}
+function closePalette() {
+  palette.hidden = true;
+}
+
+function buildPaletteItems(query) {
+  const q = query.trim().toLowerCase();
+  return windows
+    .map(w => {
+      const label = w.querySelector(".tname").textContent;
+      const closed = w.dataset.closed === "1";
+      const minimized = w.classList.contains("minimized");
+      const state = closed ? "closed" : minimized ? "minimized" : "open";
+      return { win: w, label, state };
+    })
+    .filter(it => !q || it.label.toLowerCase().includes(q) || fuzzy(it.label, q))
+    .slice(0, 12);
+}
+
+function fuzzy(label, q) {
+  // simple sequential fuzzy match
+  let i = 0;
+  const s = label.toLowerCase();
+  for (const ch of q) {
+    i = s.indexOf(ch, i);
+    if (i === -1) return false;
+    i++;
+  }
+  return true;
+}
+
+function renderPalette(query) {
+  palItems = buildPaletteItems(query);
+  palSel = 0;
+  palListEl.innerHTML = palItems.map((it, i) => `
+    <li data-i="${i}" class="${i === 0 ? "sel" : ""}">
+      <span>${escapeHtml(it.label)}</span>
+      <span><span class="pal-state">${it.state}</span> <span class="pal-key">↵</span></span>
+    </li>
+  `).join("") || `<li class="pal-empty" style="color: var(--ink-dim); font-style: italic;">no matches</li>`;
+}
+
+function palMove(delta) {
+  if (!palItems.length) return;
+  palSel = (palSel + delta + palItems.length) % palItems.length;
+  palListEl.querySelectorAll("li").forEach((el, i) => el.classList.toggle("sel", i === palSel));
+  const sel = palListEl.querySelector("li.sel");
+  if (sel) sel.scrollIntoView({ block: "nearest" });
+}
+
+function palOpen(idx) {
+  const it = palItems[idx];
+  if (!it) return;
+  const w = it.win;
+  // un-minimize, un-close, focus
+  w.classList.remove("minimized");
+  w.style.display = "";
+  if (w.dataset.closed) {
+    delete w.dataset.closed;
+    const t = taskbar.querySelector(`[data-task="${w.dataset.id}"]`);
+    if (t) t.remove();
+  }
+  const t = taskbar.querySelector(`[data-task="${w.dataset.id}"]`);
+  if (t) t.remove();
+  bringToFront(w);
+  saveWindowState();
+  closePalette();
+}
+
+palInput.addEventListener("input", () => renderPalette(palInput.value));
+palInput.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closePalette(); }
+  else if (e.key === "ArrowDown") { e.preventDefault(); palMove(1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); palMove(-1); }
+  else if (e.key === "Enter") { e.preventDefault(); palOpen(palSel); }
+});
+palListEl.addEventListener("click", (e) => {
+  const li = e.target.closest("li[data-i]");
+  if (li) palOpen(+li.dataset.i);
+});
+palette.addEventListener("click", (e) => { if (e.target === palette) closePalette(); });
+
+document.addEventListener("keydown", (e) => {
+  const inField = document.activeElement &&
+    (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA");
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    palette.hidden ? openPalette() : closePalette();
+  } else if (e.key === "/" && !inField && palette.hidden) {
+    e.preventDefault();
+    openPalette();
+  } else if (e.key === "Escape" && !palette.hidden) {
+    closePalette();
+  }
+});

@@ -56,6 +56,19 @@
     </div>
     <div class="content">
       <article class="logentry">
+        <h3>devlog #04 — <span class="logdate">jun 27</span></h3>
+        <p>okay it's late and i couldn't sleep so i opened the laptop. i kept thinking the site was pretty but inert — you'd drag the windows around once and then there was nothing waiting for you. so today was about adding things that respond to <em>being here over time</em>.</p>
+        <p>ambient orbit exists now. i was scared of the web audio api for no reason. two detuned saw waves through a low-pass filter that opens and closes slowly, plus a little bell that pings on a random pentatonic note about once a minute. it's the kind of sound you don't notice until you turn it off. exactly what i wanted.</p>
+        <p>mycelium notes — this one i'm proudest of. you write notes, you link them with <code>[[name]]</code> in the body, and hovering one highlights every other note it touches. it's not novel, it's just roam/obsidian in 80 lines of vanilla js, but it feels almost magical that it works at all.</p>
+        <p>other stuff while i was in there:</p>
+        <ul class="bullets">
+          <li>shooting stars. one streaks every 15-30s. they were too straight at first so i added a faint arc.</li>
+          <li>the background actually shifts based on what time it is for <em>you</em>. dawn gets a pink wash, dusk goes orange, deep night is the navy you've been seeing. i was up at 5am writing this and got to test the dawn state for real.</li>
+          <li>command palette. press <code>⌘K</code> or just <code>/</code>. honestly added it because i kept losing windows behind other windows.</li>
+        </ul>
+        <p>going to bed.</p>
+      </article>
+      <article class="logentry">
         <h3>devlog #03 — <span class="logdate">jun 26</span></h3>
         <p>added the <em>constellation studio</em>: click sky to drop a star, click two stars to draw a line, double-click to name your shape. shapes persist. now the night sky belongs to whoever visits.</p>
         <p>also tuned the firefly drift — was too uniform, felt mechanical. switched to perlin-ish wandering and they finally feel alive.</p>
@@ -90,11 +103,15 @@
       </div>
       <div class="proj">
         <h4>🪐 ambient orbit</h4>
-        <p>(coming soon) generative slow-music tuned to the time of day.</p>
+        <p>generative slow-music. open the <em>ambient orbit</em> window and hit play →</p>
       </div>
       <div class="proj">
         <h4>🍄 mycelium notes</h4>
-        <p>(coming soon) markdown notes that link to each other like underground roots.</p>
+        <p>notes that link with <code>[[name]]</code> and glow when they touch.</p>
+      </div>
+      <div class="proj">
+        <h4>⌘ command palette</h4>
+        <p>press <code>⌘K</code> (or <code>/</code>) to find any window in the biosphere.</p>
       </div>
     </div>
   </section>
@@ -181,12 +198,68 @@
     </div>
   </section>
 
+  <!-- WINDOW: ambient orbit (web audio generative pad) -->
+  <section class="window" data-id="orbit" style="left: 920px; top: 580px; width: 300px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/ambient-orbit 🪐</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content orbit">
+      <p class="hint">generative slow-music. two detuned saws through a breathing filter, plus an occasional bell. nothing is pre-recorded.</p>
+      <div class="orbit-row">
+        <button id="orbit-toggle" class="play">▶ play</button>
+        <span id="orbit-now">silent</span>
+      </div>
+      <div class="orbit-knob">
+        <label for="orbit-vol">volume</label>
+        <input id="orbit-vol" type="range" min="0" max="100" value="35" />
+      </div>
+      <div class="orbit-rings">
+        <span class="ring r1"></span>
+        <span class="ring r2"></span>
+        <span class="ring r3"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- WINDOW: mycelium notes (linked notes) -->
+  <section class="window" data-id="mycelium" style="left: 60px; top: 620px; width: 260px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/mycelium 🍄</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content mycelium">
+      <p class="hint">write notes. link them with <code>[[name]]</code>. hover a note to see its threads light up.</p>
+      <div class="myc-editor">
+        <input id="myc-title" type="text" placeholder="note title…" maxlength="40" />
+        <textarea id="myc-body" placeholder="body. link other notes with [[name]]." rows="3"></textarea>
+        <div class="myc-row">
+          <button id="myc-save">save</button>
+          <button id="myc-new" class="ghost">new</button>
+          <span id="myc-status"></span>
+        </div>
+      </div>
+      <div class="myc-list" id="myc-list"></div>
+    </div>
+  </section>
+
 </main>
+
+<!-- command palette (⌘K / /) -->
+<div id="palette" class="palette" hidden>
+  <div class="palette-shell">
+    <input id="palette-input" type="text" placeholder="find a window…" autocomplete="off" spellcheck="false" />
+    <ul id="palette-list" class="palette-list"></ul>
+    <div class="palette-hint"><kbd>↵</kbd> open · <kbd>↑↓</kbd> move · <kbd>esc</kbd> close</div>
+  </div>
+</div>
 
 <!-- taskbar -->
 <footer class="taskbar" id="taskbar">
   <div class="tasks" id="tasks"></div>
-  <div class="hint-right">drag titlebars · ✦ click sky to draw constellations</div>
+  <div class="hint-right">drag titlebars · ✦ click sky to draw · <kbd>⌘K</kbd> find a window</div>
 </footer>
 
 <script src="app.js"></script>

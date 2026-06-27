@@ -27,18 +27,21 @@ biosphere02/
 ## Features
 
 ### the desktop
-- 8 draggable windows: `~/about.md`, `~/devlog/`, `~/projects/`, `~/greenhouse 🌿`, `~/status`, `~/contact`, `~/constellation-studio ✦`
+- 10 draggable windows: `~/about.md`, `~/devlog/`, `~/projects/`, `~/greenhouse 🌿`, `~/status`, `~/contact`, `~/constellation-studio ✦`, `~/ambient-orbit 🪐`, `~/mycelium 🍄`
 - titlebar drag (pointer events — works on trackpads + touch)
 - minimize → taskbar, close → taskbar, maximize, resize-from-corner
 - soft snap to screen edges
 - click-to-focus z-ordering
 - positions and open/closed state persist across refreshes via `localStorage`
+- **⌘K / `/`** → command palette to fuzzy-find any window and bring it forward (also un-minimizes / un-closes it)
 
 ### the background
 - 200+ procedural twinkling stars on a `<canvas>`
 - 14 drifting fireflies with perlin-ish wandering motion
 - slow aurora wash and ground fog for depth
 - live moon-phase calculator in the `~/status` window
+- **shooting stars** streak across the sky every 15-30 seconds, with a faint curving arc and a trail
+- **day/night cycle** based on your local clock — dawn gets a pink wash, day opens up the sky, dusk goes amber, night settles into deep navy. fireflies thin out in daylight.
 
 ### the greenhouse 🌱
 Plant a seed and water it. The plant grows through 6 SVG stages (seed → sprout → sapling → young tree → thriving tree → ancient grove) based on two signals:
@@ -48,7 +51,7 @@ Plant a seed and water it. The plant grows through 6 SVG stages (seed → sprout
 Glowing fruit appears at the final stage. Your plant's state survives refreshes.
 
 ### the constellation studio ✦
-This is the part that isn't in any guide. The night sky behind the windows is interactive:
+The night sky behind the windows is interactive:
 
 - **click empty sky** → drop a star
 - **click one star, then another** → draw a glowing line between them
@@ -57,9 +60,26 @@ This is the part that isn't in any guide. The night sky behind the windows is in
 
 Stars and lines persist. Your own sky waits for you next time you visit.
 
+### ambient orbit 🪐
+Generative procedural ambient music. Nothing is pre-recorded — every note is synthesized live in your browser via Web Audio:
+
+- two **detuned sawtooth oscillators** at 110 Hz form a slow drone
+- a **breathing low-pass filter** (LFO at 0.06 Hz) opens and closes over ~16 seconds
+- **occasional bells** ping on a random pentatonic note every 25-60 seconds
+- volume slider styled like a dewdrop
+
+### mycelium notes 🍄
+A tiny linked-notes system in 80-ish lines of vanilla JS:
+
+- write a note with a title and a body
+- link other notes inline with `[[name]]`
+- **hover any note** to see every other note that links to it (or that it links to) light up in warm orange
+- click a `[[link]]` to jump to that note (or create it on the spot if it doesn't exist yet)
+- everything persists in `localStorage`
+
 ## Devlogs
 
-The `~/devlog/` window inside the site is the live changelog. Three entries so far covering background polish, window-manager work, and the constellation studio.
+The `~/devlog/` window inside the site is the live changelog. Four entries so far covering background polish, window-manager work, the constellation studio, and the late-night session that brought ambient orbit, mycelium notes, shooting stars, the day/night cycle, and the command palette.
 
 ## Design notes
 
