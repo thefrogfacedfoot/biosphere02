@@ -1239,10 +1239,12 @@ document.addEventListener("keydown", (e) => {
     (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA");
   if (inField) return;
   if (!wishOverlay.hidden) return;
-  konamiBuf.push(e.key);
+  // case-insensitive on single-char keys so caps lock / shift don't break it
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  konamiBuf.push(k);
   if (konamiBuf.length > KONAMI.length) konamiBuf.shift();
   if (konamiBuf.length === KONAMI.length &&
-      konamiBuf.every((k, i) => k === KONAMI[i])) {
+      konamiBuf.every((kk, i) => kk === KONAMI[i])) {
     konamiBuf = [];
     openWish();
   }
