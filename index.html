@@ -56,6 +56,20 @@
     </div>
     <div class="content">
       <article class="logentry">
+        <h3>devlog #05 — <span class="logdate">jun 27, later</span></h3>
+        <p>shipped five things last night feeling pretty good about myself, then woke up this morning and immediately started finding holes.</p>
+        <p>first one: i'd been testing at one browser size the whole time, and window positions live in <code>localStorage</code> forever. shrunk the browser to write this entry and the contact window was just <em>gone</em> — way off the right edge. now positions get clamped back into view on resize (debounced 160ms so it doesn't fight you while you drag the browser corner).</p>
+        <p>found out the hard way that <code>prefers-reduced-motion</code> is real and i was ignoring it. flipped the macOS toggle to test (system settings → accessibility → display → reduce motion) and the aurora was still drifting around and the fireflies were still bouncing. felt bad. added a media query that kills the animation rules and hides the fireflies entirely. shooting stars stop spawning too.</p>
+        <p>ambient orbit had a bug i'd never have caught without leaving it running for a while: started the drone, switched tabs to do something else, came back a minute later — silence. chrome suspends the <code>AudioContext</code> when the tab is hidden and i wasn't resuming it. one visibilitychange listener and it works.</p>
+        <p>little stuff while i was in there:</p>
+        <ul class="bullets">
+          <li>mycelium textarea had no max-height so you could drag it past the window bottom. clamped to 140px.</li>
+          <li>plant water button accepted clicks at any rate, which would queue up hundreds of particle elements if you spammed. throttled to ~4 hz.</li>
+          <li>found <code>opacity: 1.2</code> on the dusk aurora. browsers silently clamp that to 1, so the rule never did anything. replaced with a <code>filter: saturate brightness</code> combo that actually does the warm sunset thing.</li>
+        </ul>
+        <p>no new features today. just sanding the edges.</p>
+      </article>
+      <article class="logentry">
         <h3>devlog #04 — <span class="logdate">jun 27</span></h3>
         <p>okay it's late and i couldn't sleep so i opened the laptop. i kept thinking the site was pretty but inert — you'd drag the windows around once and then there was nothing waiting for you. so today was about adding things that respond to <em>being here over time</em>.</p>
         <p>ambient orbit exists now. i was scared of the web audio api for no reason. two detuned saw waves through a low-pass filter that opens and closes slowly, plus a little bell that pings on a random pentatonic note about once a minute. it's the kind of sound you don't notice until you turn it off. exactly what i wanted.</p>
