@@ -40,7 +40,17 @@ body.night { --sky-top: #1a2050; --sky-bottom: #0f2238; --bg-deep: #060914; --bg
 body.day .firefly { opacity: 0.05 !important; }
 body.dawn .firefly { opacity: 0.5 !important; }
 body.day #aurora { opacity: 0.35; }
-body.dusk #aurora { opacity: 1.2; }
+body.dusk #aurora { filter: saturate(1.6) brightness(1.15); }
+
+/* respect prefers-reduced-motion — kill background animation entirely */
+@media (prefers-reduced-motion: reduce) {
+  html, body { transition: none !important; }
+  #aurora { animation: none !important; }
+  #fireflies { display: none; }
+  .terrarium-glow { animation: none !important; }
+  .orbit-rings.on .ring { animation: none !important; }
+  .palette { animation: none !important; }
+}
 
 /* ---- background canvases / layers ---- */
 
@@ -400,6 +410,8 @@ body.dusk #aurora { opacity: 1.2; }
   outline: none;
   transition: border-color 140ms ease;
   resize: vertical;
+  max-height: 140px;
+  min-height: 28px;
 }
 .myc-editor input:focus, .myc-editor textarea:focus { border-color: var(--moss); }
 .myc-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }

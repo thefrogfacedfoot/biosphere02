@@ -48,7 +48,37 @@ function drawStars(t) {
   }
   sctx.globalAlpha = 1;
 }
-window.addEventListener("resize", () => { resizeStars(); resizeConstellation(); });
+function clampWindowsToViewport() {
+  const margin = 8;
+  const topGap = 38;
+  const bottomGap = 38;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  document.querySelectorAll(".window").forEach(w => {
+    if (w.classList.contains("maximized") || w.classList.contains("minimized")) return;
+    if (w.dataset.closed === "1") return;
+    const rect = w.getBoundingClientRect();
+    let left = parseFloat(w.style.left) || rect.left;
+    let top = parseFloat(w.style.top) || rect.top;
+    const width = w.offsetWidth;
+    const height = w.offsetHeight;
+    if (left + width > W - margin) left = Math.max(margin, W - width - margin);
+    if (top + height > H - bottomGap - margin) top = Math.max(topGap + margin, H - bottomGap - height - margin);
+    if (left < margin) left = margin;
+    if (top < topGap + margin) top = topGap + margin;
+    w.style.left = left + "px";
+    w.style.top = top + "px";
+  });
+  if (typeof saveWindowState === "function") saveWindowState();
+}
+
+let _resizeDebounce;
+window.addEventListener("resize", () => {
+  resizeStars();
+  resizeConstellation();
+  clearTimeout(_resizeDebounce);
+  _resizeDebounce = setTimeout(clampWindowsToViewport, 160);
+});
 resizeStars();
 
 /* ---------- fireflies ---------- */
@@ -306,11 +336,14 @@ function renderPlantSVG(stage) {
   return svg;
 }
 
+let _lastWater = 0;
 document.getElementById("water").addEventListener("click", () => {
+  const now = Date.now();
+  if (now - _lastWater < 220) return; // throttle: ~4.5 clicks/sec max
+  _lastWater = now;
   plant.water = (plant.water || 0) + 1;
   savePlant(plant);
   renderPlant();
-  // little particle burst
   spawnWaterParticles();
 });
 document.getElementById("reset-plant").addEventListener("click", () => {
@@ -528,7 +561,9 @@ if (first) bringToFront(first);
    spawns the occasional streak across the star canvas
    ============================================================ */
 const shooters = [];
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function maybeSpawnShooter() {
+  if (reducedMotion) return;
   // 15-30s random interval
   const next = 15000 + Math.random() * 15000;
   setTimeout(() => { spawnShooter(); maybeSpawnShooter(); }, next);
@@ -729,6 +764,13 @@ orbitToggle.addEventListener("click", () => orbit.playing ? stopOrbit() : startO
 orbitVol.addEventListener("input", () => {
   if (orbit.playing && orbit.master) {
     orbit.master.gain.setTargetAtTime(+orbitVol.value / 100 * 0.35, orbit.ctx.currentTime, 0.2);
+  }
+});
+
+// resume audio context when tab regains focus (browsers suspend it on blur)
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && orbit.playing && orbit.ctx && orbit.ctx.state === "suspended") {
+    orbit.ctx.resume();
   }
 });
 
