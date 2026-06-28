@@ -1485,3 +1485,236 @@ document.addEventListener("mousemove", (e) => {
   });
 });
 document.addEventListener("mouseleave", () => lantern.classList.remove("on"));
+
+/* ============================================================
+   feature: welcome sign (dismissable, persists)
+   ============================================================ */
+const SIGN_KEY = "biosphere02.sign-dismissed.v1";
+const signEl = document.getElementById("welcome-sign");
+const signDismiss = document.getElementById("sign-dismiss");
+if (signEl && localStorage.getItem(SIGN_KEY) === "1") {
+  signEl.style.display = "none";
+}
+if (signDismiss) {
+  signDismiss.addEventListener("click", () => {
+    signEl.classList.add("fading-out");
+    setTimeout(() => { signEl.style.display = "none"; }, 520);
+    try { localStorage.setItem(SIGN_KEY, "1"); } catch {}
+  });
+}
+
+/* ============================================================
+   feature: global search bar in the topbar
+   searches windows, mycelium notes, devlog entries, projects,
+   and wishes. grouped dropdown, keyboard navigable, jumps + flashes
+   the matched element.
+   ============================================================ */
+const gSearch = document.getElementById("global-search");
+const gResults = document.getElementById("global-search-results");
+let gSel = 0;
+let gItems = [];
+
+function makeSnippet(text, q, around = 60) {
+  const lc = text.toLowerCase();
+  const idx = lc.indexOf(q);
+  if (idx === -1) return text.slice(0, around).trim().replace(/\s+/g, " ");
+  const start = Math.max(0, idx - 24);
+  const end = Math.min(text.length, idx + q.length + around);
+  const raw = text.slice(start, end).trim().replace(/\s+/g, " ");
+  return (start > 0 ? "…" : "") + raw + (end < text.length ? "…" : "");
+}
+
+function highlightSnippet(snippet, q) {
+  if (!q) return escapeHtml(snippet);
+  const safe = escapeHtml(snippet);
+  const safeQ = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return safe.replace(new RegExp(safeQ, "ig"), m => `<mark>${m}</mark>`);
+}
+
+function gFocusWindow(w) {
+  w.classList.remove("minimized");
+  w.style.display = "";
+  if (w.dataset.closed === "1") {
+    delete w.dataset.closed;
+  }
+  const chip = taskbar.querySelector(`[data-task="${w.dataset.id}"]`);
+  if (chip) chip.remove();
+  bringToFront(w);
+  saveWindowState();
+}
+
+function gFlash(el) {
+  el.classList.add("search-flash");
+  setTimeout(() => el.classList.remove("search-flash"), 1900);
+}
+
+function gFocusInsideWindow(winId, el) {
+  const w = document.querySelector(`[data-id="${winId}"]`);
+  if (!w) return;
+  gFocusWindow(w);
+  // wait for the window to be visible before scrolling
+  setTimeout(() => {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    gFlash(el);
+  }, 80);
+}
+
+function doGlobalSearch(q) {
+  q = q.trim().toLowerCase();
+  if (!q) { gResults.hidden = true; gItems = []; return; }
+
+  const results = [];
+
+  // windows
+  document.querySelectorAll(".window").forEach(w => {
+    const name = w.querySelector(".tname").textContent;
+    if (name.toLowerCase().includes(q)) {
+      results.push({
+        kind: "window",
+        label: name,
+        snippet: null,
+        action: () => gFocusWindow(w),
+      });
+    }
+  });
+
+  // mycelium notes
+  if (typeof mycNotes !== "undefined" && Array.isArray(mycNotes)) {
+    for (const n of mycNotes) {
+      if (n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q)) {
+        results.push({
+          kind: "note",
+          label: n.title,
+          snippet: makeSnippet(n.body, q, 50),
+          action: () => {
+            const w = document.querySelector('[data-id="mycelium"]');
+            gFocusWindow(w);
+            if (typeof mycTitle !== "undefined") {
+              mycTitle.value = n.title;
+              mycBody.value = n.body;
+              if (typeof editingId !== "undefined") editingId = n.id;
+              if (mycStatus) mycStatus.textContent = "from search";
+            }
+          },
+        });
+      }
+    }
+  }
+
+  // devlog entries
+  document.querySelectorAll(".logentry").forEach(le => {
+    const text = le.textContent;
+    if (text.toLowerCase().includes(q)) {
+      const h3 = le.querySelector("h3");
+      results.push({
+        kind: "devlog",
+        label: h3 ? h3.textContent.trim() : "devlog entry",
+        snippet: makeSnippet(text.replace(/\s+/g, " "), q, 70),
+        action: () => gFocusInsideWindow("devlog", le),
+      });
+    }
+  });
+
+  // projects
+  document.querySelectorAll(".proj").forEach(p => {
+    const text = p.textContent;
+    if (text.toLowerCase().includes(q)) {
+      const h = p.querySelector("h4");
+      results.push({
+        kind: "project",
+        label: h ? h.textContent.trim() : "project",
+        snippet: makeSnippet(text.replace(/\s+/g, " "), q, 60),
+        action: () => gFocusInsideWindow("projects", p),
+      });
+    }
+  });
+
+  // wishes
+  if (typeof loadWishes === "function") {
+    for (const w of loadWishes()) {
+      if (w.text.toLowerCase().includes(q)) {
+        results.push({
+          kind: "wish",
+          label: "✦ " + w.text,
+          snippet: new Date(w.when).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+          action: () => toast(`"${w.text}" · ${new Date(w.when).toLocaleDateString()}`, 3200),
+        });
+      }
+    }
+  }
+
+  renderSearchResults(results, q);
+}
+
+function renderSearchResults(results, q) {
+  gItems = results.slice(0, 25);
+  gSel = 0;
+
+  if (gItems.length === 0) {
+    gResults.innerHTML = `<div class="search-empty">nothing matches "${escapeHtml(q)}"</div>`;
+    gResults.hidden = false;
+    return;
+  }
+
+  const kindLabel = {
+    window: "windows", note: "notes", devlog: "devlog",
+    project: "projects", wish: "wishes",
+  };
+  const order = ["window", "note", "devlog", "project", "wish"];
+
+  // group, preserving original indices for action lookup
+  const groups = {};
+  gItems.forEach((it, i) => { (groups[it.kind] = groups[it.kind] || []).push({ ...it, _i: i }); });
+
+  let html = "";
+  for (const k of order) {
+    if (!groups[k]) continue;
+    html += `<div class="search-group">${kindLabel[k]}</div>`;
+    for (const it of groups[k]) {
+      html += `<div class="search-item" data-i="${it._i}">${escapeHtml(it.label)}`;
+      if (it.snippet) html += `<span class="search-snippet">${highlightSnippet(it.snippet, q)}</span>`;
+      html += `</div>`;
+    }
+  }
+  gResults.innerHTML = html;
+  gResults.hidden = false;
+  const first = gResults.querySelector(".search-item");
+  if (first) first.classList.add("sel");
+}
+
+function gSearchMove(delta) {
+  if (!gItems.length) return;
+  gSel = (gSel + delta + gItems.length) % gItems.length;
+  gResults.querySelectorAll(".search-item").forEach(el => {
+    el.classList.toggle("sel", +el.dataset.i === gSel);
+  });
+  const sel = gResults.querySelector(".search-item.sel");
+  if (sel) sel.scrollIntoView({ block: "nearest" });
+}
+
+function gRunSelected() {
+  const item = gItems[gSel];
+  if (!item) return;
+  item.action();
+  gSearch.value = "";
+  gResults.hidden = true;
+  gSearch.blur();
+}
+
+gSearch.addEventListener("input", () => doGlobalSearch(gSearch.value));
+gSearch.addEventListener("focus", () => { if (gSearch.value) doGlobalSearch(gSearch.value); });
+gSearch.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { gSearch.value = ""; gResults.hidden = true; gSearch.blur(); }
+  else if (e.key === "ArrowDown") { e.preventDefault(); gSearchMove(1); }
+  else if (e.key === "ArrowUp")   { e.preventDefault(); gSearchMove(-1); }
+  else if (e.key === "Enter")     { e.preventDefault(); gRunSelected(); }
+});
+gResults.addEventListener("click", (e) => {
+  const itemEl = e.target.closest(".search-item");
+  if (!itemEl) return;
+  gSel = +itemEl.dataset.i;
+  gRunSelected();
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".topbar-search-wrap")) gResults.hidden = true;
+});

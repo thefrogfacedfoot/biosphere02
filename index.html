@@ -22,6 +22,11 @@
     <span class="title">biosphere/02</span>
     <span class="subtitle">a small forest under the stars</span>
   </div>
+  <div class="topbar-search-wrap">
+    <span class="topbar-search-icon">🔍</span>
+    <input id="global-search" class="topbar-search" type="text" placeholder="search the biosphere…" autocomplete="off" spellcheck="false" />
+    <div id="global-search-results" class="search-results" hidden></div>
+  </div>
   <div class="topbar-right">
     <button class="iconbtn" id="toggle-stargazer" title="stargazer mode (F)">🌌</button>
     <div class="clock" id="clock">--:--:--</div>
@@ -30,6 +35,20 @@
 
 <!-- stargazer hint (only visible in stargazer mode) -->
 <div class="stargazer-hint">press <kbd>F</kbd> or <kbd>esc</kbd> to come back</div>
+
+<!-- welcome sign (dismissable, persists) -->
+<div class="welcome-sign" id="welcome-sign">
+  <div class="sign-chains">
+    <span class="sign-chain"></span>
+    <span class="sign-chain"></span>
+  </div>
+  <div class="sign-board">
+    <button class="sign-dismiss" id="sign-dismiss" title="take the sign down">×</button>
+    <div class="sign-title">biosphere/02</div>
+    <div class="sign-sub">a small forest under the stars</div>
+    <div class="sign-hint">drag windows · click sky to draw · type to <kbd>search</kbd></div>
+  </div>
+</div>
 
 <!-- main desktop area -->
 <main id="desktop">
@@ -61,6 +80,15 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
+      <article class="logentry">
+        <h3>devlog #08 — <span class="logdate">jun 28, later</span></h3>
+        <p>two long-overdue things.</p>
+        <p><strong>the sign.</strong> a wooden welcome sign now hangs from the top-center of the desktop, swaying gently. it says the brand and gives you a tiny breadcrumb of how to use the place. you can take it down (× in the corner), and once it's down it stays down. respects reduced-motion (no sway). disappears in stargazer mode. visitors who already explored it once shouldn't have to look at it forever — that felt important.</p>
+        <p><strong>global search.</strong> a real search bar in the topbar now. type anything: it searches window names, mycelium notes (titles AND bodies), every devlog entry, every project, every wish. grouped results dropdown with snippets. arrow keys and enter work. clicking a devlog match jumps to that entry in the <code>~/devlog/</code> window, scrolls it into view, and flashes a warm highlight on it for ~2 seconds so you can find what matched. notes pre-fill the editor. windows just focus. wishes pop a toast so you can read them.</p>
+        <p>i kept the command palette too. they overlap a bit but they're for different jobs: <code>⌘K</code> is "find a window fast"; the search bar is "find a thing across everything." palette stays narrow and lightning-quick; search is broader and stays in your peripheral vision.</p>
+        <p>small detail i'm proud of: the snippet rendering escapes html first, then runs a case-insensitive regex over the safe string to wrap matched substrings in <code>&lt;mark&gt;</code>. so if you search for <code>&lt;</code>, the regex still matches because both the snippet text and the query are escaped the same way.</p>
+        <p>okay. that's the last addition for now.</p>
+      </article>
       <article class="logentry">
         <h3>devlog #07 — <span class="logdate">jun 28</span></h3>
         <p>three more things, all variations on the same theme: rewarding people who actually look up.</p>
