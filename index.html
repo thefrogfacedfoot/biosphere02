@@ -22,8 +22,14 @@
     <span class="title">biosphere/02</span>
     <span class="subtitle">a small forest under the stars</span>
   </div>
-  <div class="clock" id="clock">--:--:--</div>
+  <div class="topbar-right">
+    <button class="iconbtn" id="toggle-stargazer" title="stargazer mode (F)">🌌</button>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
 </header>
+
+<!-- stargazer hint (only visible in stargazer mode) -->
+<div class="stargazer-hint">press <kbd>F</kbd> or <kbd>esc</kbd> to come back</div>
 
 <!-- main desktop area -->
 <main id="desktop">
@@ -55,6 +61,15 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
+      <article class="logentry">
+        <h3>devlog #07 — <span class="logdate">jun 28</span></h3>
+        <p>three more things, all variations on the same theme: rewarding people who actually look up.</p>
+        <p><strong>stargazer mode.</strong> press <code>f</code> (or the new 🌌 button in the topbar) and the whole ui dissolves — windows, topbar, taskbar all fade out and slide off-screen, leaving just the sky and the forest. great for screenshots, great for actually sitting with it for a minute. press anything to come back. i wanted this since the first day but kept putting it off; turned out to be like 15 lines.</p>
+        <p><strong>catching shooting stars.</strong> if you click a shooter while it's still streaking, you catch it — gold burst at your cursor, count goes up in the status window. took me a few tries to get the hit-test right; the trail head is the latest point in the shooter's path, and i ended up with a ~36px catch radius which is generous enough that it feels possible without being trivial. (when you catch your first one you get a small toast.)</p>
+        <p><strong>lantern.</strong> a soft amber glow now follows your cursor when it's over the open sky. it hides over windows and bars (uses <code>document.elementFromPoint</code> to check what's under you each frame, throttled with rAF). a small touch but the whole page reads warmer with it on. respects reduced-motion.</p>
+        <p>also: the catch click had to take priority over the "drop a new star" click on the same canvas. tried <code>stopImmediatePropagation</code> from a capture-phase listener, didn't trust myself on the event-flow corner cases, ended up just calling <code>tryCatchShooter()</code> at the top of the existing handler. less clever, more obvious. that's usually the right trade.</p>
+        <p>going outside.</p>
+      </article>
       <article class="logentry">
         <h3>devlog #06 — <span class="logdate">jun 27, latest</span></h3>
         <p>okay, additions day. four new things plus one easter egg.</p>
@@ -181,6 +196,7 @@
       <div class="status-row"><span>moon</span><b id="moon">waxing gibbous</b></div>
       <div class="status-row"><span>sky here</span><b id="sky">clear · 14°c</b></div>
       <div class="status-row"><span>wishes made</span><b id="wishes-count">0</b></div>
+      <div class="status-row"><span>stars caught</span><b id="caught-count">0</b></div>
     </div>
   </section>
 

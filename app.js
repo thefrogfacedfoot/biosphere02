@@ -487,6 +487,8 @@ cCanvas.addEventListener("mousemove", (e) => {
 cCanvas.addEventListener("click", (e) => {
   // ignore clicks on top/bottom bars
   if (e.clientY < 38 || e.clientY > window.innerHeight - 38) return;
+  // catching a streaking shooter takes priority over everything else
+  if (typeof tryCatchShooter === "function" && tryCatchShooter(e.clientX, e.clientY)) return;
   if (typeof viewingShared !== "undefined" && viewingShared) {
     toast("this is a shared sky · return to yours to edit");
     return;
@@ -1385,3 +1387,101 @@ windows.forEach(w => {
 // clamp once on initial paint so any windows positioned off-screen
 // (e.g. settings at left:1240 on a narrow viewport) get pulled in.
 clampWindowsToViewport();
+
+/* ============================================================
+   feature: stargazer mode (hide all UI for a clean sky view)
+   ============================================================ */
+const stargazerBtn = document.getElementById("toggle-stargazer");
+function setStargazer(on) {
+  document.body.classList.toggle("stargazer", on);
+  stargazerBtn.classList.toggle("active", on);
+}
+function toggleStargazer() {
+  setStargazer(!document.body.classList.contains("stargazer"));
+}
+stargazerBtn.addEventListener("click", toggleStargazer);
+
+document.addEventListener("keydown", (e) => {
+  const inField = document.activeElement &&
+    (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA");
+  if (inField) return;
+  if (!palette.hidden || !wishOverlay.hidden) return;
+  if (e.key === "f" || e.key === "F") {
+    e.preventDefault();
+    toggleStargazer();
+  } else if (e.key === "Escape" && document.body.classList.contains("stargazer")) {
+    setStargazer(false);
+  }
+});
+
+/* ============================================================
+   feature: catch a shooting star
+   click on an active shooter while it's streaking → catch it
+   ============================================================ */
+const CAUGHT_KEY = "biosphere02.caught.v1";
+let caughtCount = (() => { try { return +localStorage.getItem(CAUGHT_KEY) || 0; } catch { return 0; } })();
+function renderCaughtCount() {
+  const el = document.getElementById("caught-count");
+  if (el) el.textContent = caughtCount;
+}
+renderCaughtCount();
+
+function spawnCatchBurst(x, y) {
+  const b = document.createElement("div");
+  b.className = "catch-burst";
+  b.style.left = x + "px";
+  b.style.top = y + "px";
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 800);
+}
+
+function tryCatchShooter(x, y) {
+  // hit-test against the head (latest trail point) of each active shooter
+  for (let i = shooters.length - 1; i >= 0; i--) {
+    const s = shooters[i];
+    const head = s.trail.length ? s.trail[s.trail.length - 1] : { x: s.x, y: s.y };
+    const dx = head.x - x, dy = head.y - y;
+    if (dx * dx + dy * dy < 36 * 36) {  // within ~36px
+      shooters.splice(i, 1);
+      spawnCatchBurst(x, y);
+      caughtCount++;
+      try { localStorage.setItem(CAUGHT_KEY, String(caughtCount)); } catch {}
+      renderCaughtCount();
+      if (caughtCount === 1) toast("you caught one ✦ keep an eye on the sky");
+      return true;
+    }
+  }
+  return false;
+}
+
+// the original cCanvas click handler calls tryCatchShooter() first,
+// so catching takes priority over dropping new stars / chaining lines.
+
+/* ============================================================
+   feature: lantern (cursor glow over the sky)
+   subtle amber glow that follows the cursor when over open sky,
+   hides over windows/bars/overlays
+   ============================================================ */
+const lantern = document.createElement("div");
+lantern.className = "lantern";
+document.body.appendChild(lantern);
+
+const _lanternHideSel = ".window, .topbar, .taskbar, .palette, .palette-shell, #wish-overlay";
+let _lanternRaf = 0, _lanternX = 0, _lanternY = 0;
+document.addEventListener("mousemove", (e) => {
+  _lanternX = e.clientX; _lanternY = e.clientY;
+  if (_lanternRaf) return;
+  _lanternRaf = requestAnimationFrame(() => {
+    _lanternRaf = 0;
+    const el = document.elementFromPoint(_lanternX, _lanternY);
+    const overUI = el && el.closest(_lanternHideSel);
+    if (overUI) {
+      lantern.classList.remove("on");
+    } else {
+      lantern.style.left = _lanternX + "px";
+      lantern.style.top = _lanternY + "px";
+      lantern.classList.add("on");
+    }
+  });
+});
+document.addEventListener("mouseleave", () => lantern.classList.remove("on"));

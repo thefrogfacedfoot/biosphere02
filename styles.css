@@ -117,6 +117,20 @@ body.dusk #aurora { filter: saturate(1.6) brightness(1.15); }
 .title { font-weight: 600; letter-spacing: 0.5px; }
 .subtitle { color: var(--ink-dim); font-style: italic; font-size: 12px; }
 .clock { color: var(--moss); font-variant-numeric: tabular-nums; font-size: 12px; letter-spacing: 1px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.iconbtn {
+  background: transparent;
+  border: 1px solid rgba(143, 212, 154, 0.20);
+  color: var(--ink-dim);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+.iconbtn:hover { color: var(--moss); border-color: var(--moss); background: rgba(143, 212, 154, 0.08); }
+.iconbtn.active { color: var(--warm); border-color: var(--warm); background: rgba(255, 217, 160, 0.08); }
 
 /* ---- desktop / windows ---- */
 #desktop {
@@ -683,6 +697,75 @@ body.motion-reduced .palette { animation: none !important; }
   box-shadow: 0 8px 28px rgba(0,0,0,0.6);
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---- stargazer (focus) mode ---- */
+body.stargazer .topbar,
+body.stargazer .taskbar {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+body.stargazer .topbar { transform: translateY(-100%); }
+body.stargazer .taskbar { transform: translateY(100%); }
+body.stargazer .window {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.985);
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+body.stargazer #desktop { pointer-events: none; }
+body.stargazer .stargazer-hint { opacity: 0.6; }
+
+.stargazer-hint {
+  position: fixed;
+  bottom: 22px; left: 50%;
+  transform: translateX(-50%);
+  color: var(--ink-dim);
+  font-size: 11.5px;
+  font-style: italic;
+  letter-spacing: 0.8px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 800ms ease 400ms;
+  z-index: 80;
+}
+.stargazer-hint kbd { margin: 0 2px; }
+
+/* ---- lantern (cursor glow over the sky) ---- */
+.lantern {
+  position: fixed;
+  top: 0; left: 0;
+  width: 80px; height: 80px;
+  margin: -40px 0 0 -40px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 220, 140, 0.22) 0%, rgba(255, 220, 140, 0.10) 40%, transparent 70%);
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 280ms ease, left 110ms ease, top 110ms ease;
+  will-change: left, top, opacity;
+}
+.lantern.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .lantern { display: none !important; } }
+body.motion-reduced .lantern { display: none !important; }
+
+/* ---- catch burst (when you click a shooting star) ---- */
+.catch-burst {
+  position: fixed;
+  width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff5e0 0%, #ffd9a0 30%, rgba(255, 217, 160, 0.6) 60%, transparent 80%);
+  box-shadow: 0 0 16px 4px rgba(255, 217, 160, 0.5);
+  pointer-events: none;
+  z-index: 60;
+  animation: catch-pop 700ms ease-out forwards;
+}
+@keyframes catch-pop {
+  0%   { transform: scale(0.3); opacity: 1; }
+  40%  { transform: scale(2.2); opacity: 1; }
+  100% { transform: scale(4.0); opacity: 0; }
+}
 
 /* ---- small responsive nudges ---- */
 @media (max-width: 900px) {
