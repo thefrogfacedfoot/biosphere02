@@ -161,9 +161,19 @@ function saveWindowState() {
 }
 
 function loadWindowState() {
-  let data;
-  try { data = JSON.parse(localStorage.getItem(STATE_KEY) || "{}"); } catch { data = {}; }
+  const raw = localStorage.getItem(STATE_KEY);
+  const firstVisit = raw === null;
+  let data = {};
+  try { data = JSON.parse(raw || "{}"); } catch {}
   windows.forEach(w => {
+    if (firstVisit) {
+      // first-time visitors land on the scene with a clean desktop —
+      // every window starts closed, discoverable via taskbar, ⌘K, or search
+      w.dataset.closed = "1";
+      w.style.display = "none";
+      addTask(w);
+      return;
+    }
     const s = data[w.dataset.id];
     if (!s) return;
     if (s.left) w.style.left = s.left;
