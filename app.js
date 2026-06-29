@@ -1071,7 +1071,7 @@ function toast(msg, ms = 2400) {
    feature: settings (mute audio, reduce motion, sky lock, reset)
    ============================================================ */
 const SET_KEY = "biosphere02.settings.v1";
-const defaultSettings = { mute: false, motion: false, sky: "auto" };
+const defaultSettings = { mute: false, motion: false, sky: "auto", season: "auto" };
 let settings = (() => {
   try { return Object.assign({}, defaultSettings, JSON.parse(localStorage.getItem(SET_KEY) || "{}")); }
   catch { return { ...defaultSettings }; }
@@ -1718,3 +1718,442 @@ gResults.addEventListener("click", (e) => {
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".topbar-search-wrap")) gResults.hidden = true;
 });
+
+/* ============================================================
+   feature: reflection pond
+   a glassy water surface at the bottom of the screen — ripples
+   on click, faint shimmery reflected stars, occasional idle
+   ripples. fox above walks the shoreline.
+   ============================================================ */
+const pondCanvas = document.getElementById("pond");
+const pondCtx = pondCanvas.getContext("2d");
+let pondW = 0, pondH = 0;
+const ripples = [];
+const pondStars = [];
+
+function resizePond() {
+  pondW = pondCanvas.offsetWidth;
+  pondH = pondCanvas.offsetHeight;
+  pondCanvas.width = pondW * devicePixelRatio;
+  pondCanvas.height = pondH * devicePixelRatio;
+  pondCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  buildPondStars();
+  buildLilyPads();
+}
+function buildPondStars() {
+  pondStars.length = 0;
+  const count = Math.max(8, Math.floor(pondW / 70));
+  for (let i = 0; i < count; i++) {
+    pondStars.push({
+      x: Math.random() * pondW,
+      y: 10 + Math.random() * (pondH * 0.7),
+      base: 0.08 + Math.random() * 0.22,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.001 + Math.random() * 0.0025,
+    });
+  }
+}
+
+// lily pads drift slowly across the pond — click one for a frog jump
+const lilyPads = [];
+function buildLilyPads() {
+  lilyPads.length = 0;
+  const count = Math.max(3, Math.min(6, Math.floor(pondW / 280)));
+  for (let i = 0; i < count; i++) {
+    lilyPads.push({
+      x: Math.random() * pondW,
+      y: 28 + Math.random() * (pondH - 56),
+      r: 11 + Math.random() * 7,
+      vx: (Math.random() < 0.5 ? -1 : 1) * (0.05 + Math.random() * 0.10),
+      bobPhase: Math.random() * Math.PI * 2,
+      hasFlower: Math.random() < 0.6,
+    });
+  }
+}
+function drawLilyPads(t) {
+  for (const p of lilyPads) {
+    p.x += p.vx;
+    if (p.x < -30) p.x = pondW + 30;
+    if (p.x > pondW + 30) p.x = -30;
+    const wob = Math.sin(t * 0.0011 + p.bobPhase) * 1.2;
+    pondCtx.save();
+    pondCtx.translate(p.x, p.y + wob);
+    // soft shadow under pad
+    pondCtx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    pondCtx.beginPath();
+    pondCtx.ellipse(1, 2, p.r * 1.05, p.r * 0.62, 0, 0, Math.PI * 2);
+    pondCtx.fill();
+    // pad body
+    pondCtx.fillStyle = "rgba(86, 142, 92, 0.92)";
+    pondCtx.beginPath();
+    pondCtx.ellipse(0, 0, p.r, p.r * 0.6, 0, 0, Math.PI * 2);
+    pondCtx.fill();
+    // notch (V cut to give it the lily-pad shape) — clip out a wedge
+    pondCtx.globalCompositeOperation = "destination-out";
+    pondCtx.beginPath();
+    pondCtx.moveTo(0, 0);
+    pondCtx.lineTo(p.r * 1.2, -p.r * 0.18);
+    pondCtx.lineTo(p.r * 1.2,  p.r * 0.18);
+    pondCtx.closePath();
+    pondCtx.fill();
+    pondCtx.globalCompositeOperation = "source-over";
+    // tiny veins / highlight
+    pondCtx.strokeStyle = "rgba(160, 210, 170, 0.35)";
+    pondCtx.lineWidth = 0.8;
+    pondCtx.beginPath();
+    pondCtx.moveTo(-p.r * 0.7, 0);
+    pondCtx.lineTo(p.r * 0.5, 0);
+    pondCtx.stroke();
+    // optional flower
+    if (p.hasFlower) {
+      pondCtx.fillStyle = "rgba(255, 200, 220, 0.95)";
+      pondCtx.beginPath();
+      pondCtx.arc(-p.r * 0.35, -p.r * 0.18, 2.0, 0, Math.PI * 2);
+      pondCtx.fill();
+      pondCtx.fillStyle = "rgba(255, 240, 180, 0.95)";
+      pondCtx.beginPath();
+      pondCtx.arc(-p.r * 0.35, -p.r * 0.18, 0.9, 0, Math.PI * 2);
+      pondCtx.fill();
+    }
+    pondCtx.restore();
+  }
+}
+function lilyHitAt(localX, localY) {
+  // a bit of slop so it feels tappable
+  for (const p of lilyPads) {
+    const dx = p.x - localX, dy = p.y - localY;
+    if (dx * dx + dy * dy < (p.r + 4) * (p.r + 4)) return p;
+  }
+  return null;
+}
+function jumpFrogAt(viewportX, viewportY) {
+  const el = document.createElement("div");
+  el.className = "frog-jump";
+  el.textContent = "✦";
+  el.style.left = viewportX + "px";
+  el.style.top = viewportY + "px";
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 900);
+}
+resizePond();
+window.addEventListener("resize", () => {
+  clearTimeout(window._pondResize);
+  window._pondResize = setTimeout(resizePond, 120);
+});
+
+function drawPond(t) {
+  if (pondW === 0) return;
+  pondCtx.clearRect(0, 0, pondW, pondH);
+  // base water gradient
+  const g = pondCtx.createLinearGradient(0, 0, 0, pondH);
+  g.addColorStop(0, "rgba(18, 38, 58, 0.42)");
+  g.addColorStop(0.45, "rgba(8, 22, 38, 0.62)");
+  g.addColorStop(1, "rgba(4, 12, 22, 0.85)");
+  pondCtx.fillStyle = g;
+  pondCtx.fillRect(0, 0, pondW, pondH);
+  // shoreline tint at the top edge
+  const sg = pondCtx.createLinearGradient(0, 0, 0, 22);
+  sg.addColorStop(0, "rgba(143, 212, 154, 0.20)");
+  sg.addColorStop(1, "rgba(143, 212, 154, 0)");
+  pondCtx.fillStyle = sg;
+  pondCtx.fillRect(0, 0, pondW, 22);
+  // reflected shimmering stars
+  for (const s of pondStars) {
+    const a = s.base + Math.sin(t * s.speed + s.phase) * 0.18;
+    pondCtx.fillStyle = `rgba(246, 241, 216, ${Math.max(0.04, a)})`;
+    const wob = Math.sin(t * 0.002 + s.phase) * 0.8;
+    pondCtx.beginPath();
+    pondCtx.arc(s.x, s.y + wob, 0.85, 0, Math.PI * 2);
+    pondCtx.fill();
+  }
+  // lily pads (drawn under ripples so a click ripple shows on top)
+  drawLilyPads(t);
+  // ripples
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const r = ripples[i];
+    r.age += 1;
+    const radius = r.age * r.speed;
+    const a = Math.max(0, 1 - r.age / r.maxAge);
+    pondCtx.lineWidth = 1.2;
+    pondCtx.strokeStyle = `rgba(143, 212, 154, ${a * 0.55})`;
+    pondCtx.beginPath();
+    pondCtx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+    pondCtx.stroke();
+    if (radius > 8) {
+      pondCtx.strokeStyle = `rgba(255, 217, 160, ${a * 0.35})`;
+      pondCtx.beginPath();
+      pondCtx.arc(r.x, r.y, radius * 0.55, 0, Math.PI * 2);
+      pondCtx.stroke();
+    }
+    if (r.age > r.maxAge) ripples.splice(i, 1);
+  }
+}
+
+function addRipple(x, y, speed = 1.6, maxAge = 80) {
+  ripples.push({ x, y, age: 0, speed, maxAge });
+}
+
+pondCanvas.addEventListener("click", (e) => {
+  const rect = pondCanvas.getBoundingClientRect();
+  const lx = e.clientX - rect.left;
+  const ly = e.clientY - rect.top;
+  const pad = lilyHitAt(lx, ly);
+  if (pad) {
+    // bigger ripple from the pad center, plus a smaller inner one
+    addRipple(pad.x, pad.y, 2.0, 95);
+    addRipple(pad.x, pad.y, 1.0, 60);
+    jumpFrogAt(e.clientX, e.clientY - 4);
+    return;
+  }
+  addRipple(lx, ly, 1.6, 80);
+});
+
+function scheduleIdleRipple() {
+  const wait = 9000 + Math.random() * 22000;
+  setTimeout(() => {
+    if (!isMotionReduced() && pondW > 0) {
+      addRipple(60 + Math.random() * (pondW - 120),
+                pondH * 0.25 + Math.random() * pondH * 0.55,
+                0.7, 95);
+    }
+    scheduleIdleRipple();
+  }, wait);
+}
+scheduleIdleRipple();
+
+// hook drawPond into the existing animation loop (same wrap trick used elsewhere)
+const _origDrawConstForPond = drawConstellation;
+drawConstellation = function () {
+  _origDrawConstForPond();
+  drawPond(performance.now());
+};
+
+/* ============================================================
+   feature: wandering fox (a small creature trots the shoreline)
+   click to "spot" it — counter persists in status window.
+   hover pauses the walk so you can catch it.
+   ============================================================ */
+const SPOTTED_KEY = "biosphere02.spotted.v1";
+let spottedCount = (() => { try { return +localStorage.getItem(SPOTTED_KEY) || 0; } catch { return 0; } })();
+function renderSpottedCount() {
+  const el = document.getElementById("spotted-count");
+  if (el) el.textContent = spottedCount;
+}
+renderSpottedCount();
+
+const fox = document.createElement("div");
+fox.className = "fox";
+fox.textContent = "🦊";
+fox.title = "shy one — click to spot";
+document.body.appendChild(fox);
+
+let foxState = { active: false, paused: false, pauseStart: 0, totalPaused: 0 };
+
+function startFoxWalk() {
+  if (foxState.active) return;
+  if (isMotionReduced()) { scheduleNextFox(); return; }
+  foxState = { active: true, paused: false, pauseStart: 0, totalPaused: 0 };
+  const fromLeft = Math.random() < 0.5;
+  const W = window.innerWidth;
+  const startX = fromLeft ? -50 : W + 10;
+  const endX   = fromLeft ? W + 10 : -50;
+  const duration = 26000 + Math.random() * 22000;
+  fox.classList.toggle("facing-left", !fromLeft);
+  fox.classList.add("walking", "bobbing");
+  fox.style.left = startX + "px";
+
+  const startTime = performance.now();
+  function frame(now) {
+    if (!foxState.active) return;
+    if (foxState.paused) { requestAnimationFrame(frame); return; }
+    const elapsed = now - startTime - foxState.totalPaused;
+    const p = Math.min(1, elapsed / duration);
+    fox.style.left = (startX + (endX - startX) * p) + "px";
+    if (p < 1) requestAnimationFrame(frame);
+    else endFoxWalk(true);
+  }
+  requestAnimationFrame(frame);
+}
+
+function endFoxWalk(scheduleNext) {
+  fox.classList.remove("walking", "bobbing", "facing-left");
+  fox.style.left = "-60px";
+  foxState.active = false;
+  if (scheduleNext) scheduleNextFox();
+}
+
+fox.addEventListener("mouseenter", () => {
+  if (!foxState.active || foxState.paused) return;
+  foxState.paused = true;
+  foxState.pauseStart = performance.now();
+});
+fox.addEventListener("mouseleave", () => {
+  if (!foxState.paused) return;
+  foxState.totalPaused += performance.now() - foxState.pauseStart;
+  foxState.paused = false;
+});
+
+fox.addEventListener("click", (e) => {
+  if (!foxState.active) return;
+  spottedCount++;
+  try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
+  renderSpottedCount();
+  spawnCatchBurst(e.clientX, e.clientY);
+  toast(spottedCount === 1
+    ? "you spotted the fox 🦊 · it watches back"
+    : `spotted ${spottedCount} times 🦊`);
+  endFoxWalk(true);
+});
+
+function scheduleNextFox() {
+  // 70-150 seconds between appearances
+  const wait = 70_000 + Math.random() * 80_000;
+  setTimeout(startFoxWalk, wait);
+}
+// kick off the first appearance a short while after page load
+setTimeout(startFoxWalk, 12000);
+
+/* ============================================================
+   feature: twilight owl
+   at night (or sky-locked to night) an owl 🦉 occasionally
+   glides across the upper sky. click it to spot — counts in
+   the creatures-spotted total.
+   ============================================================ */
+function isNightSky() {
+  return document.body.classList.contains("night") ||
+         (settings && (settings.sky === "night" || settings.sky === "dusk"));
+}
+function spawnOwl() {
+  const owl = document.createElement("div");
+  owl.className = "owl";
+  owl.textContent = "🦉";
+  document.body.appendChild(owl);
+  const W = window.innerWidth;
+  const fromLeft = Math.random() < 0.5;
+  const startX = fromLeft ? -50 : W + 30;
+  const endX   = fromLeft ? W + 30 : -50;
+  const y      = 70 + Math.random() * (window.innerHeight * 0.28);
+  const duration = 14000 + Math.random() * 9000;
+  owl.style.top  = y + "px";
+  owl.style.left = startX + "px";
+
+  let claimed = false;
+  owl.addEventListener("click", (e) => {
+    if (claimed) return;
+    claimed = true;
+    spottedCount++;
+    try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
+    renderSpottedCount();
+    spawnCatchBurst(e.clientX, e.clientY);
+    toast("the owl saw you back 🦉");
+    owl.classList.add("caught");
+    setTimeout(() => owl.remove(), 350);
+  });
+
+  const start = performance.now();
+  function frame(now) {
+    if (claimed || !document.body.contains(owl)) return;
+    const p = Math.min(1, (now - start) / duration);
+    const x = startX + (endX - startX) * p;
+    // gentle wing-style bob
+    const dy = Math.sin(p * Math.PI * 4) * 9;
+    owl.style.left = x + "px";
+    owl.style.transform = `translateY(${dy}px)`;
+    if (p < 1) requestAnimationFrame(frame);
+    else owl.remove();
+  }
+  requestAnimationFrame(frame);
+}
+function maybeSpawnOwl() {
+  if (isMotionReduced()) { setTimeout(maybeSpawnOwl, 60_000); return; }
+  // 60-130 seconds between attempts; only actually spawn if it's night-ish
+  const wait = 60_000 + Math.random() * 70_000;
+  setTimeout(() => {
+    if (isNightSky()) spawnOwl();
+    maybeSpawnOwl();
+  }, wait);
+}
+// first owl gets a moment to settle (and may be skipped if it's not night yet)
+setTimeout(maybeSpawnOwl, 25_000);
+
+/* ============================================================
+   feature: seasons cycle (auto by month, or lockable in settings)
+   particles drift across (petals / fireflies / leaves / snow),
+   body gets a season class for a faint tint.
+   ============================================================ */
+const seasonHost = document.getElementById("season-particles");
+
+function detectSeason() {
+  const m = new Date().getMonth(); // 0 = jan
+  if (m >= 2 && m <= 4) return "spring";
+  if (m >= 5 && m <= 7) return "summer";
+  if (m >= 8 && m <= 10) return "autumn";
+  return "winter";
+}
+
+const seasonConfig = {
+  spring: { glyph: "🌸", count: 14, label: "spring 🌸" },
+  summer: { glyph: "✦",  count: 8,  label: "summer ✦"  },
+  autumn: { glyph: "🍂", count: 12, label: "autumn 🍂" },
+  winter: { glyph: "❄",  count: 22, label: "winter ❄"  },
+};
+
+let currentSeasonClass = null;
+function applySeason() {
+  const locked = settings.season && settings.season !== "auto" ? settings.season : null;
+  const target = locked || detectSeason();
+  if (currentSeasonClass === target) return;
+  if (currentSeasonClass) document.body.classList.remove("season-" + currentSeasonClass);
+  document.body.classList.add("season-" + target);
+  currentSeasonClass = target;
+
+  const sl = document.getElementById("season-label");
+  if (sl) sl.textContent = seasonConfig[target].label + (locked ? " · locked" : "");
+
+  // (re)build particles
+  seasonHost.innerHTML = "";
+  if (isMotionReduced()) return;
+  const cfg = seasonConfig[target];
+  for (let i = 0; i < cfg.count; i++) {
+    const p = document.createElement("div");
+    p.className = "season-particle s-" + target;
+    p.textContent = cfg.glyph;
+    p.style.left = (Math.random() * 100) + "vw";
+    p.style.fontSize = (10 + Math.random() * 12) + "px";
+    if (target === "summer") {
+      // summer fireflies pulse in place
+      p.style.top = (10 + Math.random() * 70) + "vh";
+      p.style.left = (Math.random() * 100) + "vw";
+      p.style.animationDelay = -(Math.random() * 4) + "s";
+      p.style.animationDuration = (3 + Math.random() * 3) + "s";
+    } else {
+      // drift downward
+      p.style.animationDelay = -(Math.random() * 22) + "s";
+      p.style.animationDuration = (16 + Math.random() * 14) + "s";
+    }
+    seasonHost.appendChild(p);
+  }
+}
+applySeason();
+// re-check every 10 minutes in case the user keeps the tab open across midnight or month-end
+setInterval(() => applySeason(), 10 * 60 * 1000);
+
+// wire up settings UI
+const setSeason = document.getElementById("set-season");
+if (setSeason) {
+  setSeason.value = settings.season || "auto";
+  setSeason.addEventListener("change", () => {
+    settings.season = setSeason.value;
+    saveSettings();
+    currentSeasonClass = null; // force rebuild
+    applySeason();
+  });
+}
+
+// motion-reduce toggle should rebuild particles too
+const _origApplySettings = applySettings;
+applySettings = function () {
+  _origApplySettings();
+  currentSeasonClass = null;
+  applySeason();
+};

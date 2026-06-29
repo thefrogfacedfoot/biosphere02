@@ -15,6 +15,7 @@
   --window-edge: rgba(143, 212, 154, 0.22);
   --window-edge-bright: rgba(143, 212, 154, 0.55);
   --shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(143,212,154,0.06) inset;
+  --pond-h: 18vh;
 }
 
 * { box-sizing: border-box; }
@@ -658,6 +659,7 @@ body.motion-reduced .palette { animation: none !important; }
 .wish-trail.show { opacity: 1; }
 
 /* ---- shared-sky banner inside studio window ---- */
+.shared-banner[hidden] { display: none; }
 .shared-banner {
   display: flex; align-items: center; gap: 10px;
   margin: 8px 0 4px;
@@ -974,6 +976,146 @@ body.motion-reduced .lantern { display: none !important; }
   40%  { transform: scale(2.2); opacity: 1; }
   100% { transform: scale(4.0); opacity: 0; }
 }
+
+/* ---- reflection pond (canvas surface near the bottom of the screen) ---- */
+#pond {
+  position: fixed;
+  left: 0; right: 0; bottom: 38px;
+  width: 100%;
+  height: var(--pond-h);
+  z-index: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+body.stargazer #pond { /* still visible — the pond is part of the scene */ }
+@media (max-width: 760px) {
+  :root { --pond-h: 14vh; }
+}
+
+/* ---- wandering creature (fox walks the shore) ---- */
+.fox {
+  position: fixed;
+  left: -60px;
+  bottom: calc(38px + var(--pond-h) + 2px);
+  font-size: 22px;
+  z-index: 3;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  opacity: 0;
+  transition: opacity 700ms ease;
+  will-change: left, transform;
+}
+.fox.walking { opacity: 1; }
+.fox.facing-left { transform: scaleX(-1); transform-origin: center; }
+.fox.facing-left.bobbing { animation: fox-bob-flipped 0.55s ease-in-out infinite alternate; }
+.fox.bobbing { animation: fox-bob 0.55s ease-in-out infinite alternate; }
+.fox:hover { filter: drop-shadow(0 0 8px rgba(255, 217, 160, 0.7)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); }
+@keyframes fox-bob {
+  from { transform: translateY(0) scaleX(1); }
+  to   { transform: translateY(-3px) scaleX(1); }
+}
+@keyframes fox-bob-flipped {
+  from { transform: translateY(0) scaleX(-1); }
+  to   { transform: translateY(-3px) scaleX(-1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fox.bobbing, .fox.facing-left.bobbing { animation: none; }
+}
+body.motion-reduced .fox.bobbing,
+body.motion-reduced .fox.facing-left.bobbing { animation: none; }
+
+/* ---- seasons (subtle particle layer, behind windows) ---- */
+#season-particles {
+  position: fixed;
+  inset: 0 0 38px 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+.season-particle {
+  position: absolute;
+  top: -24px;
+  animation: season-drift linear infinite;
+  opacity: 0.75;
+  will-change: transform;
+  font-size: 14px;
+  line-height: 1;
+}
+@keyframes season-drift {
+  from { transform: translate3d(0, -10vh, 0) rotate(0); }
+  to   { transform: translate3d(40px, 110vh, 0) rotate(360deg); }
+}
+.season-particle.s-spring { color: #ffc0d8; text-shadow: 0 0 6px rgba(255, 192, 216, 0.45); }
+.season-particle.s-autumn { color: #ffa86a; text-shadow: 0 0 5px rgba(255, 168, 106, 0.55); }
+.season-particle.s-winter { color: #d8e8ff; text-shadow: 0 0 8px rgba(216, 232, 255, 0.75); opacity: 0.85; }
+.season-particle.s-summer { color: #ffe6a0; text-shadow: 0 0 10px rgba(255, 230, 160, 0.85); }
+/* summer pulses gently instead of drifting */
+.season-particle.s-summer { animation: season-pulse 4s ease-in-out infinite; }
+@keyframes season-pulse {
+  0%, 100% { transform: scale(0.8); opacity: 0.5; }
+  50%      { transform: scale(1.15); opacity: 0.95; }
+}
+/* gentle whole-page tint by season */
+body.season-spring { --season-tint: rgba(255, 192, 216, 0.04); }
+body.season-summer { --season-tint: rgba(255, 230, 160, 0.04); }
+body.season-autumn { --season-tint: rgba(255, 160, 100, 0.04); }
+body.season-winter { --season-tint: rgba(216, 232, 255, 0.04); }
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  background: var(--season-tint, transparent);
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: screen;
+}
+@media (prefers-reduced-motion: reduce) {
+  .season-particle { animation: none !important; display: none; }
+}
+body.motion-reduced .season-particle { animation: none !important; display: none; }
+
+/* ---- lily pad click: a small ✦ jumps from the pad ---- */
+.frog-jump {
+  position: fixed;
+  z-index: 5;
+  margin: -10px 0 0 -6px;
+  color: #ffe6b8;
+  font-size: 14px;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(255, 217, 160, 0.9), 0 0 16px rgba(255, 217, 160, 0.4);
+  animation: frog-jump 900ms ease-out forwards;
+}
+@keyframes frog-jump {
+  0%   { transform: translateY(0) scale(0.6);  opacity: 0; }
+  20%  { transform: translateY(-14px) scale(1.0); opacity: 1; }
+  60%  { transform: translateY(-26px) scale(1.0); opacity: 0.9; }
+  100% { transform: translateY(-4px) scale(0.8); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .frog-jump { animation: none; } }
+body.motion-reduced .frog-jump { animation: none; }
+
+/* ---- owl (glides across the night sky) ---- */
+.owl {
+  position: fixed;
+  top: 80px; left: -50px;
+  font-size: 24px;
+  z-index: 3;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  filter: drop-shadow(0 0 8px rgba(255, 220, 140, 0.25));
+  opacity: 0.92;
+  transition: filter 200ms ease, opacity 250ms ease;
+  will-change: left, transform;
+}
+.owl:hover {
+  filter: drop-shadow(0 0 14px rgba(255, 220, 140, 0.85));
+  opacity: 1;
+}
+.owl.caught { opacity: 0; transform: scale(1.4) !important; }
+@media (prefers-reduced-motion: reduce) { .owl { display: none !important; } }
+body.motion-reduced .owl { display: none !important; }
 
 /* ---- small responsive nudges ---- */
 @media (max-width: 900px) {

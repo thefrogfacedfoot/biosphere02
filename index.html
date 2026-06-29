@@ -14,6 +14,8 @@
 <div id="aurora"></div>
 <div id="fireflies"></div>
 <div id="fog"></div>
+<canvas id="pond"></canvas>
+<div id="season-particles"></div>
 
 <!-- top bar -->
 <header class="topbar">
@@ -80,6 +82,23 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
+      <article class="logentry">
+        <h3>devlog #10 — <span class="logdate">jun 29</span></h3>
+        <p>two more on the pond and one bug fix.</p>
+        <p><strong>lily pads.</strong> a few pads now drift slowly across the water (the count scales with viewport width — usually 4-5). some carry a tiny pink-and-yellow flower. they're drawn on the pond canvas so they share the same shoreline ripples and reflection layer. click one and a small ✦ jumps from the pad with two stacked ripples (big and small from the pad center) — meant to read as a frog blip the moment after a frog leapt. i did not put an actual 🐸 on screen because it'd be too literal; the wake from where it just was is more fun.</p>
+        <p><strong>twilight owl.</strong> at night (or if you've sky-locked to night/dusk in settings) an owl 🦉 will occasionally glide across the upper third of the sky. wing-style vertical bob via a sine on the elapsed-progress, hand-tuned until it stopped feeling like a metronome. click it to spot — counts toward the same creatures-spotted total as the fox. the timer always ticks (~60-130s), but if it's not night when the timer fires, no owl spawns. that way the owl really belongs to night and you can't game it by leaving the tab open.</p>
+        <p><strong>bug:</strong> the "you're viewing a shared sky" banner has been silently showing on every page load since i added it. the html had <code>hidden</code> on it but <code>.shared-banner { display: flex }</code> overrode the browser's default <code>[hidden] { display: none }</code> (same specificity, author wins). added a one-line <code>.shared-banner[hidden] { display: none }</code> right before the existing rule. embarrassing miss, but the kind that only shows up when you're not actually testing the un-shared path.</p>
+        <p>also discovered the owl emoji is the same flipped, so no need for the facing-left handling i did for the fox. small mercies.</p>
+      </article>
+      <article class="logentry">
+        <h3>devlog #09 — <span class="logdate">jun 28, evening</span></h3>
+        <p>three additions tonight. all of them about giving the bottom half of the screen something to do — i'd been staring at the same fog-and-fireflies layer below the windows for weeks.</p>
+        <p><strong>the pond.</strong> a glassy water surface now sits along the bottom of the screen. it's its own canvas — a dark gradient with a faint moss-tinted shoreline at the top edge and a handful of shimmery reflected stars that drift in place. click anywhere on the water and a ripple expands out (with a warmer inner ring, like a stone broke the surface). every 10-30 seconds an idle ripple drifts in from somewhere on its own, so the water never feels static. respects reduced-motion (idle ripples pause, click ripples still play because they're a response, not ambience).</p>
+        <p><strong>a fox.</strong> every minute or two a small fox 🦊 trots along the shoreline of the pond, left-to-right or right-to-left at random. hover over it and it freezes in place (so you can actually catch the shy thing). click it and a little gold burst fires at the cursor, the count goes up in <code>~/status</code>, and it slips back into the underbrush. i wanted something that rewarded patience — you can't summon it, you just have to be around when it comes by.</p>
+        <p><strong>seasons.</strong> there's already a day/night cycle. now there's a year cycle too. by default it picks your season from the current month — spring drops faint cherry petals across the page, summer pulses a few extra sparkly fireflies in the upper sky, autumn drifts amber leaves, winter scatters slow snow. the <code>~/settings</code> window now has a "lock the season" picker next to the sky lock, so if you want it to be perpetually winter you can have that. the body also gets a very subtle whole-page tint per season (warm in autumn, cool in winter, etc).</p>
+        <p>z-index choreography was the only thing i had to be careful about. the layer order ended up: stars/constellation at the back, then fireflies+fog+pond+season-particles in a middle band, then windows on top, with the fox just above the windows' background plane but below the actual window chrome. the pond captures clicks in its region so the constellation canvas doesn't fire there (which means you can't drop a sky-star into the water, but that felt right — it's water, not sky).</p>
+        <p>going to sit on the couch and watch the fox pass.</p>
+      </article>
       <article class="logentry">
         <h3>devlog #08 — <span class="logdate">jun 28, later</span></h3>
         <p>two long-overdue things.</p>
@@ -225,6 +244,8 @@
       <div class="status-row"><span>sky here</span><b id="sky">clear · 14°c</b></div>
       <div class="status-row"><span>wishes made</span><b id="wishes-count">0</b></div>
       <div class="status-row"><span>stars caught</span><b id="caught-count">0</b></div>
+      <div class="status-row"><span>creatures spotted</span><b id="spotted-count">0</b></div>
+      <div class="status-row"><span>season</span><b id="season-label">…</b></div>
     </div>
   </section>
 
@@ -344,6 +365,16 @@
           <option value="day">always day ☀️</option>
           <option value="dusk">always dusk 🌇</option>
           <option value="night">always night 🌌</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <label for="set-season">lock the season</label>
+        <select id="set-season">
+          <option value="auto">auto · by month</option>
+          <option value="spring">always spring 🌸</option>
+          <option value="summer">always summer ✦</option>
+          <option value="autumn">always autumn 🍂</option>
+          <option value="winter">always winter ❄</option>
         </select>
       </div>
       <hr class="set-sep" />

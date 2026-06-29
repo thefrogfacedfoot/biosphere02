@@ -42,6 +42,11 @@ biosphere02/
 - live moon-phase calculator in the `~/status` window
 - **shooting stars** streak across the sky every 15-30 seconds, with a faint curving arc and a trail
 - **day/night cycle** based on your local clock — dawn gets a pink wash, day opens up the sky, dusk goes amber, night settles into deep navy. fireflies thin out in daylight.
+- **seasons** by month — spring drops cherry petals, summer pulses extra fireflies, autumn drifts amber leaves, winter scatters slow snow. lockable in `~/settings`.
+- **a reflection pond** along the bottom of the screen with shimmery reflected stars. click to ripple it.
+- **lily pads** drift across the pond. click one and a small ✦ jumps from the pad like a frog blip.
+- **a wandering fox** 🦊 trots along the pond's shoreline every minute or two. hover to pause, click to spot (counts in `~/status`).
+- **a twilight owl** 🦉 occasionally glides across the upper sky at night. click to spot — same counter as the fox.
 
 ### the greenhouse 🌱
 Plant a seed and water it. The plant grows through 6 SVG stages (seed → sprout → sapling → young tree → thriving tree → ancient grove) based on two signals:
