@@ -107,6 +107,16 @@
     </div>
     <div class="content">
       <article class="logentry">
+        <h3>devlog #12 — <span class="logdate">jun 30, later</span></h3>
+        <p>came back to it after a walk. the topbar was doing too much — brand + subtitle + a small search bar + stargazer + clock all sharing one 38px strip — and the desktop felt like everything-was-the-same-size. wanted a real focal point.</p>
+        <p><strong>watermark.</strong> a huge faded "Biosphere" in georgia, centered around 16vh, letter-spacing wide enough to feel cinematic. lives at <code>z-index: 1</code> so it's in front of the star canvas but behind every window — you can drag a window over it and it just floats underneath. tints subtly by time of day (moss at night, warm at dusk, cool blue in the day) — same idea as the existing aurora and pond shifts.</p>
+        <p><strong>first pass was too faint.</strong> shipped it at <code>opacity: 0.07</code> because i was scared of it dominating. screenshotted, looked at it, the word basically disappeared. bumped to <code>0.16</code> (with stronger day/dusk variants) and added a tighter inner text-shadow on top of the soft outer glow. now you actually read "Biosphere" instead of squinting at a smudge.</p>
+        <p><strong>hero search.</strong> pulled the search bar out of the topbar and made it a centered, glassy pill at 30vh, sitting just below the watermark. wider, taller, with a real backdrop blur and a moss focus ring. the trick was keeping the <code>#global-search</code> id on the input — the dropdown, keyboard nav, snippet highlighting, jump-and-flash logic all attach by that id, so the entire 200-line global-search feature kept working without touching a line of js.</p>
+        <p><strong>topbar diet.</strong> now it's just <code>✦</code> on the left and stargazer + clock on the right. no title (the watermark IS the title), no subtitle, no inline search. the bar reads as chrome again instead of a competing surface.</p>
+        <p>both the watermark and the hero search fade out in stargazer mode along with everything else, so the clean-sky view stays clean. small detail: the hero search sits at <code>z-index: 90</code>, above the windows but below the topbar (100) and overlays (500+), so it never gets buried by a focused window or pokes through a modal.</p>
+        <p>okay <em>now</em> i'm going outside.</p>
+      </article>
+      <article class="logentry">
         <h3>devlog #11 — <span class="logdate">jun 30</span></h3>
         <p>biggest single drop in a while — five things in one sitting.</p>
         <p><strong>the welcome page.</strong> the hanging sign is nice ambient garnish but on the very first visit nothing actually said hi. so now there's a proper splash — full-screen card, title fades in word by word, three little hints, a <code>step inside ✦</code> button. dismissal persists; the splash never reappears (except via a small "show the welcome page again" button in <code>~/settings</code>). i skip it entirely if you arrive via a shared-sky link — those visitors came for someone's constellation, not to be introduced.</p>
