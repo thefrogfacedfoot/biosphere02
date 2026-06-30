@@ -307,6 +307,8 @@
       <div class="status-row"><span>bottles opened</span><b id="bottles-count">0</b></div>
       <div class="status-row"><span>moments at the lighthouse</span><b id="moments-count">0</b></div>
       <div class="status-row"><span>today's card</span><b id="card-stat">undrawn</b></div>
+      <div class="status-row"><span>breaths taken today</span><b id="breaths-stat">0</b></div>
+      <div class="status-row"><span>polaroids snapped</span><b id="polaroids-count">0</b></div>
       <div class="status-row"><span>warmth</span><b id="warmth-stat">cold</b></div>
       <div class="status-row"><span>season</span><b id="season-label">…</b></div>
     </div>
@@ -401,6 +403,52 @@
       </div>
       <input id="myc-search" type="text" class="myc-search" placeholder="🔍 search notes…" />
       <div class="myc-list" id="myc-list"></div>
+    </div>
+  </section>
+
+  <!-- WINDOW: breathing room (a quiet 4-4-4-4 breath cycle) -->
+  <section class="window" data-id="breathe" style="left: 380px; top: 80px; width: 300px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/breathe 🕊</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content breathe">
+      <p class="hint">a 4-4-4-4 cycle: in, hold, out, rest. nothing tracks you. nothing scores you.</p>
+      <div class="breathe-stage">
+        <div class="breathe-orb" id="breathe-orb">
+          <span class="breathe-glow"></span>
+          <span class="breathe-core"></span>
+        </div>
+        <div class="breathe-cue" id="breathe-cue">press start</div>
+      </div>
+      <div class="breathe-row">
+        <button class="breathe-len" data-len="1">1 min</button>
+        <button class="breathe-len active" data-len="3">3 min</button>
+        <button class="breathe-len" data-len="5">5 min</button>
+        <button id="breathe-toggle" class="breathe-go">start</button>
+      </div>
+      <div class="breathe-meter">
+        <span id="breathe-elapsed">—</span>
+        <span id="breathe-count" class="breathe-count">0 breaths today</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- WINDOW: scrapbook (snap a polaroid of the current scene) -->
+  <section class="window" data-id="scrapbook" style="left: 720px; top: 80px; width: 340px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/scrapbook 📸</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content scrapbook">
+      <p class="hint">snap the moment as a tiny polaroid. it'll keep what the world looked like just now.</p>
+      <div class="scrap-row">
+        <button id="scrap-snap">📸 snap a polaroid</button>
+        <span id="scrap-count" class="scrap-count">0 saved</span>
+      </div>
+      <div class="scrap-list" id="scrap-list"></div>
     </div>
   </section>
 
@@ -548,6 +596,16 @@
   </section>
 
 </main>
+
+<!-- polaroid-zoom overlay (opens the big version of a saved scrapbook polaroid) -->
+<div id="polaroid-overlay" class="palette" hidden>
+  <div class="palette-shell polaroid-shell">
+    <div class="polaroid-big" id="polaroid-big"></div>
+    <div class="palette-hint">
+      <kbd>↵</kbd> tuck it away · <kbd>esc</kbd> close · <button id="polaroid-delete" class="polaroid-delete">remove this one</button>
+    </div>
+  </div>
+</div>
 
 <!-- time-capsule unsealing overlay (shown on the day a capsule comes due) -->
 <div id="capsule-overlay" class="palette" hidden>

@@ -3030,3 +3030,394 @@ if (lighthouseEl) {
     logLighthouseMoment(e.clientX, e.clientY);
   });
 }
+
+/* ============================================================
+   feature: breathing room
+   a 4-4-4-4 cycle (in / hold / out / rest) with a scaling orb.
+   the day's breath count rolls over at midnight.
+   ============================================================ */
+const BREATHE_KEY = "biosphere02.breathe.v1";
+const breatheOrb = document.getElementById("breathe-orb");
+const breatheCue = document.getElementById("breathe-cue");
+const breatheToggle = document.getElementById("breathe-toggle");
+const breatheElapsed = document.getElementById("breathe-elapsed");
+const breatheCount = document.getElementById("breathe-count");
+const breathsStat = document.getElementById("breaths-stat");
+
+let breatheState = (() => {
+  try { return JSON.parse(localStorage.getItem(BREATHE_KEY) || "null") || { date: todayISO(), breaths: 0 }; }
+  catch { return { date: todayISO(), breaths: 0 }; }
+})();
+if (breatheState.date !== todayISO()) breatheState = { date: todayISO(), breaths: 0 };
+
+function saveBreathe() {
+  try { localStorage.setItem(BREATHE_KEY, JSON.stringify(breatheState)); } catch {}
+}
+function renderBreathCount() {
+  const n = breatheState.breaths || 0;
+  if (breatheCount) breatheCount.textContent = `${n} breath${n === 1 ? "" : "s"} today`;
+  if (breathsStat) breathsStat.textContent = String(n);
+}
+renderBreathCount();
+
+let breatheRun = null; // { sessionStart, sessionLen, phaseTimer, phase }
+
+const phaseOrder = ["inhale", "hold-in", "exhale", "hold-out"];
+const phaseCues  = { inhale: "breathe in",  "hold-in": "hold",  exhale: "breathe out", "hold-out": "rest" };
+const phaseClass = { inhale: "warm",        "hold-in": "warm",  exhale: "",            "hold-out": "" };
+const PHASE_MS = 4000;
+
+function stepPhase(idx) {
+  if (!breatheRun) return;
+  const phase = phaseOrder[idx % 4];
+  if (!breatheOrb || !breatheCue) return;
+  breatheOrb.classList.remove("inhale", "hold-in", "exhale", "hold-out");
+  breatheOrb.classList.add(phase);
+  breatheCue.textContent = phaseCues[phase];
+  breatheCue.classList.toggle("warm", phaseClass[phase] === "warm");
+  // one breath = a full inhale (count at the start of each new inhale, after the first)
+  if (phase === "inhale" && idx > 0) {
+    breatheState.breaths = (breatheState.breaths || 0) + 1;
+    saveBreathe();
+    renderBreathCount();
+  }
+  breatheRun.phaseTimer = setTimeout(() => stepPhase(idx + 1), PHASE_MS);
+}
+
+function tickBreatheClock() {
+  if (!breatheRun || !breatheElapsed) return;
+  const elapsed = Date.now() - breatheRun.sessionStart;
+  const remaining = Math.max(0, breatheRun.sessionLen - elapsed);
+  const s = Math.ceil(remaining / 1000);
+  const mm = Math.floor(s / 60), ss = s % 60;
+  breatheElapsed.textContent = `${mm}:${String(ss).padStart(2, "0")} left`;
+  if (remaining <= 0) { stopBreathe(true); return; }
+  breatheRun.clockTimer = setTimeout(tickBreatheClock, 250);
+}
+
+function startBreathe(minutes) {
+  if (breatheRun) return;
+  breatheRun = {
+    sessionStart: Date.now(),
+    sessionLen: minutes * 60_000,
+    phaseTimer: null,
+    clockTimer: null,
+  };
+  if (breatheToggle) { breatheToggle.textContent = "stop"; breatheToggle.classList.add("running"); }
+  stepPhase(0);
+  tickBreatheClock();
+}
+
+function stopBreathe(completed) {
+  if (!breatheRun) return;
+  clearTimeout(breatheRun.phaseTimer);
+  clearTimeout(breatheRun.clockTimer);
+  breatheRun = null;
+  if (breatheOrb) breatheOrb.classList.remove("inhale", "hold-in", "exhale", "hold-out");
+  if (breatheCue) {
+    breatheCue.classList.remove("warm");
+    breatheCue.textContent = completed ? "you came back · nice work" : "paused · pick it up again whenever";
+  }
+  if (breatheElapsed) breatheElapsed.textContent = "—";
+  if (breatheToggle) { breatheToggle.textContent = "start"; breatheToggle.classList.remove("running"); }
+  if (completed) toast("breath session complete · the forest noticed", 2200);
+}
+
+let breatheChosenLen = 3;
+document.querySelectorAll(".breathe-len").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (breatheRun) return; // can't change length mid-session
+    document.querySelectorAll(".breathe-len").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    breatheChosenLen = +btn.dataset.len || 3;
+  });
+});
+if (breatheToggle) {
+  breatheToggle.addEventListener("click", () => {
+    breatheRun ? stopBreathe(false) : startBreathe(breatheChosenLen);
+  });
+}
+// midnight rollover
+setInterval(() => {
+  if (breatheState.date !== todayISO()) {
+    breatheState = { date: todayISO(), breaths: 0 };
+    saveBreathe();
+    renderBreathCount();
+  }
+}, 5 * 60 * 1000);
+
+/* ============================================================
+   feature: hummingbird (third creature, day-tuned)
+   faster, more erratic motion than fox/owl. visits briefly, hovers
+   at a couple of pause points, then darts off-screen. click to spot.
+   ============================================================ */
+function isDaylight() {
+  return document.body.classList.contains("dawn") ||
+         document.body.classList.contains("day") ||
+         (settings && (settings.sky === "dawn" || settings.sky === "day"));
+}
+
+function spawnHummingbird() {
+  if (isMotionReduced()) return;
+  const hum = document.createElement("div");
+  hum.className = "hummer";
+  hum.textContent = "🐦";   // small bird glyph stands in for a hummer; SVG would be ideal but emoji reads quickly
+  hum.title = "a small visitor — click to spot";
+  document.body.appendChild(hum);
+
+  const W = window.innerWidth, H = window.innerHeight;
+  const fromLeft = Math.random() < 0.5;
+  const startX = fromLeft ? -40 : W + 40;
+  const endX   = fromLeft ? W + 40 : -40;
+  const baseY  = 110 + Math.random() * (H * 0.35);
+  hum.classList.toggle("facing-left", !fromLeft);
+  // path: 3 pause points where it hovers briefly, then darts to the next
+  const stops = [];
+  const n = 3;
+  for (let i = 1; i <= n; i++) {
+    const t = i / (n + 1);
+    stops.push({
+      x: startX + (endX - startX) * t + (Math.random() - 0.5) * 80,
+      y: baseY + (Math.random() - 0.5) * 110,
+      pauseMs: 700 + Math.random() * 900,
+    });
+  }
+
+  hum.style.left = startX + "px";
+  hum.style.top  = baseY + "px";
+  setTimeout(() => hum.classList.add("flying"), 30);
+
+  let claimed = false;
+  hum.addEventListener("click", (e) => {
+    if (claimed) return;
+    claimed = true;
+    spottedCount++;
+    try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
+    renderSpottedCount();
+    spawnCatchBurst(e.clientX, e.clientY);
+    toast("you saw the hummingbird · fastest visitor in the biosphere");
+    hum.classList.add("caught");
+    setTimeout(() => hum.remove(), 350);
+  });
+
+  // animate through the stops with quick darts (200-400ms) and hover pauses
+  let i = 0;
+  function dartTo() {
+    if (claimed || !document.body.contains(hum)) return;
+    if (i >= stops.length) {
+      // final dart off-screen
+      hum.style.transition = "left 700ms cubic-bezier(.4,.0,.6,1), top 700ms ease, transform 220ms ease";
+      hum.style.left = endX + "px";
+      hum.style.top  = (baseY + (Math.random() - 0.5) * 60) + "px";
+      setTimeout(() => { if (!claimed) hum.remove(); }, 850);
+      return;
+    }
+    const s = stops[i++];
+    const dur = 280 + Math.random() * 220;
+    hum.style.transition = `left ${dur}ms cubic-bezier(.3,.0,.6,1), top ${dur}ms ease, transform 220ms ease`;
+    hum.style.left = s.x + "px";
+    hum.style.top  = s.y + "px";
+    setTimeout(dartTo, dur + s.pauseMs);
+  }
+  setTimeout(dartTo, 120);
+}
+
+function maybeSpawnHummer() {
+  if (isMotionReduced()) { setTimeout(maybeSpawnHummer, 90_000); return; }
+  // ticks every 90-200s; only spawns if it's daylight
+  const wait = 90_000 + Math.random() * 110_000;
+  setTimeout(() => {
+    if (isDaylight()) spawnHummingbird();
+    maybeSpawnHummer();
+  }, wait);
+}
+setTimeout(maybeSpawnHummer, 30_000);
+
+/* ============================================================
+   feature: scrapbook — snap a polaroid of the current scene
+   captures a snapshot of what the biosphere looks/feels like
+   right now (mood, season, plant, warmth, what's been spotted).
+   saved polaroids show up as tiny tilted cards; click to open big.
+   ============================================================ */
+const SCRAPBOOK_KEY = "biosphere02.scrapbook.v1";
+const scrapSnap = document.getElementById("scrap-snap");
+const scrapList = document.getElementById("scrap-list");
+const scrapCount = document.getElementById("scrap-count");
+const polaroidsCountEl = document.getElementById("polaroids-count");
+const polaroidOverlay = document.getElementById("polaroid-overlay");
+const polaroidBig = document.getElementById("polaroid-big");
+const polaroidDelete = document.getElementById("polaroid-delete");
+
+let polaroids = [];
+try { polaroids = JSON.parse(localStorage.getItem(SCRAPBOOK_KEY) || "[]"); } catch {}
+let openedPolaroidId = null;
+
+function saveScrapbook() {
+  try { localStorage.setItem(SCRAPBOOK_KEY, JSON.stringify(polaroids)); } catch {}
+}
+
+function currentMood() {
+  for (const m of ["dawn", "day", "dusk", "night"]) if (document.body.classList.contains(m)) return m;
+  return "night";
+}
+function currentSeason() {
+  for (const s of ["spring", "summer", "autumn", "winter"]) if (document.body.classList.contains("season-" + s)) return s;
+  return "summer";
+}
+function moodGlyph(m) {
+  return ({ dawn: "🌅", day: "☀️", dusk: "🌇", night: "🌌" })[m] || "✦";
+}
+function seasonGlyph(s) {
+  return ({ spring: "🌸", summer: "🪲", autumn: "🍂", winter: "❄" })[s] || "✦";
+}
+function moodBg(m) {
+  // matches roughly the body day/night gradient
+  const map = {
+    dawn:  ["#3b2a4a", "#4a3344"],
+    day:   ["#1a3a6a", "#2a5a8a"],
+    dusk:  ["#4a2a3a", "#6a3a2a"],
+    night: ["#1a2050", "#0f2238"],
+  };
+  return map[m] || map.night;
+}
+
+function snapPolaroid() {
+  const now = new Date();
+  const mood = currentMood();
+  const season = currentSeason();
+  const [bgTop, bgBot] = moodBg(mood);
+  const stageName = (typeof stageNames !== "undefined" && plant)
+    ? stageNames[stageFor(plant.water, plant.daysSeen)]
+    : "seed";
+  const warmth = (hearth && typeof hearth.warmth === "number") ? warmthWord(hearth.warmth) : "—";
+  const card = (oracleState && oracleState.date === todayISO() && typeof oracleState.idx === "number")
+    ? oracleDeck[oracleState.idx].name : "undrawn";
+  const stars = userStars.length;
+  const lines = userLines.length;
+  const caught = caughtCount;
+  const spotted = spottedCount;
+  const wishes = (typeof loadWishes === "function") ? loadWishes().length : 0;
+  const bottles = bottlesRead;
+  const moments = momentsCount;
+
+  // a small caption that's chosen from a pool to vary the voice
+  const captions = [
+    `${mood} · ${season}`,
+    `the ${season} ${mood}`,
+    `${stageName.split(" ")[0]} weather`,
+    `quiet here · ${mood}`,
+    `seen ${spotted} · caught ${caught}`,
+  ];
+  const caption = captions[Math.floor(Math.random() * captions.length)];
+
+  const polaroid = {
+    id: Date.now(),
+    when: now.getTime(),
+    mood, season, bgTop, bgBot,
+    glyph: moodGlyph(mood),
+    seasonGlyph: seasonGlyph(season),
+    stage: stageName,
+    warmth, card,
+    stars, lines, caught, spotted, wishes, bottles, moments,
+    caption,
+    tilt: (Math.random() * 6 - 3).toFixed(1),
+  };
+  polaroids.unshift(polaroid);
+  if (polaroids.length > 40) polaroids.length = 40; // cap so localStorage doesn't bloat
+  saveScrapbook();
+  renderScrapbook();
+  toast("polaroid in the album · this moment is kept");
+}
+
+function smallPolaroidHTML(p) {
+  return `
+    <div class="polaroid" data-id="${p.id}" style="--p-tilt: ${p.tilt}deg; --p-bg-top: ${p.bgTop}; --p-bg-bot: ${p.bgBot};">
+      <div class="p-scene">
+        <div class="p-glyph">${p.glyph}</div>
+        <div class="p-pond"></div>
+      </div>
+      <div class="p-caption">${escapeHtml(p.caption)}</div>
+      <div class="p-when">${formatPolaroidWhen(p.when, true)}</div>
+    </div>
+  `;
+}
+
+function bigPolaroidHTML(p) {
+  const statsParts = [];
+  if (p.stars)   statsParts.push(`✦ ${p.stars}`);
+  if (p.caught)  statsParts.push(`★ caught ${p.caught}`);
+  if (p.spotted) statsParts.push(`🦊 spotted ${p.spotted}`);
+  if (p.wishes)  statsParts.push(`🌠 ${p.wishes}`);
+  if (p.bottles) statsParts.push(`🍾 ${p.bottles}`);
+  if (p.moments) statsParts.push(`🗼 ${p.moments}`);
+  statsParts.push(`🌱 ${escapeHtml(p.stage)}`);
+  statsParts.push(`🔥 ${escapeHtml(p.warmth)}`);
+  if (p.card && p.card !== "undrawn") statsParts.push(`🔮 ${escapeHtml(p.card)}`);
+  const stats = statsParts.join(" · ");
+  return `
+    <div class="p-scene" style="--p-bg-top: ${p.bgTop}; --p-bg-bot: ${p.bgBot};">
+      <div class="p-glyph">${p.glyph}${p.seasonGlyph !== "✦" ? " " + p.seasonGlyph : ""}</div>
+      <div class="p-pond"></div>
+    </div>
+    <div class="p-caption">${escapeHtml(p.caption)}</div>
+    <div class="p-when">${formatPolaroidWhen(p.when, false)}</div>
+    <div class="p-stats">${stats}</div>
+  `;
+}
+
+function formatPolaroidWhen(ts, short) {
+  const d = new Date(ts);
+  const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: short ? undefined : "numeric" });
+  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${date.toLowerCase()} · ${time.toLowerCase()}`;
+}
+
+function renderScrapbook() {
+  if (!scrapList) return;
+  if (polaroidsCountEl) polaroidsCountEl.textContent = polaroids.length;
+  if (scrapCount) scrapCount.textContent = `${polaroids.length} saved`;
+  if (polaroids.length === 0) {
+    scrapList.innerHTML = `<div class="scrap-empty">no polaroids yet · snap one above</div>`;
+    return;
+  }
+  scrapList.innerHTML = polaroids.map(smallPolaroidHTML).join("");
+}
+renderScrapbook();
+
+if (scrapSnap) scrapSnap.addEventListener("click", snapPolaroid);
+
+if (scrapList) {
+  scrapList.addEventListener("click", (e) => {
+    const card = e.target.closest(".polaroid");
+    if (!card) return;
+    const id = +card.dataset.id;
+    const p = polaroids.find(pp => pp.id === id);
+    if (!p || !polaroidOverlay) return;
+    openedPolaroidId = id;
+    polaroidBig.innerHTML = bigPolaroidHTML(p);
+    polaroidOverlay.hidden = false;
+  });
+}
+
+function closePolaroidOverlay() {
+  if (polaroidOverlay) polaroidOverlay.hidden = true;
+  openedPolaroidId = null;
+}
+if (polaroidOverlay) {
+  polaroidOverlay.addEventListener("click", (e) => { if (e.target === polaroidOverlay) closePolaroidOverlay(); });
+}
+if (polaroidDelete) {
+  polaroidDelete.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (openedPolaroidId == null) return;
+    polaroids = polaroids.filter(p => p.id !== openedPolaroidId);
+    saveScrapbook();
+    renderScrapbook();
+    closePolaroidOverlay();
+    toast("polaroid taken out of the album");
+  });
+}
+document.addEventListener("keydown", (e) => {
+  if (!polaroidOverlay || polaroidOverlay.hidden) return;
+  if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); closePolaroidOverlay(); }
+});
