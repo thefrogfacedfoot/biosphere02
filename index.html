@@ -44,19 +44,20 @@
 <header class="topbar">
   <div class="brand">
     <span class="logo">✦</span>
-    <span class="title">biosphere/02</span>
-    <span class="subtitle">a small forest under the stars</span>
-  </div>
-  <div class="topbar-search-wrap">
-    <span class="topbar-search-icon">🔍</span>
-    <input id="global-search" class="topbar-search" type="text" placeholder="search the biosphere…" autocomplete="off" spellcheck="false" />
-    <div id="global-search-results" class="search-results" hidden></div>
   </div>
   <div class="topbar-right">
     <button class="iconbtn" id="toggle-stargazer" title="stargazer mode (F)">🌌</button>
     <div class="clock" id="clock">--:--:--</div>
   </div>
 </header>
+
+<!-- background watermark + hero search (centered above the windows) -->
+<div id="bio-watermark" aria-hidden="true">Biosphere</div>
+<div class="hero-search-wrap" id="hero-search-wrap">
+  <span class="hero-search-icon">🔍</span>
+  <input id="global-search" class="hero-search" type="text" placeholder="search the biosphere…" autocomplete="off" spellcheck="false" />
+  <div id="global-search-results" class="search-results" hidden></div>
+</div>
 
 <!-- stargazer hint (only visible in stargazer mode) -->
 <div class="stargazer-hint">press <kbd>F</kbd> or <kbd>esc</kbd> to come back</div>
