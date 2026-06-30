@@ -16,6 +16,29 @@
 <div id="fog"></div>
 <canvas id="pond"></canvas>
 <div id="season-particles"></div>
+<div id="hearth-glow"></div>
+
+<!-- welcome page (full-screen splash, first visit only — dismissable forever) -->
+<div id="welcome-page" class="welcome-page" hidden>
+  <div class="welcome-card">
+    <div class="welcome-mark">✦</div>
+    <h1 class="welcome-title">
+      <span class="w-word">biosphere</span><span class="w-slash">/</span><span class="w-word">02</span>
+    </h1>
+    <p class="welcome-sub">a small forest under the stars</p>
+    <p class="welcome-body">
+      this is a quiet corner of the internet — half forest, half star map,
+      sealed in glass. everything responds to you.
+    </p>
+    <ul class="welcome-list">
+      <li><span class="w-bull">·</span> drag the windows like loose stones</li>
+      <li><span class="w-bull">·</span> click the sky to drop a star</li>
+      <li><span class="w-bull">·</span> water a seed and come back tomorrow</li>
+    </ul>
+    <button id="welcome-enter" class="welcome-enter">step inside ✦</button>
+    <p class="welcome-tiny">nothing here is locked · nothing tracks you</p>
+  </div>
+</div>
 
 <!-- top bar -->
 <header class="topbar">
@@ -245,6 +268,8 @@
       <div class="status-row"><span>wishes made</span><b id="wishes-count">0</b></div>
       <div class="status-row"><span>stars caught</span><b id="caught-count">0</b></div>
       <div class="status-row"><span>creatures spotted</span><b id="spotted-count">0</b></div>
+      <div class="status-row"><span>bottles opened</span><b id="bottles-count">0</b></div>
+      <div class="status-row"><span>warmth</span><b id="warmth-stat">cold</b></div>
       <div class="status-row"><span>season</span><b id="season-label">…</b></div>
     </div>
   </section>
@@ -341,6 +366,65 @@
     </div>
   </section>
 
+  <!-- WINDOW: constellation atlas (stamp famous constellations onto your sky) -->
+  <section class="window" data-id="atlas" style="left: 700px; top: 520px; width: 320px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/atlas 📜</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content atlas">
+      <p class="hint">famous shapes the ancients drew first. stamp one onto your sky and connect the lines for it.</p>
+      <div class="atlas-list" id="atlas-list"></div>
+    </div>
+  </section>
+
+  <!-- WINDOW: cabin / campfire (feed a fire, warmth meter) -->
+  <section class="window" data-id="cabin" style="left: 60px; top: 360px; width: 320px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/cabin 🔥</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content cabin">
+      <p class="hint">a small fire by the pond. feed it. it warms the corner of the desktop. it slowly fades when you're not looking.</p>
+      <div class="hearth" id="hearth">
+        <svg id="hearth-svg" viewBox="0 0 200 140" preserveAspectRatio="xMidYMax meet">
+          <ellipse cx="100" cy="128" rx="60" ry="6" fill="#1a0d05" opacity="0.85"/>
+          <g id="flame"></g>
+          <!-- stones around the pit -->
+          <ellipse cx="60" cy="124" rx="14" ry="7" fill="#5a4a3a" opacity="0.9"/>
+          <ellipse cx="100" cy="128" rx="16" ry="7" fill="#6a5a4a" opacity="0.9"/>
+          <ellipse cx="140" cy="124" rx="14" ry="7" fill="#5a4a3a" opacity="0.9"/>
+          <!-- logs (always visible, charred at low warmth) -->
+          <rect x="74" y="112" width="52" height="6" rx="3" fill="#3a2010"/>
+          <rect x="80" y="118" width="40" height="5" rx="2.5" fill="#2a1808"/>
+        </svg>
+        <div class="ember-host" id="ember-host"></div>
+      </div>
+      <div class="hearth-row">
+        <button id="add-log">🪵 add log</button>
+        <div class="warmth-bar">
+          <div class="warmth-fill" id="warmth-fill"></div>
+        </div>
+        <span id="warmth-label" class="warmth-label">cold ash</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- WINDOW: forecast (7-day biosphere forecast — meteor showers, aurora, fog) -->
+  <section class="window" data-id="forecast" style="left: 470px; top: 360px; width: 380px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/forecast 🌤</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content forecast">
+      <p class="hint">what the sky has in store this week. some days the biosphere keeps its promises — meteor-shower days actually do shower.</p>
+      <div class="forecast-list" id="forecast-list"></div>
+    </div>
+  </section>
+
   <!-- WINDOW: settings -->
   <section class="window mini" data-id="settings" style="left: 1240px; top: 90px; width: 240px;">
     <div class="titlebar">
@@ -378,12 +462,23 @@
         </select>
       </div>
       <hr class="set-sep" />
+      <button id="set-show-welcome" class="set-ghost">show the welcome page again</button>
       <button id="set-reset" class="set-danger">reset everything</button>
       <p class="tiny">clears your sky, plant, notes, wishes and window positions.</p>
     </div>
   </section>
 
 </main>
+
+<!-- bottle-in-the-pond overlay (drifting bottles open this) -->
+<div id="bottle-overlay" class="palette" hidden>
+  <div class="palette-shell bottle-shell">
+    <div class="bottle-head">🍾 a bottle washed up</div>
+    <div class="bottle-body" id="bottle-body"></div>
+    <div class="bottle-from" id="bottle-from"></div>
+    <div class="palette-hint"><kbd>↵</kbd> set it back to drift · <kbd>esc</kbd> close</div>
+  </div>
+</div>
 
 <!-- make-a-wish overlay (triggered by konami code) -->
 <div id="wish-overlay" class="palette" hidden>

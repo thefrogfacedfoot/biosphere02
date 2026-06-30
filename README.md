@@ -26,8 +26,13 @@ biosphere02/
 
 ## Features
 
+### the welcome page
+- on first visit a full-screen splash fades in: title, three tips, and a "step inside ✦" button
+- dismissal persists; the splash never reappears (except via `~/settings`)
+- skipped for visitors who arrive on a shared-sky link — they came for someone's constellation, not an intro
+
 ### the desktop
-- 10 draggable windows: `~/about.md`, `~/devlog/`, `~/projects/`, `~/greenhouse 🌿`, `~/status`, `~/contact`, `~/constellation-studio ✦`, `~/ambient-orbit 🪐`, `~/mycelium 🍄`
+- 13 draggable windows: `~/about.md`, `~/devlog/`, `~/projects/`, `~/greenhouse 🌿`, `~/status`, `~/contact`, `~/constellation-studio ✦`, `~/ambient-orbit 🪐`, `~/mycelium 🍄`, `~/atlas 📜`, `~/cabin 🔥`, `~/forecast 🌤`, `~/settings ⚙`
 - titlebar drag (pointer events — works on trackpads + touch)
 - minimize → taskbar, close → taskbar, maximize, resize-from-corner
 - soft snap to screen edges
@@ -47,6 +52,22 @@ biosphere02/
 - **lily pads** drift across the pond. click one and a small ✦ jumps from the pad like a frog blip.
 - **a wandering fox** 🦊 trots along the pond's shoreline every minute or two. hover to pause, click to spot (counts in `~/status`).
 - **a twilight owl** 🦉 occasionally glides across the upper sky at night. click to spot — same counter as the fox.
+- **bottles** drift across the pond carrying small fragments — poems, koans, quiet thoughts. click one to read what's inside. count in `~/status`.
+
+### the constellation atlas 📜
+- six famous shapes (Orion, Cassiopeia, Big Dipper, Cygnus, Leo, Lyra) drawn from unit-space coords
+- each entry has a tiny preview, a one-line myth, and a "stamp" button
+- stamping drops the constellation onto your sky (the first star carries the name as its label) — the button flips to "stamped ✓" so you don't accidentally double-stamp the same shape
+
+### the cabin 🔥
+- a small SVG fire pit in `~/cabin`. feed it with the 🪵 add log button
+- warmth decays in real time (30 points per hour) — leave for an evening and you'll come back to embers
+- intensity drives the live flames (size, color), ember particles floating out of the window, and an amber glow on the bottom-left of the desktop. warmth shows up in `~/status` as "cold ash · smoldering · ember · warm · crackling · blazing 🔥"
+
+### the forecast 🌤
+- a 7-day biosphere forecast in `~/forecast` — meteor showers, aurora drifts, ground fog, thin moons, soft rain, season-tinted events (petal drift / firefly bloom / leaf wind / first snow)
+- deterministic from each day's date so it doesn't shift under you on refresh
+- if today's forecast is "meteor shower" the shooting-star rate is boosted (~5-11s instead of 15-30s); if it's "aurora drift" the aurora layer brightens
 
 ### the greenhouse 🌱
 Plant a seed and water it. The plant grows through 6 SVG stages (seed → sprout → sapling → young tree → thriving tree → ancient grove) based on two signals:

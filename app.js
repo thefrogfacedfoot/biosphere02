@@ -251,6 +251,8 @@ function addTask(win) {
     delete win.dataset.closed;
     bringToFront(win);
     t.remove();
+    // a window may have been left off-screen at smaller viewports — pull it back in
+    if (typeof clampWindowsToViewport === "function") clampWindowsToViewport();
     saveWindowState();
   });
   taskbar.appendChild(t);
@@ -2167,3 +2169,567 @@ applySettings = function () {
   currentSeasonClass = null;
   applySeason();
 };
+
+/* ============================================================
+   feature: welcome page (full-screen first-visit splash)
+   theatrical intro on first arrival. dismiss persists forever.
+   re-opening is available from the settings window.
+   ============================================================ */
+const WELCOME_KEY = "biosphere02.welcomed.v1";
+const welcomePage = document.getElementById("welcome-page");
+const welcomeEnter = document.getElementById("welcome-enter");
+
+function openWelcome() {
+  if (!welcomePage) return;
+  welcomePage.hidden = false;
+  welcomePage.classList.remove("leaving");
+  // focus the enter button so ↵ closes it
+  setTimeout(() => { if (welcomeEnter) welcomeEnter.focus(); }, 60);
+}
+function closeWelcome() {
+  if (!welcomePage) return;
+  welcomePage.classList.add("leaving");
+  setTimeout(() => { welcomePage.hidden = true; }, 920);
+  try { localStorage.setItem(WELCOME_KEY, "1"); } catch {}
+}
+
+// show on first visit, but never over a shared-sky link (the visitor came
+// for someone's constellation — they shouldn't have to push through an intro)
+const _alreadyWelcomed = (() => { try { return localStorage.getItem(WELCOME_KEY) === "1"; } catch { return true; } })();
+const _hasSharedHash = /^#c=/.test(location.hash || "");
+if (!_alreadyWelcomed && !_hasSharedHash) openWelcome();
+
+if (welcomeEnter) welcomeEnter.addEventListener("click", closeWelcome);
+if (welcomePage) {
+  welcomePage.addEventListener("click", (e) => {
+    if (e.target === welcomePage) closeWelcome();
+  });
+}
+document.addEventListener("keydown", (e) => {
+  if (welcomePage && !welcomePage.hidden && (e.key === "Escape" || e.key === "Enter")) {
+    e.preventDefault();
+    closeWelcome();
+  }
+});
+
+const setShowWelcome = document.getElementById("set-show-welcome");
+if (setShowWelcome) setShowWelcome.addEventListener("click", openWelcome);
+
+/* ============================================================
+   feature: constellation atlas
+   famous shapes you can stamp onto your own sky. each entry
+   has unit-coords (0..1) that scale into the user's viewport,
+   plus a tiny line list and a one-line myth.
+   ============================================================ */
+const atlasList = document.getElementById("atlas-list");
+const atlasEntries = [
+  {
+    name: "Orion",
+    myth: "the hunter · belt and sword across the winter sky",
+    stars: [[0.50,0.10],[0.32,0.20],[0.70,0.18],[0.40,0.55],[0.50,0.58],[0.60,0.55],[0.30,0.92],[0.74,0.86]],
+    lines: [[0,1],[0,2],[1,3],[2,5],[3,4],[4,5],[3,6],[5,7]],
+  },
+  {
+    name: "Cassiopeia",
+    myth: "the queen on her throne — a W carved across the north",
+    stars: [[0.10,0.50],[0.30,0.20],[0.50,0.50],[0.70,0.18],[0.90,0.48]],
+    lines: [[0,1],[1,2],[2,3],[3,4]],
+  },
+  {
+    name: "Big Dipper",
+    myth: "the great bear's tail · a ladle pointing always at north",
+    stars: [[0.10,0.55],[0.28,0.62],[0.46,0.58],[0.64,0.45],[0.78,0.30],[0.92,0.20],[0.96,0.40]],
+    lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[3,6]],
+  },
+  {
+    name: "Cygnus",
+    myth: "the swan in flight — wings spread along the milky way",
+    stars: [[0.50,0.05],[0.50,0.40],[0.50,0.75],[0.18,0.55],[0.82,0.55],[0.50,0.95]],
+    lines: [[0,1],[1,2],[1,3],[1,4],[2,5]],
+  },
+  {
+    name: "Leo",
+    myth: "the lion · a sickle for his mane and a sleeping body",
+    stars: [[0.18,0.30],[0.30,0.18],[0.40,0.30],[0.48,0.48],[0.40,0.62],[0.62,0.62],[0.82,0.50],[0.86,0.70]],
+    lines: [[0,1],[1,2],[2,3],[3,4],[3,5],[5,6],[6,7]],
+  },
+  {
+    name: "Lyra",
+    myth: "the harp — a small parallelogram beside vega the bright",
+    stars: [[0.40,0.10],[0.35,0.40],[0.65,0.45],[0.40,0.75],[0.65,0.80]],
+    lines: [[0,1],[0,2],[1,3],[2,4],[3,4]],
+  },
+];
+
+function atlasPreviewSvg(entry) {
+  // tiny preview rendered into the list. 56 x 44, padded.
+  const W = 52, H = 40, pad = 4;
+  let lines = "";
+  for (const [a, b] of entry.lines) {
+    const ax = pad + entry.stars[a][0] * W, ay = pad + entry.stars[a][1] * H;
+    const bx = pad + entry.stars[b][0] * W, by = pad + entry.stars[b][1] * H;
+    lines += `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" stroke="rgba(143,212,154,0.6)" stroke-width="0.7"/>`;
+  }
+  let stars = "";
+  for (const [x, y] of entry.stars) {
+    stars += `<circle cx="${(pad + x * W).toFixed(1)}" cy="${(pad + y * H).toFixed(1)}" r="1.2" fill="#ffe6b8"/>`;
+  }
+  return `<svg class="atlas-preview" viewBox="0 0 56 44">${lines}${stars}</svg>`;
+}
+
+function stampAtlas(entry) {
+  if (typeof viewingShared !== "undefined" && viewingShared) {
+    toast("can't stamp onto a shared sky · return to yours first");
+    return;
+  }
+  // pick a 280-340 px box, randomly positioned in the safe sky area
+  const W = window.innerWidth, H = window.innerHeight;
+  const boxW = 260 + Math.random() * 120;
+  const boxH = boxW * 0.85;
+  // safe zone: avoid topbar, pond area, taskbar
+  const margin = 40;
+  const minX = margin, maxX = W - boxW - margin;
+  const minY = 60, maxY = Math.max(minY + 1, H * 0.55 - boxH);
+  const ox = minX + Math.random() * Math.max(0, maxX - minX);
+  const oy = minY + Math.random() * Math.max(0, maxY - minY);
+
+  const baseIdx = userStars.length;
+  for (let i = 0; i < entry.stars.length; i++) {
+    const [ux, uy] = entry.stars[i];
+    const x = ox + ux * boxW;
+    const y = oy + uy * boxH;
+    userStars.push(i === 0 ? { x, y, label: entry.name } : { x, y });
+  }
+  for (const [a, b] of entry.lines) {
+    userLines.push({ a: baseIdx + a, b: baseIdx + b });
+  }
+  saveConstellation();
+  toast(`${entry.name} stamped onto the sky ✦`);
+  renderAtlas(); // re-render to flip its button state
+}
+
+function isStamped(entry) {
+  return userStars.some(s => s.label === entry.name);
+}
+
+function renderAtlas() {
+  if (!atlasList) return;
+  atlasList.innerHTML = atlasEntries.map((e, i) => `
+    <div class="atlas-item" data-i="${i}">
+      ${atlasPreviewSvg(e)}
+      <div class="atlas-meta">
+        <div class="atlas-name">${escapeHtml(e.name)}</div>
+        <div class="atlas-myth">${escapeHtml(e.myth)}</div>
+      </div>
+      <button class="atlas-stamp ${isStamped(e) ? "stamped" : ""}">${isStamped(e) ? "stamped ✓" : "stamp"}</button>
+    </div>
+  `).join("");
+}
+renderAtlas();
+
+if (atlasList) {
+  atlasList.addEventListener("click", (e) => {
+    const btn = e.target.closest(".atlas-stamp");
+    if (!btn) return;
+    const item = btn.closest(".atlas-item");
+    const idx = +item.dataset.i;
+    const entry = atlasEntries[idx];
+    if (!entry) return;
+    if (isStamped(entry)) {
+      toast(`${entry.name} is already on your sky · find it among the stars`);
+      return;
+    }
+    stampAtlas(entry);
+  });
+}
+
+/* ============================================================
+   feature: cabin / campfire (warmth meter, decays in real time)
+   feed the fire with a log. higher warmth = brighter SVG flames,
+   more embers, and a soft amber glow in the bottom-left corner.
+   warmth shows up in ~/status.
+   ============================================================ */
+const HEARTH_KEY = "biosphere02.hearth.v1";
+const DECAY_PER_HOUR = 30; // warmth points lost per hour of unattended fire
+const MAX_WARMTH = 100;
+
+function loadHearth() {
+  try {
+    const d = JSON.parse(localStorage.getItem(HEARTH_KEY) || "null");
+    if (d) return d;
+  } catch {}
+  return { warmth: 0, t: Date.now() };
+}
+function saveHearth(h) {
+  try { localStorage.setItem(HEARTH_KEY, JSON.stringify(h)); } catch {}
+}
+
+let hearth = loadHearth();
+// decay-since-last-touch so the fire really fades while you're gone
+function applyHearthDecay() {
+  const now = Date.now();
+  const hoursAway = (now - (hearth.t || now)) / 3_600_000;
+  hearth.warmth = Math.max(0, (hearth.warmth || 0) - hoursAway * DECAY_PER_HOUR);
+  hearth.t = now;
+}
+applyHearthDecay();
+saveHearth(hearth);
+
+const flameG = document.getElementById("flame");
+const hearthEl = document.getElementById("hearth");
+const emberHost = document.getElementById("ember-host");
+const warmthFill = document.getElementById("warmth-fill");
+const warmthLabel = document.getElementById("warmth-label");
+const warmthStat = document.getElementById("warmth-stat");
+const hearthGlow = document.getElementById("hearth-glow");
+
+function warmthWord(w) {
+  if (w < 4)  return "cold ash";
+  if (w < 18) return "smoldering";
+  if (w < 40) return "ember";
+  if (w < 65) return "warm";
+  if (w < 88) return "crackling";
+  return "blazing 🔥";
+}
+
+function renderFlame(w) {
+  // size & color drift with warmth
+  if (!flameG) return;
+  if (w < 2) {
+    // just smoke wisps
+    flameG.innerHTML = `
+      <path d="M92 116 Q88 108 96 100 Q104 94 100 88" stroke="rgba(200,200,200,0.25)" stroke-width="2" fill="none"/>
+      <path d="M108 118 Q114 110 106 102" stroke="rgba(200,200,200,0.18)" stroke-width="2" fill="none"/>
+    `;
+    return;
+  }
+  const scale = 0.5 + (w / MAX_WARMTH) * 0.9;
+  const orange = `rgba(255, ${Math.round(120 + w * 0.5)}, 60, 0.9)`;
+  const yellow = `rgba(255, ${Math.round(200 + w * 0.5)}, 140, 0.92)`;
+  const core   = `rgba(255, 240, 200, 0.95)`;
+  flameG.innerHTML = `
+    <g transform="translate(100 130) scale(${scale.toFixed(2)}) translate(-100 -130)">
+      <path class="flame-tongue t1" d="M100 130 Q60 100 90 50 Q100 30 110 50 Q140 100 100 130 Z" fill="${orange}"/>
+      <path class="flame-tongue t2" d="M100 130 Q78 100 95 60 Q100 48 105 60 Q122 100 100 130 Z" fill="${yellow}"/>
+      <path class="flame-tongue t3" d="M100 130 Q90 110 98 80 Q100 70 102 80 Q110 110 100 130 Z" fill="${core}"/>
+    </g>
+  `;
+}
+
+function renderWarmth() {
+  const w = hearth.warmth || 0;
+  if (warmthFill) warmthFill.style.width = Math.min(100, w) + "%";
+  const word = warmthWord(w);
+  if (warmthLabel) warmthLabel.textContent = word;
+  if (warmthStat) warmthStat.textContent = word;
+  if (hearthEl) hearthEl.classList.toggle("bright", w >= 40);
+  renderFlame(w);
+  // global corner glow
+  if (hearthGlow) {
+    const a = Math.min(0.32, w / MAX_WARMTH * 0.32);
+    hearthGlow.style.setProperty("--hearth-a", a.toFixed(3));
+  }
+}
+renderWarmth();
+
+let _lastLog = 0;
+const addLogBtn = document.getElementById("add-log");
+if (addLogBtn) {
+  addLogBtn.addEventListener("click", () => {
+    const now = Date.now();
+    if (now - _lastLog < 320) return; // throttle: stops a stick-spam from instantly maxing it
+    _lastLog = now;
+    applyHearthDecay(); // catch up before adding so the math stays honest
+    hearth.warmth = Math.min(MAX_WARMTH, hearth.warmth + 22);
+    hearth.t = Date.now();
+    saveHearth(hearth);
+    renderWarmth();
+    // a small puff of embers at the moment of adding
+    spawnEmbers(Math.min(8, 3 + Math.floor(hearth.warmth / 18)));
+    if (hearth.warmth >= MAX_WARMTH - 0.5) toast("the fire is roaring 🔥", 1800);
+  });
+}
+
+function spawnEmbers(n) {
+  if (!emberHost) return;
+  if (isMotionReduced()) return;
+  for (let i = 0; i < n; i++) {
+    const e = document.createElement("div");
+    e.className = "ember";
+    e.style.left = (40 + Math.random() * (emberHost.offsetWidth - 80)) + "px";
+    e.style.setProperty("--ember-dx", ((Math.random() - 0.5) * 40).toFixed(0) + "px");
+    e.style.animationDuration = (1600 + Math.random() * 1400) + "ms";
+    emberHost.appendChild(e);
+    setTimeout(() => e.remove(), 3200);
+  }
+}
+// ambient embers when the fire is alive
+setInterval(() => {
+  if (!hearth) return;
+  applyHearthDecay();
+  saveHearth(hearth);
+  renderWarmth();
+  if (hearth.warmth > 8 && Math.random() < hearth.warmth / 140) {
+    spawnEmbers(1 + Math.floor(hearth.warmth / 35));
+  }
+}, 2200);
+
+/* ============================================================
+   feature: 7-day biosphere forecast
+   deterministic from each day's date string so reloads are stable.
+   today's row is highlighted. if today is "meteor shower",
+   the shooting-star spawn rate gets boosted.
+   ============================================================ */
+const forecastList = document.getElementById("forecast-list");
+
+// a small deterministic hash so today's forecast doesn't change on refresh
+function dateHash(d) {
+  const s = d.toDateString();
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function forecastFor(d) {
+  // pool of events; some are season-tinted, some are time-of-year specific
+  const m = d.getMonth();
+  const pool = [
+    { glyph: "✦",  label: "clear night",     note: "a million quiet stars",        kind: "clear" },
+    { glyph: "⭐", label: "meteor shower",    note: "look up · count the streaks",  kind: "meteors" },
+    { glyph: "🌌", label: "aurora drift",    note: "the sky moves like cloth",     kind: "aurora" },
+    { glyph: "🌫", label: "ground fog",      note: "the forest holds its breath",  kind: "fog" },
+    { glyph: "🌧", label: "soft rain",       note: "the pond keeps time",          kind: "rain" },
+    { glyph: "🌙", label: "thin moon",       note: "a sliver of silver",           kind: "moon" },
+    { glyph: "☁",  label: "low cloud",       note: "stars come and go",            kind: "cloud" },
+  ];
+  // season-specific events get a small bonus appearance rate
+  const seasonal = [];
+  if (m >= 2 && m <= 4)  seasonal.push({ glyph: "🌸", label: "petal drift",     note: "spring sheds onto the page",  kind: "spring" });
+  if (m >= 5 && m <= 7)  seasonal.push({ glyph: "🪲", label: "firefly bloom",   note: "the meadow is full of light", kind: "fireflies" });
+  if (m >= 8 && m <= 10) seasonal.push({ glyph: "🍂", label: "leaf wind",       note: "amber drifts through the trees", kind: "leaves" });
+  if (m === 11 || m <= 1) seasonal.push({ glyph: "❄", label: "first snow",     note: "the pond freezes by morning",  kind: "snow" });
+
+  const all = pool.concat(seasonal);
+  const h = dateHash(d);
+  return all[h % all.length];
+}
+
+function forecastDayLabel(d, offset) {
+  if (offset === 0) return "today";
+  if (offset === 1) return "tomorrow";
+  return d.toLocaleDateString(undefined, { weekday: "short" }).toLowerCase();
+}
+
+function renderForecast() {
+  if (!forecastList) return;
+  const today = new Date();
+  let html = "";
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    const f = forecastFor(d);
+    const dayLbl = forecastDayLabel(d, i);
+    const dateLbl = d.toLocaleDateString(undefined, { month: "short", day: "numeric" }).toLowerCase();
+    html += `
+      <div class="forecast-row ${i === 0 ? "today" : ""}">
+        <span class="forecast-day">${escapeHtml(dayLbl)} · ${escapeHtml(dateLbl)}</span>
+        <span class="forecast-glyph">${f.glyph}</span>
+        <span class="forecast-label">${escapeHtml(f.label)}<span class="forecast-note">${escapeHtml(f.note)}</span></span>
+      </div>
+    `;
+  }
+  html += `<div class="forecast-foot">forecasts are sealed at midnight · they don't shift on you</div>`;
+  forecastList.innerHTML = html;
+}
+renderForecast();
+// re-render around midnight so "today" stays accurate for someone leaving the tab open
+setInterval(renderForecast, 10 * 60 * 1000);
+
+// boost shooting-star spawn rate when today's forecast calls for meteors
+const _todayForecast = forecastFor(new Date());
+if (_todayForecast.kind === "meteors") {
+  const _origMaybeSpawnForMeteor = maybeSpawnShooter;
+  maybeSpawnShooter = function () {
+    if (isMotionReduced()) return;
+    const next = 4500 + Math.random() * 6500; // ~5-11s instead of 15-30s
+    setTimeout(() => { spawnShooter(); maybeSpawnShooter(); }, next);
+  };
+}
+// when today is "aurora drift", strengthen the aurora layer
+if (_todayForecast.kind === "aurora") {
+  document.body.classList.add("forecast-aurora");
+  const auroraEl = document.getElementById("aurora");
+  if (auroraEl) auroraEl.style.opacity = "1.4";
+}
+
+/* ============================================================
+   feature: bottles in the pond
+   tiny bottles drift across the pond canvas. clicking one opens
+   an overlay with a short curated fragment inside. the bottle
+   then drifts away. counter persists in ~/status.
+   ============================================================ */
+const BOTTLES_KEY = "biosphere02.bottles.v1";
+const BOTTLES_READ_KEY = "biosphere02.bottles-read.v1";
+
+const bottleNotes = [
+  { body: "the river is everywhere at once and never the same place twice.", from: "from a small green book, no title" },
+  { body: "instructions for a quiet evening: leave one window open. wait.", from: "scrap of paper, water-stained" },
+  { body: "you don't have to be useful tonight.", from: "found in a coat pocket" },
+  { body: "the moon has been doing this for four billion years. you can take ten minutes.", from: "anon" },
+  { body: "every tree in the forest is leaning, very slowly, toward something it has not yet seen.", from: "from a notebook left on a bench" },
+  { body: "the trick is not to mistake the map for the forest.", from: "advice from an older fox" },
+  { body: "small things are doing their job. trust them.", from: "torn page, may 1998" },
+  { body: "if you've been spinning, here is a still point: this sentence. read it twice.", from: "anonymous" },
+  { body: "you've already done enough today. the stars will come out regardless.", from: "from a friend" },
+  { body: "the world is patient. it has practice.", from: "scratched into bark" },
+  { body: "kindness is a kind of weather. it spreads.", from: "from a sticky note" },
+  { body: "look up · this is the only sky you'll have today.", from: "a margin note" },
+];
+
+let bottlesRead = (() => { try { return +localStorage.getItem(BOTTLES_READ_KEY) || 0; } catch { return 0; } })();
+function renderBottlesCount() {
+  const el = document.getElementById("bottles-count");
+  if (el) el.textContent = bottlesRead;
+}
+renderBottlesCount();
+
+const bottles = []; // {x, y, vx, bobPhase, noteIdx, opened}
+
+function pickNoteIdx() {
+  // try to avoid repeating the very last opened note
+  let last = -1;
+  try { last = +localStorage.getItem(BOTTLES_KEY); if (Number.isNaN(last)) last = -1; } catch {}
+  let idx;
+  let tries = 0;
+  do { idx = Math.floor(Math.random() * bottleNotes.length); tries++; }
+  while (idx === last && tries < 6);
+  return idx;
+}
+
+function spawnBottle() {
+  if (pondW === 0) return;
+  // only 1-2 in the water at a time
+  if (bottles.length >= 2) return;
+  const fromLeft = Math.random() < 0.5;
+  bottles.push({
+    x: fromLeft ? -20 : pondW + 20,
+    y: 30 + Math.random() * (pondH - 60),
+    vx: (fromLeft ? 1 : -1) * (0.10 + Math.random() * 0.08),
+    bobPhase: Math.random() * Math.PI * 2,
+    noteIdx: pickNoteIdx(),
+    opened: false,
+  });
+}
+
+function drawBottles(t) {
+  for (let i = bottles.length - 1; i >= 0; i--) {
+    const b = bottles[i];
+    b.x += b.vx;
+    if (b.x < -40 || b.x > pondW + 40) { bottles.splice(i, 1); continue; }
+    const wob = Math.sin(t * 0.0014 + b.bobPhase) * 1.4;
+    pondCtx.save();
+    pondCtx.translate(b.x, b.y + wob);
+    // bottle is roughly 16x6 lying on its side, pointing in the direction of travel
+    if (b.vx < 0) pondCtx.scale(-1, 1);
+    // body
+    pondCtx.fillStyle = b.opened ? "rgba(180, 200, 200, 0.45)" : "rgba(143, 212, 154, 0.78)";
+    pondCtx.strokeStyle = "rgba(220, 240, 220, 0.55)";
+    pondCtx.lineWidth = 0.6;
+    pondCtx.beginPath();
+    pondCtx.moveTo(-8, -3);
+    pondCtx.lineTo(5, -3);
+    pondCtx.lineTo(7, -2);
+    pondCtx.lineTo(7, 2);
+    pondCtx.lineTo(5, 3);
+    pondCtx.lineTo(-8, 3);
+    pondCtx.quadraticCurveTo(-10, 0, -8, -3);
+    pondCtx.closePath();
+    pondCtx.fill();
+    pondCtx.stroke();
+    // cork
+    pondCtx.fillStyle = "rgba(160, 110, 60, 0.95)";
+    pondCtx.fillRect(7, -1.6, 2, 3.2);
+    // tiny scroll inside (only if unopened)
+    if (!b.opened) {
+      pondCtx.fillStyle = "rgba(255, 240, 200, 0.78)";
+      pondCtx.fillRect(-5, -1, 8, 2);
+    }
+    // soft glow
+    const grad = pondCtx.createRadialGradient(0, 0, 0, 0, 0, 14);
+    grad.addColorStop(0, "rgba(255, 240, 200, 0.18)");
+    grad.addColorStop(1, "rgba(255, 240, 200, 0)");
+    pondCtx.fillStyle = grad;
+    pondCtx.beginPath(); pondCtx.arc(0, 0, 14, 0, Math.PI * 2); pondCtx.fill();
+    pondCtx.restore();
+  }
+}
+
+function bottleHitAt(localX, localY) {
+  for (const b of bottles) {
+    const dx = b.x - localX, dy = b.y - localY;
+    if (dx * dx + dy * dy < 14 * 14) return b;
+  }
+  return null;
+}
+
+const bottleOverlay = document.getElementById("bottle-overlay");
+const bottleBody = document.getElementById("bottle-body");
+const bottleFrom = document.getElementById("bottle-from");
+
+function openBottleNote(noteIdx) {
+  const n = bottleNotes[noteIdx];
+  if (!n || !bottleOverlay) return;
+  bottleBody.textContent = "“" + n.body + "”";
+  bottleFrom.textContent = "— " + n.from;
+  bottleOverlay.hidden = false;
+  bottlesRead++;
+  try {
+    localStorage.setItem(BOTTLES_READ_KEY, String(bottlesRead));
+    localStorage.setItem(BOTTLES_KEY, String(noteIdx));
+  } catch {}
+  renderBottlesCount();
+  if (bottlesRead === 1) toast("a bottle · one tiny thought from elsewhere", 2800);
+}
+function closeBottleOverlay() {
+  if (bottleOverlay) bottleOverlay.hidden = true;
+}
+if (bottleOverlay) {
+  bottleOverlay.addEventListener("click", (e) => { if (e.target === bottleOverlay) closeBottleOverlay(); });
+}
+document.addEventListener("keydown", (e) => {
+  if (!bottleOverlay || bottleOverlay.hidden) return;
+  if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); closeBottleOverlay(); }
+});
+
+// hook bottle hit-test into the pond's click handler (already supports lily pads).
+// runs in capture phase + stopImmediatePropagation when it claims the click,
+// so a bottle that happens to float over a lily pad doesn't ALSO trigger the frog blip.
+pondCanvas.addEventListener("click", (e) => {
+  const rect = pondCanvas.getBoundingClientRect();
+  const lx = e.clientX - rect.left;
+  const ly = e.clientY - rect.top;
+  const b = bottleHitAt(lx, ly);
+  if (!b || b.opened) return;
+  b.opened = true;
+  addRipple(b.x, b.y, 1.6, 70);
+  openBottleNote(b.noteIdx);
+  // accelerate the opened bottle gently out of the pond, then drop it
+  b.vx *= 1.6;
+  setTimeout(() => {
+    const i = bottles.indexOf(b);
+    if (i >= 0) bottles.splice(i, 1);
+  }, 14_000);
+  e.stopImmediatePropagation();
+}, true);
+
+// draw bottles after pond + lily pads — splice into the existing wrap
+const _origDrawConstForBottles = drawConstellation;
+drawConstellation = function () {
+  _origDrawConstForBottles();
+  drawBottles(performance.now());
+};
+
+// spawn at start + on an irregular cadence
+setTimeout(spawnBottle, 8_000);
+setInterval(() => {
+  if (Math.random() < 0.45) spawnBottle();
+}, 35_000);
