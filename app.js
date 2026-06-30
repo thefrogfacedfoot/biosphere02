@@ -2733,3 +2733,300 @@ setTimeout(spawnBottle, 8_000);
 setInterval(() => {
   if (Math.random() < 0.45) spawnBottle();
 }, 35_000);
+
+/* ============================================================
+   feature: time capsule
+   seal a note for a future date. on the first visit on or after
+   the seal date, the capsule opens itself as an overlay.
+   shape: { id, body, sealDate (YYYY-MM-DD), createdAt, opened: bool }
+   ============================================================ */
+const CAPSULE_KEY = "biosphere02.capsules.v1";
+const capsuleBody = document.getElementById("capsule-body");
+const capsuleDate = document.getElementById("capsule-date");
+const capsuleSeal = document.getElementById("capsule-seal");
+const capsuleListEl = document.getElementById("capsule-list");
+const capsuleOverlay = document.getElementById("capsule-overlay");
+const capsuleText = document.getElementById("capsule-text");
+const capsuleMeta = document.getElementById("capsule-meta");
+
+let capsules = [];
+try { capsules = JSON.parse(localStorage.getItem(CAPSULE_KEY) || "[]"); } catch { capsules = []; }
+
+function saveCapsules() {
+  try { localStorage.setItem(CAPSULE_KEY, JSON.stringify(capsules)); } catch {}
+}
+
+function todayISO() {
+  // local-date YYYY-MM-DD — avoids UTC shift surprises when comparing seal dates
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function daysUntil(iso) {
+  const t = new Date(iso + "T00:00:00").getTime();
+  const n = new Date(todayISO() + "T00:00:00").getTime();
+  return Math.round((t - n) / 86_400_000);
+}
+
+function renderCapsuleList() {
+  if (!capsuleListEl) return;
+  const pending = capsules.filter(c => !c.opened);
+  if (pending.length === 0) {
+    capsuleListEl.innerHTML = `<div class="capsule-empty">no capsules sealed yet · drop a note above</div>`;
+    return;
+  }
+  pending.sort((a, b) => a.sealDate.localeCompare(b.sealDate));
+  capsuleListEl.innerHTML = pending.map(c => {
+    const d = daysUntil(c.sealDate);
+    const when = d <= 0 ? "ready · open it"
+               : d === 1 ? "opens tomorrow"
+               : `opens in ${d} days`;
+    const preview = (c.body || "").trim().slice(0, 36) + ((c.body || "").length > 36 ? "…" : "");
+    return `<div class="capsule-pending"><span>"${escapeHtml(preview)}"</span><span class="capsule-when">${escapeHtml(when)}</span></div>`;
+  }).join("");
+}
+
+function presentReadyCapsules() {
+  const today = todayISO();
+  // find one ready capsule; show the oldest seal-date first
+  const ready = capsules
+    .filter(c => !c.opened && c.sealDate <= today)
+    .sort((a, b) => a.sealDate.localeCompare(b.sealDate));
+  if (ready.length === 0) return;
+  const c = ready[0];
+  if (!capsuleOverlay) return;
+  const sealedOn = new Date(c.createdAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  const today2 = new Date().toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  capsuleMeta.textContent = `sealed on ${sealedOn.toLowerCase()} · opened on ${today2.toLowerCase()}`;
+  capsuleText.textContent = c.body || "(an empty note — past-you trusted that you'd remember the rest.)";
+  capsuleOverlay.hidden = false;
+  // mark this one opened so we don't show it again next visit
+  c.opened = true;
+  c.openedAt = Date.now();
+  saveCapsules();
+  renderCapsuleList();
+}
+
+function closeCapsuleOverlay() {
+  if (capsuleOverlay) capsuleOverlay.hidden = true;
+  // if there are more ready, walk to the next one on the next tick so the user gets a beat
+  setTimeout(() => presentReadyCapsules(), 350);
+}
+
+if (capsuleSeal) {
+  // default the date picker to a week from today — nicer than empty
+  if (capsuleDate && !capsuleDate.value) {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    const pad = (n) => String(n).padStart(2, "0");
+    capsuleDate.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    capsuleDate.min = todayISO();
+  }
+  capsuleSeal.addEventListener("click", () => {
+    const body = (capsuleBody.value || "").trim();
+    const date = capsuleDate.value;
+    if (!body) { toast("write something first · even one line counts"); capsuleBody.focus(); return; }
+    if (!date) { toast("pick a date · when should it come back?"); capsuleDate.focus(); return; }
+    if (date < todayISO()) { toast("the seal date has to be today or later"); return; }
+    capsules.push({
+      id: Date.now(),
+      body: body.slice(0, 400),
+      sealDate: date,
+      createdAt: Date.now(),
+      opened: false,
+    });
+    saveCapsules();
+    renderCapsuleList();
+    capsuleBody.value = "";
+    const d = daysUntil(date);
+    toast(d <= 0 ? "sealed · it'll greet you on your next visit"
+        : d === 1 ? "sealed · tomorrow it comes back to you"
+        : `sealed · ${d} days from now it'll find you`);
+  });
+}
+
+if (capsuleOverlay) {
+  capsuleOverlay.addEventListener("click", (e) => { if (e.target === capsuleOverlay) closeCapsuleOverlay(); });
+}
+document.addEventListener("keydown", (e) => {
+  if (!capsuleOverlay || capsuleOverlay.hidden) return;
+  if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); closeCapsuleOverlay(); }
+});
+
+renderCapsuleList();
+// wait until the welcome page is dismissed (or absent) before presenting
+setTimeout(() => {
+  if (!welcomePage || welcomePage.hidden) presentReadyCapsules();
+  else {
+    // poll briefly until the welcome closes, then show
+    const iv = setInterval(() => {
+      if (welcomePage.hidden) { clearInterval(iv); presentReadyCapsules(); }
+    }, 400);
+    setTimeout(() => clearInterval(iv), 60_000);
+  }
+}, 1500);
+
+/* ============================================================
+   feature: daily oracle
+   one card a day. 22 cards. the drawn card persists until midnight
+   (keyed on today's date string). undrawn rolls over when the day rolls.
+   ============================================================ */
+const ORACLE_KEY = "biosphere02.oracle.v1";
+const oracleDeck = [
+  { name: "the river",          body: "you don't have to know where you're going. you only have to keep moving." },
+  { name: "the keeper",         body: "small things are doing their job. trust them today." },
+  { name: "the lantern",        body: "you don't have to light the whole forest. just the next step." },
+  { name: "the moss",           body: "softness is also a kind of strength. softer things outlast harder ones." },
+  { name: "the bell",           body: "answer the call that arrives, not the one you were waiting for." },
+  { name: "the heron",          body: "stillness is a posture, not an absence. wait without leaning in." },
+  { name: "the door",           body: "the door you've been avoiding is the door. you already know." },
+  { name: "the spool",          body: "an unfinished thing is not a failed thing. set it down for the night." },
+  { name: "the fox",            body: "you can't summon what's shy. you can only be a place it wants to come." },
+  { name: "the seed",           body: "what you plant today, you won't see for weeks. plant it anyway." },
+  { name: "the mirror",         body: "what you offer to others, offer also to yourself. you keep forgetting." },
+  { name: "the tide",           body: "the part of you that feels stuck is the part that doesn't trust the rhythm." },
+  { name: "the bough",          body: "bend before you break. the wind comes for everything sooner or later." },
+  { name: "the kindling",       body: "small acts of attention are the kindling. nothing big catches without them." },
+  { name: "the path",           body: "you are not late. you are walking the path that is yours." },
+  { name: "the cup",            body: "you cannot pour from a cup you haven't filled. rest is not a luxury today." },
+  { name: "the stranger",       body: "be a little kinder than necessary. the cost is nothing; the return is unknowable." },
+  { name: "the threshold",      body: "you are between rooms. don't try to be in either one yet." },
+  { name: "the constellation",  body: "the shapes you draw between scattered points are what make a sky a sky." },
+  { name: "the burrow",         body: "going inward is not retreat. it's how some creatures find their way." },
+  { name: "the listener",       body: "ask one more question before you offer the answer. you may not have heard it yet." },
+  { name: "the morning",        body: "today is the first morning the world has ever had of you in it as you are now." },
+];
+
+const oracleCard = document.getElementById("oracle-card");
+const oracleDrawBtn = document.getElementById("oracle-draw");
+const oracleWhen = document.getElementById("oracle-when");
+const cardStat = document.getElementById("card-stat");
+
+let oracleState = (() => {
+  try { return JSON.parse(localStorage.getItem(ORACLE_KEY) || "null") || {}; }
+  catch { return {}; }
+})();
+
+function saveOracle() {
+  try { localStorage.setItem(ORACLE_KEY, JSON.stringify(oracleState)); } catch {}
+}
+
+function showOracleFront(idx, animate) {
+  if (!oracleCard) return;
+  const card = oracleDeck[idx];
+  if (!card) return;
+  // make sure a .oracle-front exists, then fill it
+  let front = oracleCard.querySelector(".oracle-front");
+  if (!front) {
+    front = document.createElement("div");
+    front.className = "oracle-front";
+    oracleCard.appendChild(front);
+  }
+  front.innerHTML = `
+    <div class="oracle-card-name">${escapeHtml(card.name)}</div>
+    <div class="oracle-card-body">${escapeHtml(card.body)}</div>
+  `;
+  if (animate) {
+    oracleCard.classList.add("flipping");
+    setTimeout(() => oracleCard.classList.remove("flipping"), 720);
+  }
+  oracleCard.classList.add("flipped");
+  if (oracleDrawBtn) {
+    oracleDrawBtn.disabled = true;
+    oracleDrawBtn.textContent = "drawn for today";
+  }
+  if (oracleWhen) oracleWhen.textContent = "reshuffles at midnight";
+  if (cardStat) cardStat.textContent = card.name;
+}
+
+function renderOracle() {
+  // already drew today?
+  if (oracleState.date === todayISO() && typeof oracleState.idx === "number") {
+    showOracleFront(oracleState.idx, false);
+    return;
+  }
+  // reset visible state — back of card showing
+  if (oracleCard) {
+    oracleCard.classList.remove("flipped");
+    const front = oracleCard.querySelector(".oracle-front");
+    if (front) front.remove();
+  }
+  if (oracleDrawBtn) {
+    oracleDrawBtn.disabled = false;
+    oracleDrawBtn.textContent = "draw a card";
+  }
+  if (oracleWhen) oracleWhen.textContent = "one card a day";
+  if (cardStat) cardStat.textContent = "undrawn";
+}
+
+function drawOracleCard() {
+  if (oracleState.date === todayISO()) return;
+  // pick a card that isn't yesterday's — small touch
+  let idx, tries = 0;
+  do { idx = Math.floor(Math.random() * oracleDeck.length); tries++; }
+  while (idx === oracleState.idx && tries < 6);
+  oracleState = { date: todayISO(), idx, when: Date.now() };
+  saveOracle();
+  showOracleFront(idx, true);
+  toast(`the deck offers · ${oracleDeck[idx].name}`, 2400);
+}
+
+if (oracleDrawBtn) oracleDrawBtn.addEventListener("click", drawOracleCard);
+// click the card itself to flip — same as button
+if (oracleCard) oracleCard.addEventListener("click", () => {
+  if (oracleState.date !== todayISO()) drawOracleCard();
+});
+
+renderOracle();
+// midnight rollover: if the tab is left open across days, re-render so the
+// "drawn for today" button frees up the next morning
+setInterval(() => {
+  if (oracleState.date && oracleState.date !== todayISO()) renderOracle();
+}, 5 * 60 * 1000);
+
+/* ============================================================
+   feature: lighthouse on the far shore
+   slow rotating beam at night; click to log a "moment" — a tiny
+   bright marker drops into your sky with the current timestamp.
+   counter persists in ~/status.
+   ============================================================ */
+const MOMENTS_KEY = "biosphere02.moments.v1";
+const lighthouseEl = document.getElementById("lighthouse");
+
+let momentsCount = (() => { try { return +localStorage.getItem(MOMENTS_KEY) || 0; } catch { return 0; } })();
+function renderMomentsCount() {
+  const el = document.getElementById("moments-count");
+  if (el) el.textContent = momentsCount;
+}
+renderMomentsCount();
+
+function logLighthouseMoment(clientX, clientY) {
+  // a small bright marker in the sky — looks like a fresh star, sits with your constellation
+  if (typeof viewingShared !== "undefined" && viewingShared) {
+    toast("you're on someone else's sky · return to yours to leave a moment");
+    return;
+  }
+  // place the marker in the upper sky region so it lives with the stars,
+  // not over the windows or under the pond
+  const x = Math.max(60, Math.min(window.innerWidth - 60, clientX - 30 + Math.random() * 60));
+  const y = Math.max(90, Math.min(window.innerHeight * 0.5, 110 + Math.random() * (window.innerHeight * 0.3)));
+  const stamp = new Date().toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).toLowerCase();
+  userStars.push({ x, y, label: stamp });
+  saveConstellation();
+  momentsCount++;
+  try { localStorage.setItem(MOMENTS_KEY, String(momentsCount)); } catch {}
+  renderMomentsCount();
+  spawnCatchBurst(clientX, clientY);
+  toast(momentsCount === 1
+    ? "a moment marked · the lighthouse remembers"
+    : `${momentsCount} moments at the lighthouse`);
+}
+
+if (lighthouseEl) {
+  lighthouseEl.addEventListener("click", (e) => {
+    // small visual: a quick lamp flash via temporary class
+    lighthouseEl.classList.add("flashed");
+    setTimeout(() => lighthouseEl.classList.remove("flashed"), 320);
+    logLighthouseMoment(e.clientX, e.clientY);
+  });
+}

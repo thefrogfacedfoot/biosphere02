@@ -17,6 +17,20 @@
 <canvas id="pond"></canvas>
 <div id="season-particles"></div>
 <div id="hearth-glow"></div>
+<!-- lighthouse on the far shore (svg + sweeping beam) -->
+<div id="lighthouse" title="leave a moment at the lighthouse" aria-label="lighthouse">
+  <div class="lighthouse-beam" id="lighthouse-beam"></div>
+  <svg class="lighthouse-svg" viewBox="0 0 50 110" aria-hidden="true">
+    <rect x="22" y="92" width="6" height="12" fill="#1a1408"/>
+    <polygon points="14,92 36,92 32,52 18,52" fill="#3a2a1a"/>
+    <rect x="14" y="50" width="22" height="4" fill="#1a1408"/>
+    <rect x="18" y="36" width="14" height="14" fill="#0e1a26"/>
+    <circle cx="25" cy="43" r="3" fill="#ffd9a0" class="lighthouse-lamp"/>
+    <polygon points="14,36 36,36 32,30 18,30" fill="#1a1408"/>
+    <rect x="22" y="22" width="6" height="8" fill="#3a2a1a"/>
+    <polygon points="20,22 30,22 25,14" fill="#1a1408"/>
+  </svg>
+</div>
 
 <!-- welcome page (full-screen splash, first visit only — dismissable forever) -->
 <div id="welcome-page" class="welcome-page" hidden>
@@ -291,6 +305,8 @@
       <div class="status-row"><span>stars caught</span><b id="caught-count">0</b></div>
       <div class="status-row"><span>creatures spotted</span><b id="spotted-count">0</b></div>
       <div class="status-row"><span>bottles opened</span><b id="bottles-count">0</b></div>
+      <div class="status-row"><span>moments at the lighthouse</span><b id="moments-count">0</b></div>
+      <div class="status-row"><span>today's card</span><b id="card-stat">undrawn</b></div>
       <div class="status-row"><span>warmth</span><b id="warmth-stat">cold</b></div>
       <div class="status-row"><span>season</span><b id="season-label">…</b></div>
     </div>
@@ -385,6 +401,47 @@
       </div>
       <input id="myc-search" type="text" class="myc-search" placeholder="🔍 search notes…" />
       <div class="myc-list" id="myc-list"></div>
+    </div>
+  </section>
+
+  <!-- WINDOW: time capsule (seal a note for a future date) -->
+  <section class="window" data-id="timecapsule" style="left: 920px; top: 540px; width: 300px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/timecapsule 📦</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content capsule">
+      <p class="hint">leave a note for future-you. it stays sealed until the date you set. it opens itself the next time you visit on or after that day.</p>
+      <textarea id="capsule-body" placeholder="what should future-you remember?" rows="3" maxlength="400"></textarea>
+      <div class="capsule-row">
+        <input id="capsule-date" type="date" />
+        <button id="capsule-seal">seal it</button>
+      </div>
+      <div id="capsule-list" class="capsule-list"></div>
+    </div>
+  </section>
+
+  <!-- WINDOW: daily oracle (one card a day) -->
+  <section class="window" data-id="oracle" style="left: 80px; top: 80px; width: 300px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/oracle 🔮</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content oracle">
+      <p class="hint">one card a day. take it or leave it. the deck reshuffles at midnight.</p>
+      <div class="oracle-stage" id="oracle-stage">
+        <div class="oracle-card" id="oracle-card">
+          <div class="oracle-back">
+            <span class="oracle-mark">✦</span>
+          </div>
+        </div>
+      </div>
+      <div class="oracle-row">
+        <button id="oracle-draw">draw a card</button>
+        <span id="oracle-when" class="oracle-when"></span>
+      </div>
     </div>
   </section>
 
@@ -491,6 +548,16 @@
   </section>
 
 </main>
+
+<!-- time-capsule unsealing overlay (shown on the day a capsule comes due) -->
+<div id="capsule-overlay" class="palette" hidden>
+  <div class="palette-shell capsule-shell">
+    <div class="capsule-head">📦 a capsule has come due</div>
+    <div class="capsule-meta" id="capsule-meta"></div>
+    <div class="capsule-text" id="capsule-text"></div>
+    <div class="palette-hint"><kbd>↵</kbd> set it down · <kbd>esc</kbd> close</div>
+  </div>
+</div>
 
 <!-- bottle-in-the-pond overlay (drifting bottles open this) -->
 <div id="bottle-overlay" class="palette" hidden>
