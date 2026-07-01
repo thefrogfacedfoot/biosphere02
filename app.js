@@ -1635,7 +1635,10 @@ function gFocusInsideWindow(winId, el) {
 }
 
 function doGlobalSearch(q) {
-  q = q.trim().toLowerCase();
+  // keep the user's original casing for the google fallback + display,
+  // but match locally against the lowercased form
+  const raw = q.trim();
+  q = raw.toLowerCase();
   if (!q) { gResults.hidden = true; gItems = []; return; }
 
   const results = [];
@@ -1721,9 +1724,9 @@ function doGlobalSearch(q) {
   // google search — always last, so local matches win but the web is one keystroke away
   results.push({
     kind: "google",
-    label: `search google for "${q}"`,
+    label: `search google for "${raw}"`,
     snippet: "opens google.com in a new tab",
-    action: () => window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, "_blank", "noopener,noreferrer"),
+    action: () => window.open(`https://www.google.com/search?q=${encodeURIComponent(raw)}`, "_blank", "noopener,noreferrer"),
   });
 
   renderSearchResults(results, q);
@@ -1799,7 +1802,7 @@ gResults.addEventListener("click", (e) => {
   gRunSelected();
 });
 document.addEventListener("click", (e) => {
-  if (!e.target.closest(".topbar-search-wrap")) gResults.hidden = true;
+  if (!e.target.closest(".hero-search-wrap")) gResults.hidden = true;
 });
 
 /* ============================================================
@@ -2685,11 +2688,13 @@ if (_todayForecast.kind === "meteors") {
     setTimeout(() => { spawnShooter(); maybeSpawnShooter(); }, next);
   };
 }
-// when today is "aurora drift", strengthen the aurora layer
+// when today is "aurora drift", strengthen the aurora layer.
+// opacity gets silently clamped to 1 by the browser (same bug the dusk-aurora
+// css rule had — see devlog #12), so use a filter combo instead.
 if (_todayForecast.kind === "aurora") {
   document.body.classList.add("forecast-aurora");
   const auroraEl = document.getElementById("aurora");
-  if (auroraEl) auroraEl.style.opacity = "1.4";
+  if (auroraEl) auroraEl.style.filter = "saturate(1.6) brightness(1.25)";
 }
 // when today is "soft rain", spawn a gentle rain layer + occasional pond ripples.
 // "the pond keeps time" — the forecast note already promised this; now it's real.
