@@ -674,6 +674,34 @@ function applyTimeOfDay() {
 applyTimeOfDay();
 setInterval(() => applyTimeOfDay(), 60_000);
 
+/* ---- daytime cloud shadow drift ----
+   during "day" mood, a soft dark oval crosses the desktop every couple of
+   minutes. one dom node, one css animation, no per-frame js. */
+(function scheduleCloudShadow() {
+  const next = 60_000 + Math.random() * 90_000; // 60-150s
+  setTimeout(() => {
+    if (!document.body.classList.contains("day") ||
+        (typeof isMotionReduced === "function" && isMotionReduced())) {
+      scheduleCloudShadow();
+      return;
+    }
+    let cloud = document.getElementById("cloud-shadow");
+    if (!cloud) {
+      cloud = document.createElement("div");
+      cloud.id = "cloud-shadow";
+      cloud.setAttribute("aria-hidden", "true");
+      document.body.appendChild(cloud);
+    }
+    // vary the vertical band a little so it doesn't always cross at the same height
+    cloud.style.top = (6 + Math.random() * 28) + "vh";
+    cloud.classList.remove("drift");
+    // force a reflow so re-adding the class restarts the animation
+    void cloud.offsetWidth;
+    cloud.classList.add("drift");
+    scheduleCloudShadow();
+  }, next);
+})();
+
 /* ============================================================
    feature: ambient orbit (web audio generative pad)
    two detuned saws -> low-pass filter that breathes -> gain
@@ -1190,6 +1218,41 @@ function saveWishes(arr) {
 function renderWishCount() {
   const el = document.getElementById("wishes-count");
   if (el) el.textContent = loadWishes().length;
+  renderWishingTree();
+}
+
+/* wishing tree: one glowing lantern per wish, positioned deterministically
+   along the canopy so a given wish always hangs from the same branch spot.
+   hover = tooltip; click = toast the wish + the date it was made. */
+const TREE_BRANCH_SPOTS = [
+  // hand-picked % positions across the canopy area (left, top)
+  [22, 46], [34, 32], [50, 26], [65, 34], [78, 44],
+  [16, 58], [30, 52], [46, 48], [62, 52], [74, 58],
+  [26, 40], [42, 38], [54, 36], [68, 42], [80, 52],
+  [20, 66], [38, 62], [56, 60], [72, 64], [82, 66],
+];
+function renderWishingTree() {
+  const host = document.getElementById("tree-lanterns");
+  if (!host) return;
+  const wishes = loadWishes();
+  host.innerHTML = "";
+  const count = Math.min(wishes.length, TREE_BRANCH_SPOTS.length);
+  for (let i = 0; i < count; i++) {
+    const w = wishes[i];
+    const [lx, ly] = TREE_BRANCH_SPOTS[i];
+    const el = document.createElement("span");
+    el.className = "wish-lantern";
+    el.style.left = lx + "%";
+    el.style.top = ly + "%";
+    // subtle per-lantern sway phase so they don't all move in lockstep
+    el.style.animationDelay = -(i * 0.37) + "s";
+    el.title = w.text;
+    el.addEventListener("click", () => {
+      const when = new Date(w.when).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      if (typeof toast === "function") toast(`"${w.text}" · ${when}`, 3600);
+    });
+    host.appendChild(el);
+  }
 }
 renderWishCount();
 
@@ -1655,6 +1718,14 @@ function doGlobalSearch(q) {
     }
   }
 
+  // google search — always last, so local matches win but the web is one keystroke away
+  results.push({
+    kind: "google",
+    label: `search google for "${q}"`,
+    snippet: "opens google.com in a new tab",
+    action: () => window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, "_blank", "noopener,noreferrer"),
+  });
+
   renderSearchResults(results, q);
 }
 
@@ -1670,9 +1741,9 @@ function renderSearchResults(results, q) {
 
   const kindLabel = {
     window: "windows", note: "notes", devlog: "devlog",
-    project: "projects", wish: "wishes",
+    project: "projects", wish: "wishes", google: "web",
   };
-  const order = ["window", "note", "devlog", "project", "wish"];
+  const order = ["window", "note", "devlog", "project", "wish", "google"];
 
   // group, preserving original indices for action lookup
   const groups = {};
@@ -1742,6 +1813,10 @@ const pondCtx = pondCanvas.getContext("2d");
 let pondW = 0, pondH = 0;
 const ripples = [];
 const pondStars = [];
+// cached gradients — rebuilt only on resize, not every frame (big perf win over
+// per-frame createLinearGradient, which was showing up as noticeable jank)
+let pondWaterGrad = null;
+let pondShoreGrad = null;
 
 function resizePond() {
   pondW = pondCanvas.offsetWidth;
@@ -1749,8 +1824,16 @@ function resizePond() {
   pondCanvas.width = pondW * devicePixelRatio;
   pondCanvas.height = pondH * devicePixelRatio;
   pondCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  pondWaterGrad = pondCtx.createLinearGradient(0, 0, 0, pondH);
+  pondWaterGrad.addColorStop(0, "rgba(18, 38, 58, 0.42)");
+  pondWaterGrad.addColorStop(0.45, "rgba(8, 22, 38, 0.62)");
+  pondWaterGrad.addColorStop(1, "rgba(4, 12, 22, 0.85)");
+  pondShoreGrad = pondCtx.createLinearGradient(0, 0, 0, 22);
+  pondShoreGrad.addColorStop(0, "rgba(143, 212, 154, 0.20)");
+  pondShoreGrad.addColorStop(1, "rgba(143, 212, 154, 0)");
   buildPondStars();
   buildLilyPads();
+  buildMushrooms();
 }
 function buildPondStars() {
   pondStars.length = 0;
@@ -1838,6 +1921,59 @@ function lilyHitAt(localX, localY) {
   }
   return null;
 }
+
+/* ---- bioluminescent mushrooms on the shoreline ----
+   small pulsing dots clustered at the top edge of the pond. click near
+   a cluster to trigger a chorus pulse where all of them brighten together
+   for a moment. drawn in the pond canvas so no extra rAF. */
+const mushrooms = [];
+let mushroomChorus = 0; // timestamp when the last chorus pulse fired
+function buildMushrooms() {
+  mushrooms.length = 0;
+  const count = Math.max(6, Math.min(14, Math.floor(pondW / 110)));
+  for (let i = 0; i < count; i++) {
+    mushrooms.push({
+      x: 16 + Math.random() * (pondW - 32),
+      y: 3 + Math.random() * 8, // sit just under the shoreline band
+      r: 1.2 + Math.random() * 1.1,
+      base: 0.35 + Math.random() * 0.35,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.0012 + Math.random() * 0.0022,
+      hue: Math.random() < 0.75 ? "143, 212, 154" : "180, 220, 255", // moss or moonlight
+    });
+  }
+}
+function drawMushrooms(t) {
+  // chorus fades out over ~1.4s
+  const chorusAge = mushroomChorus ? (t - mushroomChorus) : Infinity;
+  const chorusBoost = chorusAge < 1400 ? (1 - chorusAge / 1400) : 0;
+  // two flat circles per mushroom — cheaper than a per-frame radial gradient
+  for (const m of mushrooms) {
+    const pulse = Math.sin(t * m.speed + m.phase) * 0.35 + 0.65;
+    const a = Math.min(1, m.base * pulse + chorusBoost * 0.55);
+    // faint outer halo (single flat circle, low alpha)
+    pondCtx.fillStyle = `rgba(${m.hue}, ${a * 0.16})`;
+    pondCtx.beginPath();
+    pondCtx.arc(m.x, m.y, m.r * 5, 0, Math.PI * 2);
+    pondCtx.fill();
+    // bright core cap
+    pondCtx.fillStyle = `rgba(${m.hue}, ${Math.min(1, a + 0.2)})`;
+    pondCtx.beginPath();
+    pondCtx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+    pondCtx.fill();
+  }
+}
+function mushroomChoirNearAny(localX, localY) {
+  // if the click is within ~24px of any mushroom, fire the chorus pulse
+  for (const m of mushrooms) {
+    const dx = m.x - localX, dy = m.y - localY;
+    if (dx * dx + dy * dy < 24 * 24) {
+      mushroomChorus = performance.now();
+      return true;
+    }
+  }
+  return false;
+}
 function jumpFrogAt(viewportX, viewportY) {
   const el = document.createElement("div");
   el.className = "frog-jump";
@@ -1856,19 +1992,12 @@ window.addEventListener("resize", () => {
 function drawPond(t) {
   if (pondW === 0) return;
   pondCtx.clearRect(0, 0, pondW, pondH);
-  // base water gradient
-  const g = pondCtx.createLinearGradient(0, 0, 0, pondH);
-  g.addColorStop(0, "rgba(18, 38, 58, 0.42)");
-  g.addColorStop(0.45, "rgba(8, 22, 38, 0.62)");
-  g.addColorStop(1, "rgba(4, 12, 22, 0.85)");
-  pondCtx.fillStyle = g;
+  pondCtx.fillStyle = pondWaterGrad;
   pondCtx.fillRect(0, 0, pondW, pondH);
-  // shoreline tint at the top edge
-  const sg = pondCtx.createLinearGradient(0, 0, 0, 22);
-  sg.addColorStop(0, "rgba(143, 212, 154, 0.20)");
-  sg.addColorStop(1, "rgba(143, 212, 154, 0)");
-  pondCtx.fillStyle = sg;
+  pondCtx.fillStyle = pondShoreGrad;
   pondCtx.fillRect(0, 0, pondW, 22);
+  // bioluminescent mushrooms just below the shoreline
+  drawMushrooms(t);
   // reflected shimmering stars
   for (const s of pondStars) {
     const a = s.base + Math.sin(t * s.speed + s.phase) * 0.18;
@@ -1917,6 +2046,8 @@ pondCanvas.addEventListener("click", (e) => {
     jumpFrogAt(e.clientX, e.clientY - 4);
     return;
   }
+  // clicking near a mushroom triggers a chorus pulse (no ripple — they're on land)
+  if (mushroomChoirNearAny(lx, ly)) return;
   addRipple(lx, ly, 1.6, 80);
 });
 
@@ -2559,6 +2690,36 @@ if (_todayForecast.kind === "aurora") {
   document.body.classList.add("forecast-aurora");
   const auroraEl = document.getElementById("aurora");
   if (auroraEl) auroraEl.style.opacity = "1.4";
+}
+// when today is "soft rain", spawn a gentle rain layer + occasional pond ripples.
+// "the pond keeps time" — the forecast note already promised this; now it's real.
+if (_todayForecast.kind === "rain" && !isMotionReduced()) {
+  document.body.classList.add("forecast-rain");
+  const rainHost = document.createElement("div");
+  rainHost.id = "rain-layer";
+  rainHost.setAttribute("aria-hidden", "true");
+  document.body.appendChild(rainHost);
+  const DROP_COUNT = 40;
+  for (let i = 0; i < DROP_COUNT; i++) {
+    const d = document.createElement("span");
+    d.className = "raindrop";
+    d.style.left = (Math.random() * 100) + "vw";
+    d.style.animationDelay = -(Math.random() * 1.6) + "s";
+    d.style.animationDuration = (0.9 + Math.random() * 0.7) + "s";
+    d.style.opacity = String(0.25 + Math.random() * 0.35);
+    rainHost.appendChild(d);
+  }
+  // occasional ripples on the pond so it feels connected to the sky above
+  (function rainRipple() {
+    setTimeout(() => {
+      if (pondW > 0 && !isMotionReduced()) {
+        addRipple(Math.random() * pondW,
+                  pondH * 0.15 + Math.random() * pondH * 0.75,
+                  0.8, 55);
+      }
+      rainRipple();
+    }, 700 + Math.random() * 1400);
+  })();
 }
 
 /* ============================================================

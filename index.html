@@ -17,6 +17,21 @@
 <canvas id="pond"></canvas>
 <div id="season-particles"></div>
 <div id="hearth-glow"></div>
+<!-- wishing tree on the near shore — one glowing lantern per wish you've made -->
+<div id="wishing-tree" aria-label="wishing tree">
+  <svg class="tree-svg" viewBox="0 0 90 130" aria-hidden="true">
+    <rect x="41" y="82" width="8" height="46" fill="#2a1e10"/>
+    <path d="M45 82 Q30 78 24 66 Q22 74 30 82 Z" fill="#2a1e10"/>
+    <path d="M45 84 Q60 80 66 68 Q68 76 60 84 Z" fill="#2a1e10"/>
+    <ellipse cx="30" cy="52" rx="22" ry="18" fill="#1f3a26"/>
+    <ellipse cx="58" cy="46" rx="24" ry="20" fill="#1f3a26"/>
+    <ellipse cx="45" cy="34" rx="20" ry="16" fill="#233f2a"/>
+    <ellipse cx="20" cy="40" rx="14" ry="12" fill="#1a3320"/>
+    <ellipse cx="70" cy="56" rx="15" ry="12" fill="#1a3320"/>
+  </svg>
+  <div class="tree-lanterns" id="tree-lanterns"></div>
+</div>
+
 <!-- lighthouse on the far shore (svg + sweeping beam) -->
 <div id="lighthouse" title="leave a moment at the lighthouse" aria-label="lighthouse">
   <div class="lighthouse-beam" id="lighthouse-beam"></div>
