@@ -709,6 +709,149 @@ setInterval(() => applyTimeOfDay(), 60_000);
 })();
 
 /* ============================================================
+   feature: dandelion by the shore
+   click to blow it — sends a burst of seed-sparkles drifting up
+   into the sky. respawns after ~2 minutes so it stays clickable.
+   persists a "blown" counter for anyone keeping track.
+   ============================================================ */
+const DANDELION_KEY = "biosphere02.dandelion.v1";
+const dandelionEl = document.getElementById("dandelion");
+let dandelionBlown = (() => { try { return +localStorage.getItem(DANDELION_KEY) || 0; } catch { return 0; } })();
+function renderDandelionCount() {
+  const el = document.getElementById("dandelion-count");
+  if (el) el.textContent = dandelionBlown;
+}
+renderDandelionCount();
+
+function spawnDandelionSeeds(originX, originY) {
+  if (isMotionReduced()) return;
+  const count = 10 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement("span");
+    s.className = "dandelion-seed";
+    s.textContent = "✦";
+    s.style.left = originX + "px";
+    s.style.top = originY + "px";
+    // drift up and to one side; more upward than sideways
+    const dx = (Math.random() - 0.5) * 260;
+    const dy = -(180 + Math.random() * 260);
+    const rot = (Math.random() - 0.5) * 360;
+    s.style.setProperty("--seed-dx", dx.toFixed(0) + "px");
+    s.style.setProperty("--seed-dy", dy.toFixed(0) + "px");
+    s.style.setProperty("--seed-r", rot.toFixed(0) + "deg");
+    s.style.animationDelay = (Math.random() * 300).toFixed(0) + "ms";
+    s.style.animationDuration = (4600 + Math.random() * 1600).toFixed(0) + "ms";
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 6800);
+  }
+}
+
+if (dandelionEl) {
+  dandelionEl.addEventListener("click", () => {
+    if (dandelionEl.classList.contains("blown")) return;
+    const rect = dandelionEl.getBoundingClientRect();
+    spawnDandelionSeeds(rect.left + rect.width / 2, rect.top + 20);
+    dandelionEl.classList.add("blown");
+    dandelionBlown++;
+    try { localStorage.setItem(DANDELION_KEY, String(dandelionBlown)); } catch {}
+    renderDandelionCount();
+    if (dandelionBlown === 1) toast("you blew a wish · the seeds carry it up");
+    // regrow after a while so the dandelion stays present
+    setTimeout(() => { dandelionEl.classList.remove("blown"); }, 120_000);
+  });
+}
+
+/* ============================================================
+   feature: wind gust
+   every 4-8 minutes, a wind gust sweeps the biosphere: lanterns
+   sway harder, fireflies drift, and extra ripples appear on the
+   pond. one css class + a handful of ripples — no per-frame work.
+   ============================================================ */
+(function scheduleWindGust() {
+  const next = 240_000 + Math.random() * 240_000; // 4-8 min
+  setTimeout(() => {
+    if (isMotionReduced()) { scheduleWindGust(); return; }
+    document.body.classList.add("wind-gust");
+    // scatter extra ripples across the pond over the gust duration
+    const gustMs = 10_000;
+    const rippleCount = 6 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < rippleCount; i++) {
+      setTimeout(() => {
+        if (typeof pondW !== "undefined" && pondW > 0 && typeof addRipple === "function") {
+          addRipple(80 + Math.random() * (pondW - 160),
+                    pondH * 0.2 + Math.random() * pondH * 0.7,
+                    1.0 + Math.random() * 0.5, 70);
+        }
+      }, Math.random() * gustMs);
+    }
+    // nudge each firefly one time so they drift a bit further with the wind
+    if (typeof fireflies !== "undefined" && Array.isArray(fireflies)) {
+      const push = 40 + Math.random() * 30;
+      for (const f of fireflies) f.vx += push * 0.02;
+    }
+    setTimeout(() => {
+      document.body.classList.remove("wind-gust");
+      scheduleWindGust();
+    }, gustMs);
+  }, next);
+})();
+
+/* ============================================================
+   feature: a name in the sky (star of the day)
+   picks one real astronomical name from a curated pool, deterministic
+   from today's date so it stays put. tooltip on hover, lore on click.
+   position is also date-hashed so it doesn't overlap the same window
+   two days running.
+   ============================================================ */
+const namedStars = [
+  { name: "Sirius",     lore: "the dog star · brightest thing in our night sky, 8.6 light-years away" },
+  { name: "Polaris",    lore: "the north star · sailors' anchor for the last two thousand years" },
+  { name: "Vega",       lore: "brightest in Lyra · was the north star 12,000 years ago and will be again" },
+  { name: "Betelgeuse", lore: "orion's shoulder · a red supergiant nearing the end of its life" },
+  { name: "Rigel",      lore: "orion's foot · a hot blue supergiant, 860 light-years off" },
+  { name: "Arcturus",   lore: "the bear-guardian · trails the tail of the Big Dipper across the sky" },
+  { name: "Antares",    lore: "the heart of Scorpius · a red rival to Mars in the summer sky" },
+  { name: "Deneb",      lore: "the tail of Cygnus the swan · one corner of the Summer Triangle" },
+  { name: "Altair",     lore: "the flying eagle · one of the closest bright stars, 17 light-years away" },
+  { name: "Aldebaran",  lore: "the follower · orange eye of Taurus, chasing the Pleiades" },
+  { name: "Capella",    lore: "the little she-goat · bright in Auriga, carried on the charioteer's shoulder" },
+  { name: "Spica",      lore: "the ear of wheat · held out by Virgo, ripening in spring" },
+  { name: "Fomalhaut",  lore: "the mouth of the fish · alone in the autumn sky, no bright neighbors" },
+  { name: "Procyon",    lore: "before the dog · rises just ahead of Sirius each evening" },
+  { name: "Regulus",    lore: "the little king · at the heart of Leo, on the ecliptic" },
+  { name: "Castor",     lore: "the horseman twin of Gemini · actually a system of six stars" },
+  { name: "Pollux",     lore: "the boxer twin of Gemini · older and cooler, orange to Castor's white" },
+  { name: "Mizar",      lore: "the middle of the Big Dipper's handle · has a companion, Alcor, if your eyes are sharp" },
+  { name: "Bellatrix",  lore: "the female warrior · orion's western shoulder, a hot blue star" },
+  { name: "Achernar",   lore: "the end of the river · flowing out of Eridanus in the southern sky" },
+];
+function _namedStarHash(d) {
+  const s = d.toDateString();
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+(function placeNamedStar() {
+  const el = document.getElementById("named-star");
+  if (!el) return;
+  const now = new Date();
+  const h = _namedStarHash(now);
+  const star = namedStars[h % namedStars.length];
+  // upper-sky safe zone: avoid topbar (0-38), pond area (bottom), and clip to margins
+  const W = window.innerWidth, H = window.innerHeight;
+  const bx = 60 + ((h >> 8) % Math.max(1, W - 240));
+  const by = 70 + (((h >> 16) & 0xFF) / 255) * (H * 0.35);
+  el.style.left = bx.toFixed(0) + "px";
+  el.style.top  = by.toFixed(0) + "px";
+  el.dataset.name = star.name;
+  el.title = star.name;
+  el.hidden = false;
+  el.addEventListener("click", () => {
+    if (typeof toast === "function") toast(`${star.name} · ${star.lore}`, 4800);
+  });
+})();
+
+/* ============================================================
    feature: ambient orbit (web audio generative pad)
    two detuned saws -> low-pass filter that breathes -> gain
    plus occasional bell pings on a pentatonic scale
