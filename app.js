@@ -642,7 +642,10 @@ function drawShooters(dt) {
     }
   }
 }
-maybeSpawnShooter();
+// (the shooter chain is kicked later, after the self-idempotent wrap is
+// installed — see the maybeSpawnShooter() reassignment below. calling it
+// here would leave an untracked setTimeout that the restart logic can't
+// reset.)
 
 // hook shooter drawing into the existing per-frame loop by wrapping drawConstellation
 const _origDrawConst = drawConstellation;
@@ -1151,6 +1154,9 @@ setMotion.addEventListener("change", () => {
   settings.motion = setMotion.checked;
   saveSettings();
   applySettings();
+  // if motion just went from reduced -> full, restart the shooter chain
+  // (it may have terminated early during a reduced-motion session)
+  maybeSpawnShooter();
 });
 setSky.addEventListener("change", () => {
   settings.sky = setSky.value;
@@ -1190,13 +1196,24 @@ applyTimeOfDay = function () {
   _origApplyTOD();
 };
 
-// gate shooter spawning on the combined motion check (replaces earlier logic)
-const _origMaybeSpawn = maybeSpawnShooter;
+// gate shooter spawning on the combined motion check (replaces earlier logic).
+// self-idempotent: any caller can invoke this and the timer resets rather than
+// stacking, and if a previous chain terminated (e.g. reduced-motion was true
+// at load) calling this again cleanly restarts it.
+let _shooterTimer = null;
 maybeSpawnShooter = function () {
+  clearTimeout(_shooterTimer);
+  _shooterTimer = null;
   if (isMotionReduced()) return;
   const next = 15000 + Math.random() * 15000;
-  setTimeout(() => { spawnShooter(); maybeSpawnShooter(); }, next);
+  _shooterTimer = setTimeout(() => {
+    _shooterTimer = null;
+    spawnShooter();
+    maybeSpawnShooter();
+  }, next);
 };
+// re-kick in case the load-time chain terminated early under reduced motion
+maybeSpawnShooter();
 
 applySettings();
 
@@ -2597,9 +2614,11 @@ function spawnEmbers(n) {
     setTimeout(() => e.remove(), 3200);
   }
 }
-// ambient embers when the fire is alive
+// ambient embers when the fire is alive. skip the whole tick when the fire
+// is out — decaying 0 always yields 0, and saving the hearth blob 27x/minute
+// forever (while nothing has meaningfully changed) is just localStorage churn.
 setInterval(() => {
-  if (!hearth) return;
+  if (!hearth || (hearth.warmth || 0) <= 0) return;
   applyHearthDecay();
   saveHearth(hearth);
   renderWarmth();
@@ -2678,15 +2697,25 @@ renderForecast();
 // re-render around midnight so "today" stays accurate for someone leaving the tab open
 setInterval(renderForecast, 10 * 60 * 1000);
 
-// boost shooting-star spawn rate when today's forecast calls for meteors
+// boost shooting-star spawn rate when today's forecast calls for meteors.
+// same self-idempotent pattern as the base wrap — reuses _shooterTimer so a
+// re-kick from the motion toggle resets rather than stacking chains.
 const _todayForecast = forecastFor(new Date());
 if (_todayForecast.kind === "meteors") {
-  const _origMaybeSpawnForMeteor = maybeSpawnShooter;
   maybeSpawnShooter = function () {
+    clearTimeout(_shooterTimer);
+    _shooterTimer = null;
     if (isMotionReduced()) return;
     const next = 4500 + Math.random() * 6500; // ~5-11s instead of 15-30s
-    setTimeout(() => { spawnShooter(); maybeSpawnShooter(); }, next);
+    _shooterTimer = setTimeout(() => {
+      _shooterTimer = null;
+      spawnShooter();
+      maybeSpawnShooter();
+    }, next);
   };
+  // the base wrap had already started a slow-cadence chain; restart at the
+  // meteor cadence now that we've overridden.
+  maybeSpawnShooter();
 }
 // when today is "aurora drift", strengthen the aurora layer.
 // opacity gets silently clamped to 1 by the browser (same bug the dusk-aurora
@@ -3172,9 +3201,12 @@ function logLighthouseMoment(clientX, clientY) {
     toast("you're on someone else's sky · return to yours to leave a moment");
     return;
   }
-  // place the marker in the upper sky region so it lives with the stars,
-  // not over the windows or under the pond
-  const x = Math.max(60, Math.min(window.innerWidth - 60, clientX - 30 + Math.random() * 60));
+  // scatter the marker anywhere in the upper safe-sky band. previously the x
+  // formula was clientX-30+rand*60 clamped to [60, W-60], but because the
+  // lighthouse lives at right:32px the click is always near W-25, so the
+  // clamp fired every time and every moment landed at x=W-60. result was a
+  // stripe of markers by the lighthouse instead of scattered stars.
+  const x = 60 + Math.random() * Math.max(1, window.innerWidth - 120);
   const y = Math.max(90, Math.min(window.innerHeight * 0.5, 110 + Math.random() * (window.innerHeight * 0.3)));
   const stamp = new Date().toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).toLowerCase();
   userStars.push({ x, y, label: stamp });
