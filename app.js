@@ -213,7 +213,10 @@ function setupWindow(win) {
     win.style.top = ny + "px";
   });
   tb.addEventListener("pointerup", () => { drag = null; saveWindowState(); });
-  tb.addEventListener("pointercancel", () => { drag = null; });
+  // pointercancel needs to save too — otherwise a drag interrupted by the
+  // browser losing focus (alt-tab, os pointer capture) updates left/top on
+  // the element but never persists, so the window snaps back on reload.
+  tb.addEventListener("pointercancel", () => { drag = null; saveWindowState(); });
 
   // focus on any click within window
   win.addEventListener("pointerdown", () => bringToFront(win));
@@ -867,12 +870,25 @@ function escapeHtml(s) {
 }
 
 function renderNoteBody(body) {
-  const safe = escapeHtml(body);
-  return safe.replace(/\[\[([^\]]+)\]\]/g, (m, name) => {
+  // match on the RAW body, then escape each chunk individually. the previous
+  // pass escaped the whole body first and then ran the regex, which meant a
+  // note titled "AT&T notes" linked via [[AT&T notes]] captured "AT&amp;T
+  // notes" and never matched the real title. links to any note whose title
+  // contained &, <, >, ", or ' were silently dead.
+  let out = "";
+  let last = 0;
+  const re = /\[\[([^\]]+)\]\]/g;
+  let m;
+  while ((m = re.exec(body)) !== null) {
+    out += escapeHtml(body.slice(last, m.index));
+    const name = m[1];
     const target = mycNotes.find(n => n.title.toLowerCase() === name.toLowerCase().trim());
     const cls = target ? "myc-link" : "myc-link dead";
-    return `<span class="${cls}" data-link="${escapeHtml(name)}">${escapeHtml(name)}</span>`;
-  });
+    out += `<span class="${cls}" data-link="${escapeHtml(name)}">${escapeHtml(name)}</span>`;
+    last = m.index + m[0].length;
+  }
+  out += escapeHtml(body.slice(last));
+  return out;
 }
 
 function linksOf(note) {
@@ -2848,11 +2864,11 @@ function drawBottles(t) {
       pondCtx.fillStyle = "rgba(255, 240, 200, 0.78)";
       pondCtx.fillRect(-5, -1, 8, 2);
     }
-    // soft glow
-    const grad = pondCtx.createRadialGradient(0, 0, 0, 0, 0, 14);
-    grad.addColorStop(0, "rgba(255, 240, 200, 0.18)");
-    grad.addColorStop(1, "rgba(255, 240, 200, 0)");
-    pondCtx.fillStyle = grad;
+    // soft glow — flat low-alpha circle instead of a per-frame radial gradient.
+    // same perf lesson as the pond gradient fix in devlog #13: gradients are
+    // cheap to use, expensive to create, so don't allocate one per bottle per
+    // frame just for a subtle halo.
+    pondCtx.fillStyle = "rgba(255, 240, 200, 0.09)";
     pondCtx.beginPath(); pondCtx.arc(0, 0, 14, 0, Math.PI * 2); pondCtx.fill();
     pondCtx.restore();
   }
