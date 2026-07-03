@@ -56,6 +56,19 @@
 <!-- a named star of the day (tooltip on hover, lore on click) -->
 <div id="named-star" aria-label="a named star" hidden></div>
 
+<!-- wind vane on the shore — idles gently, spins during a wind gust -->
+<div id="wind-vane" title="the wind" aria-label="wind vane">
+  <svg class="vane-svg" viewBox="0 0 40 70" aria-hidden="true">
+    <line x1="20" y1="70" x2="20" y2="26" stroke="#2a1e10" stroke-width="1.6"/>
+    <circle cx="20" cy="24" r="1.6" fill="#3a2a1a"/>
+    <g class="vane-arrow">
+      <polygon points="4,24 12,20 12,28" fill="#3a2a1a"/>
+      <line x1="12" y1="24" x2="30" y2="24" stroke="#3a2a1a" stroke-width="1.4"/>
+      <polygon points="30,20 36,24 30,28" fill="#3a2a1a"/>
+    </g>
+  </svg>
+</div>
+
 <!-- lighthouse on the far shore (svg + sweeping beam) -->
 <div id="lighthouse" title="leave a moment at the lighthouse" aria-label="lighthouse">
   <div class="lighthouse-beam" id="lighthouse-beam"></div>
@@ -159,6 +172,14 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
+      <article class="logentry">
+        <h3>devlog #15 — <span class="logdate">jul 3</span></h3>
+        <p>three additions today, all pond-adjacent. i'd been staring at the water thinking it looked too still — nothing under the surface, no one interacting with it, nothing that reacted to anything else. so.</p>
+        <p><strong>pond fish.</strong> every 30-75 seconds a small dark silhouette darts across under the water, leaving a subtle V-wake behind it. drawn on the pond canvas beneath the lily pads (which makes the pads sit above them like real cover), body is an ellipse, tail is a small triangle that wags with a sine on the elapsed time. no clicking them — they're not creatures to spot, they're just <em>there</em>, doing fish things. respects reduced-motion (no spawning). the very first one shows up 12 seconds after page load so the water doesn't sit still for a full minute after you arrive.</p>
+        <p><strong>skipping stones.</strong> click and drag across the pond and a stone skips 2-4 times along your drag direction, each skip a slightly smaller ripple than the last. drag distance controls the skip count (further drags = more bounces), and the gaps between bounces get shorter as the stone loses energy — same way real skipping stones do. below the threshold (42px) it falls through to the existing pond click handler, so tapping still just drops a single ripple. the fiddly bit: pointerup fires <em>and then</em> click fires on the same element, so if the pointerup ran the skip logic i'd get an extra plain ripple from the click. added a <code>_skipConsumeClick</code> flag that the pointerup sets and the click handler checks-and-clears. one boolean saved twenty minutes of debugging phantom ripples.</p>
+        <p><strong>wind vane on the shore.</strong> a small svg vane (post + arrow) sitting between the dandelion and the lighthouse, idling at a lazy -4°. when a wind gust rolls through (the ambient event i added yesterday), the arrow rotates to +38° via css. the interesting choice was <em>not</em> putting an idle sway animation on it: i tried a keyframe idle first, but the moment i also wanted a smooth <code>transition: transform 900ms</code> for the wind rotation, the two fought — the animation kept snapping back to keyframe values whenever the wind class was removed, breaking the "wind relaxes, vane settles back over ~1s" feel. dropped the idle animation entirely; now the vane just holds -4° until wind pushes it, then relaxes back on the transition. still animation, still moves — just once per gust instead of constantly. sometimes the right answer is one fewer thing running.</p>
+        <p>going outside — wind's picking up here too, apparently.</p>
+      </article>
       <article class="logentry">
         <h3>devlog #14 — <span class="logdate">jul 2</span></h3>
         <p>no new features today. six bug catches. some had been sitting in the code for weeks and i just never looked in the right window.</p>

@@ -2162,6 +2162,74 @@ function jumpFrogAt(viewportX, viewportY) {
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 900);
 }
+
+/* ---- pond fish ----
+   occasional dark shape darts under the surface, leaving a small V-wake.
+   drawn on the pond canvas, below lily pads so the pads sit above them
+   like real lily pads shading real fish. */
+const fish = [];
+function spawnFish() {
+  if (pondW === 0 || isMotionReduced()) return;
+  const fromLeft = Math.random() < 0.5;
+  fish.push({
+    x: fromLeft ? -20 : pondW + 20,
+    y: 40 + Math.random() * (pondH - 60),
+    vx: (fromLeft ? 1 : -1) * (0.6 + Math.random() * 0.5),
+    wavePhase: Math.random() * Math.PI * 2,
+    len: 10 + Math.random() * 6,
+    // fish live briefly; they can either drift off-canvas or duck under
+    life: 1.0,
+  });
+}
+function drawFish(t) {
+  for (let i = fish.length - 1; i >= 0; i--) {
+    const f = fish[i];
+    f.x += f.vx;
+    // subtle vertical wave as it swims
+    const wy = Math.sin(t * 0.004 + f.wavePhase) * 3;
+    // cull when off canvas
+    if (f.x < -30 || f.x > pondW + 30) { fish.splice(i, 1); continue; }
+    // body — thin ellipse silhouette
+    pondCtx.save();
+    pondCtx.translate(f.x, f.y + wy);
+    if (f.vx < 0) pondCtx.scale(-1, 1);
+    pondCtx.fillStyle = "rgba(6, 14, 22, 0.55)";
+    pondCtx.beginPath();
+    pondCtx.ellipse(0, 0, f.len, f.len * 0.32, 0, 0, Math.PI * 2);
+    pondCtx.fill();
+    // tail — small triangle wagging with the wave
+    const wag = Math.sin(t * 0.02 + f.wavePhase) * 0.5;
+    pondCtx.beginPath();
+    pondCtx.moveTo(-f.len, 0);
+    pondCtx.lineTo(-f.len - 5, -3 + wag);
+    pondCtx.lineTo(-f.len - 5, 3 + wag);
+    pondCtx.closePath();
+    pondCtx.fill();
+    pondCtx.restore();
+    // V-wake — two short diverging lines behind the fish
+    pondCtx.strokeStyle = "rgba(200, 220, 210, 0.35)";
+    pondCtx.lineWidth = 0.7;
+    const trailX = f.x - Math.sign(f.vx) * (f.len + 4);
+    pondCtx.beginPath();
+    pondCtx.moveTo(trailX, f.y + wy);
+    pondCtx.lineTo(trailX - Math.sign(f.vx) * 10, f.y + wy - 3);
+    pondCtx.stroke();
+    pondCtx.beginPath();
+    pondCtx.moveTo(trailX, f.y + wy);
+    pondCtx.lineTo(trailX - Math.sign(f.vx) * 10, f.y + wy + 3);
+    pondCtx.stroke();
+  }
+}
+(function scheduleFish() {
+  const next = 30_000 + Math.random() * 45_000; // 30-75s between visits
+  setTimeout(() => {
+    if (!isMotionReduced() && pondW > 0) spawnFish();
+    scheduleFish();
+  }, next);
+})();
+// one fish shortly after load so the pond doesn't sit still for a full minute
+setTimeout(() => { if (pondW > 0) spawnFish(); }, 12_000);
+
 resizePond();
 window.addEventListener("resize", () => {
   clearTimeout(window._pondResize);
@@ -2186,6 +2254,8 @@ function drawPond(t) {
     pondCtx.arc(s.x, s.y + wob, 0.85, 0, Math.PI * 2);
     pondCtx.fill();
   }
+  // fish under the surface — beneath lily pads, above the water base
+  drawFish(t);
   // lily pads (drawn under ripples so a click ripple shows on top)
   drawLilyPads(t);
   // ripples
@@ -2214,6 +2284,9 @@ function addRipple(x, y, speed = 1.6, maxAge = 80) {
 }
 
 pondCanvas.addEventListener("click", (e) => {
+  // skipping-stone drags are handled below via pointer events; those set
+  // _skipConsumeClick so the following click doesn't also drop a plain ripple.
+  if (_skipConsumeClick) { _skipConsumeClick = false; return; }
   const rect = pondCanvas.getBoundingClientRect();
   const lx = e.clientX - rect.left;
   const ly = e.clientY - rect.top;
@@ -2229,6 +2302,60 @@ pondCanvas.addEventListener("click", (e) => {
   if (mushroomChoirNearAny(lx, ly)) return;
   addRipple(lx, ly, 1.6, 80);
 });
+
+/* ---- skipping stones ----
+   click-and-drag across the pond and a "stone" skips 2-4 times along your
+   drag direction, each skip a smaller ripple than the last, before sinking
+   with a final splash. below-threshold drags fall through to the normal
+   pond click handler. */
+let _skipStart = null;
+let _skipConsumeClick = false;
+const SKIP_MIN_DIST = 42; // px — anything shorter reads as an intent-to-click
+pondCanvas.addEventListener("pointerdown", (e) => {
+  const rect = pondCanvas.getBoundingClientRect();
+  _skipStart = { x: e.clientX - rect.left, y: e.clientY - rect.top, when: performance.now() };
+});
+pondCanvas.addEventListener("pointerup", (e) => {
+  if (!_skipStart) return;
+  const rect = pondCanvas.getBoundingClientRect();
+  const ex = e.clientX - rect.left, ey = e.clientY - rect.top;
+  const dx = ex - _skipStart.x, dy = ey - _skipStart.y;
+  const dist = Math.hypot(dx, dy);
+  _skipStart = null;
+  if (dist < SKIP_MIN_DIST) return; // let the click handler do a normal ripple
+  _skipConsumeClick = true;
+  // number of skips depends on how far you dragged (2-4)
+  const skips = Math.min(4, 2 + Math.floor(dist / 90));
+  const ux = dx / dist, uy = dy / dist;
+  // stagger the skips along the drag line, with diminishing spacing (a real
+  // skipping stone loses energy on each bounce, so gaps get shorter)
+  const weights = [1.0, 0.75, 0.55, 0.40].slice(0, skips);
+  const weightSum = weights.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  for (let i = 0; i < skips; i++) {
+    const gapFrac = weights[i] / weightSum;
+    acc += gapFrac;
+    const t = Math.min(1, acc);
+    const sx = _skipStartLocal(ex, dx, t);
+    const sy = _skipStartLocalY(ey, dy, t);
+    // each successive skip is slightly quieter than the last
+    const scale = 1.0 - i * 0.18;
+    setTimeout(() => {
+      addRipple(sx, sy, 1.4 * scale, 80 - i * 8);
+      // last skip: a small extra "splash" ripple to feel like it sank
+      if (i === skips - 1) addRipple(sx, sy, 0.6 * scale, 55);
+    }, i * 240);
+  }
+});
+pondCanvas.addEventListener("pointercancel", () => { _skipStart = null; });
+// helpers: interpolate along the drag line from start toward end
+function _skipStartLocal(ex, dx, t) {
+  // start = ex - dx (the pointerdown x), and we walk fraction t of dx toward ex
+  return (ex - dx) + dx * t;
+}
+function _skipStartLocalY(ey, dy, t) {
+  return (ey - dy) + dy * t;
+}
 
 function scheduleIdleRipple() {
   const wait = 9000 + Math.random() * 22000;

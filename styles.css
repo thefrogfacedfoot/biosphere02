@@ -2045,6 +2045,32 @@ body.wind-gust .firefly {
 }
 body.motion-reduced.wind-gust .wish-lantern { animation: none; }
 
+/* ---- wind vane on the shore ----
+   idles pointing left with a slow sway; during a wind-gust it swings to
+   point strongly the other way, then relaxes back. rotation is applied
+   to the inner .vane-arrow group so the post stays put. */
+#wind-vane {
+  position: fixed;
+  left: calc(32px + 108px + 44px);   /* right of the dandelion */
+  bottom: calc(38px + var(--pond-h) - 12px);
+  width: 28px; height: 56px;
+  z-index: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+.vane-svg { width: 100%; height: 100%; display: block; }
+.vane-arrow {
+  transform-origin: 20px 24px;
+  transform: rotate(-4deg);
+  transition: transform 900ms cubic-bezier(.4, .0, .3, 1);
+}
+body.wind-gust .vane-arrow {
+  /* wind pushes the arrow around to point downwind, then it relaxes back
+     over the transition when the gust ends */
+  transform: rotate(38deg);
+}
+body.stargazer #wind-vane { opacity: 0.55; }
+
 /* ---- breathing room ---- */
 .breathe .hint { color: var(--ink-dim); font-style: italic; font-size: 12px; }
 .breathe-stage {
