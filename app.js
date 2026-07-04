@@ -870,6 +870,38 @@ if (_namedStarEl) {
 }
 
 /* ============================================================
+   feature: wooden dock
+   click the end of the dock to walk out over the water. persistent
+   counter of visits; small toast that varies by mood.
+   ============================================================ */
+const DOCK_KEY = "biosphere02.dock.v1";
+const dockEl = document.getElementById("dock");
+let dockWalks = (() => { try { return +localStorage.getItem(DOCK_KEY) || 0; } catch { return 0; } })();
+function renderDockCount() {
+  const el = document.getElementById("dock-count");
+  if (el) el.textContent = dockWalks;
+}
+renderDockCount();
+if (dockEl) {
+  const dockLines = [
+    "you walk out to the edge · the water holds still",
+    "you stand at the end · the pond doesn't ask anything of you",
+    "you step to the last plank · a fish is under there somewhere",
+    "you look down · the surface remembers the sky",
+    "you count your breaths · the boards creak once",
+  ];
+  dockEl.addEventListener("click", () => {
+    dockEl.classList.add("walked");
+    setTimeout(() => dockEl.classList.remove("walked"), 750);
+    dockWalks++;
+    try { localStorage.setItem(DOCK_KEY, String(dockWalks)); } catch {}
+    renderDockCount();
+    const line = dockLines[Math.floor(Math.random() * dockLines.length)];
+    toast(line, 2600);
+  });
+}
+
+/* ============================================================
    feature: carved bench by the pond
    click to sit for a moment — increments a persistent counter that
    shows up in ~/status if there's a "sat-count" slot for it.
@@ -2127,6 +2159,14 @@ const pondStars = [];
 let pondWaterGrad = null;
 let pondShoreGrad = null;
 
+// moon reflection: soft glow on the water at a fixed pond-relative spot,
+// modulated by the current time-of-day (bright at night, faint by day).
+// gradient built once per resize — same perf lesson as the water grad above.
+let moonReflectGrad = null;
+let moonReflectX = 0;
+let moonReflectY = 0;
+const MOON_REFLECT_RADIUS = 34;
+
 function resizePond() {
   pondW = pondCanvas.offsetWidth;
   pondH = pondCanvas.offsetHeight;
@@ -2140,6 +2180,16 @@ function resizePond() {
   pondShoreGrad = pondCtx.createLinearGradient(0, 0, 0, 22);
   pondShoreGrad.addColorStop(0, "rgba(143, 212, 154, 0.20)");
   pondShoreGrad.addColorStop(1, "rgba(143, 212, 154, 0)");
+  // position moon reflection two-thirds across, mid-pond depth
+  moonReflectX = Math.round(pondW * 0.68);
+  moonReflectY = Math.round(pondH * 0.42);
+  moonReflectGrad = pondCtx.createRadialGradient(
+    moonReflectX, moonReflectY, 0,
+    moonReflectX, moonReflectY, MOON_REFLECT_RADIUS
+  );
+  moonReflectGrad.addColorStop(0,   "rgba(255, 240, 210, 0.55)");
+  moonReflectGrad.addColorStop(0.4, "rgba(255, 232, 180, 0.25)");
+  moonReflectGrad.addColorStop(1,   "rgba(255, 232, 180, 0)");
   buildPondStars();
   buildLilyPads();
   buildMushrooms();
@@ -2360,6 +2410,37 @@ function drawFish(t) {
 // one fish shortly after load so the pond doesn't sit still for a full minute
 setTimeout(() => { if (pondW > 0) spawnFish(); }, 12_000);
 
+// moon reflection intensity: brighter at night, dim/gone during the day.
+// checked against the body class (which the day/night + sky-lock logic keeps
+// current) so a sky-lock to "night" also lights up the reflection.
+function moonReflectAlpha() {
+  const b = document.body.classList;
+  if (b.contains("night")) return 1.0;
+  if (b.contains("dusk"))  return 0.65;
+  if (b.contains("dawn"))  return 0.45;
+  return 0.10; // day — barely visible
+}
+function drawMoonReflection(t) {
+  const alpha = moonReflectAlpha();
+  if (alpha < 0.05) return;
+  // tiny lateral shimmer so the reflection breathes with the water
+  const shimmer = Math.sin(t * 0.0018) * 1.4;
+  pondCtx.save();
+  pondCtx.translate(shimmer, 0);
+  pondCtx.globalAlpha = alpha;
+  pondCtx.fillStyle = moonReflectGrad;
+  pondCtx.fillRect(moonReflectX - MOON_REFLECT_RADIUS, moonReflectY - MOON_REFLECT_RADIUS,
+                   MOON_REFLECT_RADIUS * 2, MOON_REFLECT_RADIUS * 2);
+  // small bright core that pulses gently
+  const pulse = 0.85 + Math.sin(t * 0.0022) * 0.15;
+  pondCtx.fillStyle = `rgba(255, 245, 220, ${0.55 * pulse})`;
+  pondCtx.beginPath();
+  pondCtx.arc(moonReflectX, moonReflectY, 3.2, 0, Math.PI * 2);
+  pondCtx.fill();
+  pondCtx.restore();
+  pondCtx.globalAlpha = 1;
+}
+
 resizePond();
 window.addEventListener("resize", () => {
   clearTimeout(window._pondResize);
@@ -2373,6 +2454,8 @@ function drawPond(t) {
   pondCtx.fillRect(0, 0, pondW, pondH);
   pondCtx.fillStyle = pondShoreGrad;
   pondCtx.fillRect(0, 0, pondW, 22);
+  // moon reflection — soft warm glow on the water, brighter at night
+  drawMoonReflection(t);
   // bioluminescent mushrooms just below the shoreline
   drawMushrooms(t);
   // reflected shimmering stars

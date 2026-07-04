@@ -2084,6 +2084,31 @@ body.wind-gust .cattail-bunch {
 body.motion-reduced .cattail-bunch { animation: none; }
 body.stargazer #cattails { opacity: 0.6; }
 
+/* ---- wooden dock extending over the water ----
+   sits on the shore and reaches out into the pond. click the far end
+   (roughly the last plank) to "walk out". */
+#dock {
+  position: fixed;
+  /* dock reaches from the shore out into the pond */
+  left: calc(50% - 45px);
+  bottom: calc(38px + var(--pond-h) - 30px);
+  width: 90px; height: 50px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+  transition: transform 220ms ease, filter 220ms ease;
+}
+#dock:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(255, 217, 160, 0.35)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55)); }
+.dock-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#dock.walked .dock-svg { animation: dock-plank 700ms ease-out; }
+@keyframes dock-plank {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(1.2px); }
+  100% { transform: translateY(0); }
+}
+body.motion-reduced #dock.walked .dock-svg { animation: none; }
+body.stargazer #dock { opacity: 0.55; }
+
 /* ---- carved bench by the pond ---- */
 #bench {
   position: fixed;
