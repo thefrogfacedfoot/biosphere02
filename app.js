@@ -831,25 +831,42 @@ function _namedStarHash(d) {
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
-(function placeNamedStar() {
+let _namedStarCurrent = null;
+let _namedStarDate = null;
+function placeNamedStar() {
   const el = document.getElementById("named-star");
   if (!el) return;
   const now = new Date();
+  const dateKey = now.toDateString();
   const h = _namedStarHash(now);
-  const star = namedStars[h % namedStars.length];
+  _namedStarCurrent = namedStars[h % namedStars.length];
+  _namedStarDate = dateKey;
   // upper-sky safe zone: avoid topbar (0-38), pond area (bottom), and clip to margins
   const W = window.innerWidth, H = window.innerHeight;
   const bx = 60 + ((h >> 8) % Math.max(1, W - 240));
   const by = 70 + (((h >> 16) & 0xFF) / 255) * (H * 0.35);
   el.style.left = bx.toFixed(0) + "px";
   el.style.top  = by.toFixed(0) + "px";
-  el.dataset.name = star.name;
-  el.title = star.name;
+  el.dataset.name = _namedStarCurrent.name;
+  el.title = _namedStarCurrent.name;
   el.hidden = false;
-  el.addEventListener("click", () => {
-    if (typeof toast === "function") toast(`${star.name} · ${star.lore}`, 4800);
+}
+placeNamedStar();
+// re-place on resize so the star doesn't strand off-screen when the viewport
+// shrinks; re-place at date rollover so a tab left open past midnight rolls
+// to the next day's star.
+window.addEventListener("resize", placeNamedStar);
+setInterval(() => {
+  if (_namedStarDate && _namedStarDate !== new Date().toDateString()) placeNamedStar();
+}, 5 * 60 * 1000);
+// click always reads from _namedStarCurrent so it stays fresh after re-place
+const _namedStarEl = document.getElementById("named-star");
+if (_namedStarEl) {
+  _namedStarEl.addEventListener("click", () => {
+    if (!_namedStarCurrent) return;
+    if (typeof toast === "function") toast(`${_namedStarCurrent.name} · ${_namedStarCurrent.lore}`, 4800);
   });
-})();
+}
 
 /* ============================================================
    feature: ambient orbit (web audio generative pad)
@@ -1359,12 +1376,19 @@ applyTimeOfDay = function () {
 // self-idempotent: any caller can invoke this and the timer resets rather than
 // stacking, and if a previous chain terminated (e.g. reduced-motion was true
 // at load) calling this again cleanly restarts it.
+// cadence is a LIVE check of today's forecast, not a load-time capture —
+// otherwise a tab left open across midnight keeps yesterday's meteor rate
+// (fast) or misses today's meteor rate entirely.
 let _shooterTimer = null;
 maybeSpawnShooter = function () {
   clearTimeout(_shooterTimer);
   _shooterTimer = null;
   if (isMotionReduced()) return;
-  const next = 15000 + Math.random() * 15000;
+  const isMeteorDay = (typeof forecastFor === "function")
+    && forecastFor(new Date()).kind === "meteors";
+  const next = isMeteorDay
+    ? (4500 + Math.random() * 6500)     // meteor day: 5-11s
+    : (15000 + Math.random() * 15000);  // normal:     15-30s
   _shooterTimer = setTimeout(() => {
     _shooterTimer = null;
     spawnShooter();
@@ -2312,6 +2336,10 @@ let _skipStart = null;
 let _skipConsumeClick = false;
 const SKIP_MIN_DIST = 42; // px — anything shorter reads as an intent-to-click
 pondCanvas.addEventListener("pointerdown", (e) => {
+  // clear any stale consume-click flag from a previous drag whose click was
+  // intercepted by the capture-phase bottle handler and never reached the
+  // bubble-phase click listener that would have cleared it.
+  _skipConsumeClick = false;
   const rect = pondCanvas.getBoundingClientRect();
   _skipStart = { x: e.clientX - rect.left, y: e.clientY - rect.top, when: performance.now() };
 });
@@ -2983,26 +3011,10 @@ renderForecast();
 // re-render around midnight so "today" stays accurate for someone leaving the tab open
 setInterval(renderForecast, 10 * 60 * 1000);
 
-// boost shooting-star spawn rate when today's forecast calls for meteors.
-// same self-idempotent pattern as the base wrap — reuses _shooterTimer so a
-// re-kick from the motion toggle resets rather than stacking chains.
+// meteor-day cadence is now handled inline inside maybeSpawnShooter as a
+// live check of forecastFor(new Date()).kind — so a tab left open across
+// midnight naturally rolls to the correct cadence without needing a swap.
 const _todayForecast = forecastFor(new Date());
-if (_todayForecast.kind === "meteors") {
-  maybeSpawnShooter = function () {
-    clearTimeout(_shooterTimer);
-    _shooterTimer = null;
-    if (isMotionReduced()) return;
-    const next = 4500 + Math.random() * 6500; // ~5-11s instead of 15-30s
-    _shooterTimer = setTimeout(() => {
-      _shooterTimer = null;
-      spawnShooter();
-      maybeSpawnShooter();
-    }, next);
-  };
-  // the base wrap had already started a slow-cadence chain; restart at the
-  // meteor cadence now that we've overridden.
-  maybeSpawnShooter();
-}
 // when today is "aurora drift", strengthen the aurora layer.
 // opacity gets silently clamped to 1 by the browser (same bug the dusk-aurora
 // css rule had — see devlog #12), so use a filter combo instead.
