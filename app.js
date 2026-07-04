@@ -103,6 +103,7 @@ function makeFireflies() {
 }
 function updateFireflies(t) {
   for (const f of fireflies) {
+    if (f._caught) continue; // caught fireflies are mid-transition to the jar
     f.ax += 0.012; f.ay += 0.009;
     f.vx += Math.cos(f.ax) * 0.04;
     f.vy += Math.sin(f.ay) * 0.03;
@@ -866,6 +867,111 @@ if (_namedStarEl) {
     if (!_namedStarCurrent) return;
     if (typeof toast === "function") toast(`${_namedStarCurrent.name} · ${_namedStarCurrent.lore}`, 4800);
   });
+}
+
+/* ============================================================
+   feature: carved bench by the pond
+   click to sit for a moment — increments a persistent counter that
+   shows up in ~/status if there's a "sat-count" slot for it.
+   ============================================================ */
+const BENCH_KEY = "biosphere02.bench.v1";
+const benchEl = document.getElementById("bench");
+let satCount = (() => { try { return +localStorage.getItem(BENCH_KEY) || 0; } catch { return 0; } })();
+function renderSatCount() {
+  const el = document.getElementById("sat-count");
+  if (el) el.textContent = satCount;
+}
+renderSatCount();
+if (benchEl) {
+  benchEl.addEventListener("click", () => {
+    benchEl.classList.add("sat");
+    setTimeout(() => benchEl.classList.remove("sat"), 750);
+    satCount++;
+    try { localStorage.setItem(BENCH_KEY, String(satCount)); } catch {}
+    renderSatCount();
+    if (satCount === 1) toast("you sit for a moment · the forest keeps going");
+    else toast(`sat ${satCount} times · the bench remembers`, 2000);
+  });
+}
+
+/* ============================================================
+   feature: firefly jar
+   click a firefly to catch it — the sky loses one, the jar gains one
+   (a small dot inside the jar). a fresh firefly quietly rejoins after
+   ~45s so the sky doesn't drain to nothing.
+   ============================================================ */
+const JAR_KEY = "biosphere02.jar.v1";
+const jarGlow = document.getElementById("jar-glow");
+const jarCountEl = document.getElementById("jar-count");
+let jarCount = (() => { try { return +localStorage.getItem(JAR_KEY) || 0; } catch { return 0; } })();
+
+// deterministic positions inside the jar so caught fireflies have "assigned" spots
+const JAR_SLOTS = [];
+for (let i = 0; i < 24; i++) {
+  JAR_SLOTS.push({
+    x: 14 + Math.random() * 12,
+    y: 20 + Math.random() * 32,
+    r: 1.2 + Math.random() * 0.6,
+    delay: (Math.random() * 2.4).toFixed(2),
+  });
+}
+function renderJar() {
+  if (jarCountEl) jarCountEl.textContent = jarCount;
+  if (!jarGlow) return;
+  const shown = Math.min(jarCount, JAR_SLOTS.length);
+  let html = "";
+  for (let i = 0; i < shown; i++) {
+    const s = JAR_SLOTS[i];
+    html += `<circle class="jar-dot" cx="${s.x}" cy="${s.y}" r="${s.r}" style="animation-delay: -${s.delay}s"/>`;
+  }
+  jarGlow.innerHTML = html;
+}
+renderJar();
+
+function catchFirefly(f) {
+  // mark it caught so subsequent clicks don't double-count as the css animation plays
+  if (f._caught) return;
+  f._caught = true;
+  // small pop animation via css: fade + shrink out
+  f.el.style.transition = "transform 320ms ease-out, opacity 320ms ease-out";
+  f.el.style.transform = `translate(${f.x}px, ${f.y}px) scale(0.2)`;
+  f.el.style.opacity = "0";
+  setTimeout(() => {
+    // remove this firefly from the flock (updateFireflies mutates el.style
+    // every frame, which would fight the transition until we drop it)
+    const idx = fireflies.indexOf(f);
+    if (idx >= 0) fireflies.splice(idx, 1);
+    if (f.el && f.el.parentNode) f.el.parentNode.removeChild(f.el);
+    // quietly respawn a fresh one after a beat so the sky stays alive
+    setTimeout(spawnOneFirefly, 45_000);
+  }, 340);
+  jarCount++;
+  try { localStorage.setItem(JAR_KEY, String(jarCount)); } catch {}
+  renderJar();
+  if (jarCount === 1) toast("caught · the jar remembers the shape of light");
+}
+
+function spawnOneFirefly() {
+  const el = document.createElement("div");
+  el.className = "firefly catchable";
+  fireflyHost.appendChild(el);
+  const f = {
+    el,
+    x: Math.random() * window.innerWidth,
+    y: window.innerHeight * 0.5 + Math.random() * window.innerHeight * 0.5,
+    vx: 0, vy: 0,
+    ax: Math.random() * 2 * Math.PI,
+    ay: Math.random() * 2 * Math.PI,
+    blinkPhase: Math.random() * Math.PI * 2,
+  };
+  fireflies.push(f);
+  el.addEventListener("click", (e) => { e.stopPropagation(); catchFirefly(f); });
+}
+// make the existing fireflies catchable — they were created before the jar
+// feature existed, so retrofit the class and the click handler
+for (const f of fireflies) {
+  f.el.classList.add("catchable");
+  f.el.addEventListener("click", (e) => { e.stopPropagation(); catchFirefly(f); });
 }
 
 /* ============================================================
