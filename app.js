@@ -4106,3 +4106,135 @@ document.addEventListener("keydown", (e) => {
   if (!polaroidOverlay || polaroidOverlay.hidden) return;
   if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); closePolaroidOverlay(); }
 });
+
+/* ============================================================
+   feature: wind chimes on the shore
+   a hanging cluster of tubes. it sways on its own (css), swings and
+   rings during the existing wind-gust event, and rings when clicked.
+   sound is a handful of soft pentatonic sines with a long decay —
+   respects the mute setting. shares the ambient-orbit AudioContext if
+   one already exists, otherwise lazily creates its own. auto-ringing on
+   a gust is wired via a MutationObserver on the body class so this stays
+   self-contained and never touches scheduleWindGust().
+   ============================================================ */
+const CHIME_KEY = "biosphere02.windchime.v1";
+const windChimeEl = document.getElementById("wind-chime");
+const CHIME_NOTES = [523.25, 587.33, 698.46, 783.99, 880.0, 1046.5]; // C-D-F-G-A pentatonic, high octave
+const _chime = { ctx: null, gusting: false, rung: false };
+try { _chime.rung = localStorage.getItem(CHIME_KEY) === "1"; } catch {}
+
+function _chimeCtx() {
+  if (orbit.ctx) return orbit.ctx;            // ride the orbit context if it's up
+  if (_chime.ctx) return _chime.ctx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  _chime.ctx = new AC();
+  return _chime.ctx;
+}
+
+function playChime(count = 3, spreadMs = 220) {
+  if (settings && settings.mute) return;
+  const ctx = _chimeCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+  const master = ctx.createGain();
+  master.gain.value = 0.16;
+  master.connect(ctx.destination);
+  // pick a few distinct tubes to strike
+  const notes = CHIME_NOTES.slice().sort(() => Math.random() - 0.5).slice(0, Math.min(count, CHIME_NOTES.length));
+  const now = ctx.currentTime;
+  notes.forEach((base, i) => {
+    const f = base * (1 + (Math.random() - 0.5) * 0.004); // faint detune so strikes aren't identical
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    o.connect(g).connect(master);
+    const t = now + (i * spreadMs) / 1000 + Math.random() * 0.04;
+    g.gain.linearRampToValueAtTime(0.9, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+    o.start(t);
+    o.stop(t + 2.8);
+  });
+}
+
+if (windChimeEl) {
+  windChimeEl.addEventListener("click", () => {
+    // restart the single-swing animation
+    windChimeEl.classList.remove("rung");
+    void windChimeEl.offsetWidth;
+    windChimeEl.classList.add("rung");
+    playChime(3, 190);
+    if (!_chime.rung) {
+      _chime.rung = true;
+      try { localStorage.setItem(CHIME_KEY, "1"); } catch {}
+      toast("wind chimes · a little music for the shore");
+    }
+  });
+  windChimeEl.addEventListener("animationend", () => windChimeEl.classList.remove("rung"));
+
+  // ring softly a few times whenever a wind gust rolls in
+  const chimeObserver = new MutationObserver(() => {
+    const gusting = document.body.classList.contains("wind-gust");
+    if (gusting && !_chime.gusting) {
+      _chime.gusting = true;
+      const rings = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < rings; i++) {
+        setTimeout(() => playChime(2 + Math.floor(Math.random() * 2), 340), 600 + Math.random() * 8000);
+      }
+    } else if (!gusting) {
+      _chime.gusting = false;
+    }
+  });
+  chimeObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+}
+
+/* ============================================================
+   feature: moonflower on the shore
+   a closed bud through the day that opens into a glowing bloom at night.
+   the open/close state is pure css keyed on body.night (so it also opens
+   under a sky-lock of night), cross-fading the stacked bud/bloom groups.
+   clicking the open bloom puffs a cloud of pale pollen up into the sky
+   and keeps a small tally of how many nights you've stirred it.
+   ============================================================ */
+const MOONFLOWER_KEY = "biosphere02.moonflower.v1";
+const moonflowerEl = document.getElementById("moonflower");
+let moonPollenReleased = (() => { try { return +localStorage.getItem(MOONFLOWER_KEY) || 0; } catch { return 0; } })();
+
+function spawnMoonPollen(originX, originY) {
+  if (isMotionReduced()) return;
+  const count = 9 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement("span");
+    p.className = "moon-pollen";
+    p.textContent = "·";
+    p.style.left = originX + "px";
+    p.style.top = originY + "px";
+    const dx = (Math.random() - 0.5) * 220;
+    const dy = -(140 + Math.random() * 220);
+    const rot = (Math.random() - 0.5) * 300;
+    p.style.setProperty("--pollen-dx", dx.toFixed(0) + "px");
+    p.style.setProperty("--pollen-dy", dy.toFixed(0) + "px");
+    p.style.setProperty("--pollen-r", rot.toFixed(0) + "deg");
+    p.style.animationDelay = (Math.random() * 260).toFixed(0) + "ms";
+    p.style.animationDuration = (4200 + Math.random() * 1600).toFixed(0) + "ms";
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 6400);
+  }
+}
+
+if (moonflowerEl) {
+  moonflowerEl.addEventListener("click", () => {
+    // only the open (night) bloom gives pollen; by day it's a shut bud
+    if (!document.body.classList.contains("night")) {
+      toast("the moonflower only opens after dark 🌙");
+      return;
+    }
+    const rect = moonflowerEl.getBoundingClientRect();
+    spawnMoonPollen(rect.left + rect.width / 2, rect.top + 14);
+    moonPollenReleased++;
+    try { localStorage.setItem(MOONFLOWER_KEY, String(moonPollenReleased)); } catch {}
+    if (moonPollenReleased === 1) toast("you stirred the moonflower · pollen drifts up like slow stars");
+  });
+}

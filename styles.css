@@ -2201,6 +2201,122 @@ body.wind-gust .vane-arrow {
 }
 body.stargazer #wind-vane { opacity: 0.55; }
 
+/* ---- wind chimes on a shepherd's hook ----
+   the cluster of tubes sways gently on its own, swings harder during a
+   wind gust, and gives a single stronger swing when clicked. transform
+   applies to .chime-cluster with the origin at the hook so the post holds
+   still. the ringing sound is handled in js (respects the mute setting). */
+#wind-chime {
+  position: fixed;
+  right: calc(32px + 70px);   /* left of the lighthouse, clear of it */
+  bottom: calc(38px + var(--pond-h) - 14px);
+  width: 40px; height: 84px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#wind-chime:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(200, 214, 236, 0.5)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.chime-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.chime-tube {
+  fill: #b9c2d0;
+  filter: drop-shadow(0 0 1.5px rgba(210, 224, 244, 0.5));
+}
+.chime-cluster {
+  transform-origin: 28px 10px;
+  animation: chime-idle 5s ease-in-out infinite;
+}
+@keyframes chime-idle {
+  0%, 100% { transform: rotate(-2deg); }
+  50%      { transform: rotate(2deg); }
+}
+body.wind-gust .chime-cluster {
+  animation: chime-wind 0.7s ease-in-out infinite;
+}
+@keyframes chime-wind {
+  0%, 100% { transform: rotate(-11deg); }
+  50%      { transform: rotate(13deg); }
+}
+#wind-chime.rung .chime-cluster {
+  animation: chime-rung 1.4s ease-out;
+}
+@keyframes chime-rung {
+  0%   { transform: rotate(0deg); }
+  18%  { transform: rotate(-13deg); }
+  46%  { transform: rotate(9deg); }
+  72%  { transform: rotate(-5deg); }
+  100% { transform: rotate(0deg); }
+}
+body.motion-reduced .chime-cluster,
+body.motion-reduced #wind-chime.rung .chime-cluster { animation: none; }
+body.stargazer #wind-chime { opacity: 0.55; }
+
+/* ---- moonflower on the shore ----
+   a tight bud through the day; when the sky is night (clock-based or
+   sky-locked) the bud fades and the bloom scales open with a soft glow.
+   both states are drawn stacked and cross-fade on the body mood class —
+   no per-frame js. clicking the open bloom puffs pollen (js). */
+#moonflower {
+  position: fixed;
+  left: calc(32px + 108px + 44px + 44px + 56px);   /* right of the bench */
+  bottom: calc(38px + var(--pond-h) - 8px);
+  width: 30px; height: 54px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 220ms ease, filter 220ms ease;
+}
+#moonflower:hover { transform: translateY(-2px); }
+.moonflower-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.mf-halo {
+  fill: rgba(210, 226, 255, 0);
+  filter: blur(3px);
+  transition: fill 1200ms ease;
+}
+.mf-bud {
+  opacity: 1;
+  transition: opacity 1000ms ease;
+}
+.mf-bloom {
+  opacity: 0;
+  transform: scale(0.25);
+  transform-origin: 20px 24px;
+  transition: opacity 1200ms ease, transform 1200ms cubic-bezier(.2, .8, .3, 1);
+}
+.mf-petals ellipse { fill: rgba(236, 240, 250, 0.92); }
+.mf-core {
+  fill: #ffe6a0;
+  filter: drop-shadow(0 0 3px rgba(255, 226, 160, 0.7));
+}
+body.night .mf-bud   { opacity: 0; }
+body.night .mf-bloom { opacity: 1; transform: scale(1); }
+body.night .mf-halo  { fill: rgba(210, 226, 255, 0.16); }
+#moonflower:hover .mf-halo { fill: rgba(210, 226, 255, 0.22); }
+body.motion-reduced .mf-bud,
+body.motion-reduced .mf-bloom,
+body.motion-reduced .mf-halo { transition: none; }
+body.stargazer #moonflower { opacity: 0.55; }
+
+/* pollen puffed from the moonflower when clicked open */
+.moon-pollen {
+  position: fixed;
+  width: 7px; height: 7px;
+  pointer-events: none;
+  z-index: 90;
+  color: rgba(224, 234, 255, 0.9);
+  font-size: 9px;
+  line-height: 1;
+  text-shadow: 0 0 6px rgba(200, 220, 255, 0.7);
+  animation: moon-pollen-float 4.8s cubic-bezier(.3, .2, .6, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes moon-pollen-float {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  12%  { opacity: 1; }
+  100% { transform: translate(var(--pollen-dx, 30px), var(--pollen-dy, -240px)) rotate(var(--pollen-r, 90deg)); opacity: 0; }
+}
+body.motion-reduced .moon-pollen { animation: none; display: none; }
+
 /* ---- breathing room ---- */
 .breathe .hint { color: var(--ink-dim); font-style: italic; font-size: 12px; }
 .breathe-stage {
