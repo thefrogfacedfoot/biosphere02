@@ -109,11 +109,14 @@ function updateFireflies(t) {
     f.vy += Math.sin(f.ay) * 0.03;
     f.vx *= 0.96; f.vy *= 0.96;
     f.x += f.vx; f.y += f.vy;
-    // bounds
+    // bounds — x wraps around, but y is a hard ceiling/floor. reflect the
+    // velocity when we hit it, otherwise a firefly keeps pressing into the
+    // edge (vy never changes sign) and slides along it until the slow random
+    // drift happens to flip it — they visibly pile up along the bottom.
     if (f.x < 0) f.x = window.innerWidth;
     if (f.x > window.innerWidth) f.x = 0;
-    if (f.y < window.innerHeight * 0.3) f.y = window.innerHeight * 0.3;
-    if (f.y > window.innerHeight) f.y = window.innerHeight;
+    if (f.y < window.innerHeight * 0.3) { f.y = window.innerHeight * 0.3; f.vy = Math.abs(f.vy); }
+    if (f.y > window.innerHeight) { f.y = window.innerHeight; f.vy = -Math.abs(f.vy); }
     const blink = 0.55 + Math.sin(t * 0.003 + f.blinkPhase) * 0.4;
     f.el.style.transform = `translate(${f.x}px, ${f.y}px)`;
     f.el.style.opacity = String(Math.max(0.1, blink));
@@ -2071,7 +2074,17 @@ function doGlobalSearch(q) {
 }
 
 function renderSearchResults(results, q) {
-  gItems = results.slice(0, 25);
+  // cap the list, but never let the always-last "search google" fallback fall
+  // off the end — a short/common query (e.g. "e") can match 25+ windows, notes
+  // and devlog entries, and the slice was silently dropping the web escape
+  // hatch that's supposed to be one keystroke away.
+  const googleItem = results.find(r => r.kind === "google");
+  let capped = results.slice(0, 25);
+  if (googleItem && !capped.includes(googleItem)) {
+    capped = capped.slice(0, 24);
+    capped.push(googleItem);
+  }
+  gItems = capped;
   gSel = 0;
 
   if (gItems.length === 0) {
@@ -2350,6 +2363,11 @@ function jumpFrogAt(viewportX, viewportY) {
 const fish = [];
 function spawnFish() {
   if (pondW === 0 || isMotionReduced()) return;
+  // cap concurrent fish (like the bottles do). the cull only runs inside
+  // drawFish, which is rAF-driven and pauses when the tab is hidden — but the
+  // spawn timer keeps firing while hidden, so without a cap the array grows
+  // unbounded and the whole backlog floods the pond the moment you return.
+  if (fish.length >= 3) return;
   const fromLeft = Math.random() < 0.5;
   fish.push({
     x: fromLeft ? -20 : pondW + 20,
