@@ -189,6 +189,30 @@
   </svg>
 </div>
 
+<!-- a kite in the day sky — bobs gently, climbs and dances during a wind gust; click to tug -->
+<div id="kite" title="give the string a tug" aria-label="a kite">
+  <svg class="kite-svg" viewBox="0 0 60 150" aria-hidden="true">
+    <!-- string from the kite down toward the ground -->
+    <path class="kite-string" d="M30 40 Q26 90 34 148" fill="none" stroke="rgba(220, 226, 236, 0.35)" stroke-width="0.8"/>
+    <g class="kite-body">
+      <polygon points="30,4 46,30 30,56 14,30" fill="#c0533f"/>
+      <polygon points="30,4 30,56 14,30" fill="#a8452f"/>
+      <line x1="30" y1="4" x2="30" y2="56" stroke="#7a2f20" stroke-width="0.8"/>
+      <line x1="14" y1="30" x2="46" y2="30" stroke="#7a2f20" stroke-width="0.8"/>
+      <!-- tail with little bows -->
+      <path class="kite-tail" d="M30 56 Q36 66 28 76 Q22 86 32 96" fill="none" stroke="#c0533f" stroke-width="1.2"/>
+      <circle cx="33" cy="68" r="1.6" fill="#ffd9a0"/>
+      <circle cx="27" cy="82" r="1.6" fill="#8fd49a"/>
+      <circle cx="33" cy="94" r="1.6" fill="#ffd9a0"/>
+    </g>
+  </svg>
+</div>
+
+<!-- a balancing stone cairn on the shore — click to stack another stone; too tall and it topples -->
+<div id="cairn" title="stack a stone" aria-label="a stone cairn">
+  <div class="cairn-stones" id="cairn-stones"></div>
+</div>
+
 <!-- lighthouse on the far shore (svg + sweeping beam) -->
 <div id="lighthouse" title="leave a moment at the lighthouse" aria-label="lighthouse">
   <div class="lighthouse-beam" id="lighthouse-beam"></div>
@@ -292,6 +316,16 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
+      <article class="logentry">
+        <h3>devlog #18 — <span class="logdate">jul 5, later</span></h3>
+        <p>five new things in one sitting. i tried to spread them across the systems that were already here instead of piling more onto one — a creature, an aerial thing, a builder, a fire-thing, and a proper window — so it doesn't feel like i just added five more of the same.</p>
+        <p><strong>a kite.</strong> in the upper-right of the sky, but only during the "day" mood — it fades in with the daylight and out again at dusk, same idea as the cloud shadow. it bobs on a slow idle, and when a wind gust rolls through it climbs a couple dozen pixels and dances harder. all of that is pure css hanging off <code>body.day</code> and <code>body.wind-gust</code>; the only js is the click-to-tug, a one-shot animation that dips the kite and springs it back. i set <code>pointer-events: none</code> until it's actually daytime so you can't click an invisible kite in the night sky.</p>
+        <p><strong>a stone cairn.</strong> on the shore between the moonflower and the dock. click to stack a balancing stone; each one sits a little off-center so the stack visibly wobbles as it climbs. and it can fall: no risk for the first five, then a rising topple chance (and a hard ceiling at twelve), so going tall is a small gamble. when it goes, the stones scatter with random transforms and it resets to the base. it remembers your tallest-ever in <code>~/status</code>. the fiddly bit was keeping each stone's wobble stable — i generate the per-stone width/offset once into an array and reuse it every re-render, otherwise the whole stack would jitter to new random positions every time you added a stone.</p>
+        <p><strong>a snail.</strong> the fourth creature, and deliberately the opposite of the hummingbird: it crawls the shoreline at a sixtieth of the fox's urgency (60-100 seconds to cross) and drips a faint glistening trail behind it that fades over a few seconds. hover to pause it, click to spot — same shared creatures-spotted counter as the others. i wanted a creature that rewards you for <em>not</em> being quick; you have all the time in the world to catch this one, which is sort of the whole point of it.</p>
+        <p><strong>a moth at the fire.</strong> this one ties into the cabin. a moth only shows up when the hearth is actually warm (warmth ≥ 30), fluttering around the glow in the bottom-left corner with a fast wing-scale animation and a little random-dart wander. click to spot. if you let the fire die while it's out, it drifts off early. it's the first creature that's gated on something you did rather than just the clock — you have to have kept a fire going for it to come.</p>
+        <p><strong>a guestbook.</strong> a real window this time, not shore garnish — <code>~/guestbook 📖</code>. leave a name and one line; it saves and renders newest-first with the date. because it's a proper <code>.window</code>, the window manager, ⌘K, and the search bar all picked it up for nothing — i didn't wire a single one of them. it's a small thing but it's the first spot in the biosphere where what you leave is addressed to whoever comes next, not just to future-you.</p>
+        <p>everything above respects reduced-motion and fades in stargazer mode like the rest of the scene. going outside — it's genuinely a nice evening here.</p>
+      </article>
       <article class="logentry">
         <h3>devlog #17 — <span class="logdate">jul 5</span></h3>
         <p>three bug catches today, no new features. all three were the same shape of mistake: a thing that's fine in the case i tested and quietly wrong in the case i didn't.</p>
@@ -522,6 +556,8 @@
       <div class="status-row"><span>wishes made</span><b id="wishes-count">0</b></div>
       <div class="status-row"><span>stars caught</span><b id="caught-count">0</b></div>
       <div class="status-row"><span>creatures spotted</span><b id="spotted-count">0</b></div>
+      <div class="status-row"><span>tallest cairn</span><b id="cairn-stat">0 stones</b></div>
+      <div class="status-row"><span>guestbook marks</span><b id="guestbook-count">0</b></div>
       <div class="status-row"><span>bottles opened</span><b id="bottles-count">0</b></div>
       <div class="status-row"><span>moments at the lighthouse</span><b id="moments-count">0</b></div>
       <div class="status-row"><span>today's card</span><b id="card-stat">undrawn</b></div>
@@ -767,6 +803,27 @@
     <div class="content forecast">
       <p class="hint">what the sky has in store this week. some days the biosphere keeps its promises — meteor-shower days actually do shower.</p>
       <div class="forecast-list" id="forecast-list"></div>
+    </div>
+  </section>
+
+  <!-- WINDOW: guestbook (leave a small mark that persists) -->
+  <section class="window" data-id="guestbook" style="left: 500px; top: 150px; width: 320px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/guestbook 📖</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content guestbook">
+      <p class="hint">leave a small mark. it stays in the biosphere for whoever wanders through next — including future-you. nothing here tracks you.</p>
+      <div class="guest-editor">
+        <input id="guest-name" type="text" placeholder="a name, or a leaf ✦" maxlength="24" />
+        <textarea id="guest-note" placeholder="one line for the wall…" rows="2" maxlength="140"></textarea>
+        <div class="guest-row">
+          <button id="guest-sign">leave a mark</button>
+          <span id="guest-status"></span>
+        </div>
+      </div>
+      <div class="guest-list" id="guest-list"></div>
     </div>
   </section>
 

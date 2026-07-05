@@ -4256,3 +4256,331 @@ if (moonflowerEl) {
     if (moonPollenReleased === 1) toast("you stirred the moonflower · pollen drifts up like slow stars");
   });
 }
+
+/* ============================================================
+   feature: a kite in the day sky
+   visible only during the "day" mood; bobs on its own, climbs and dances
+   during a wind gust (pure css off the body classes). clicking tugs the
+   string — a one-shot animation plus a first-time toast.
+   ============================================================ */
+const kiteEl = document.getElementById("kite");
+let _kiteTugged = false;
+if (kiteEl) {
+  kiteEl.addEventListener("click", () => {
+    kiteEl.classList.remove("tugged");
+    void kiteEl.offsetWidth;
+    kiteEl.classList.add("tugged");
+    if (!_kiteTugged) {
+      _kiteTugged = true;
+      toast("you tug the string · the kite pulls back, alive in the wind");
+    }
+  });
+  kiteEl.addEventListener("animationend", (e) => {
+    if (e.animationName === "kite-tug") kiteEl.classList.remove("tugged");
+  });
+}
+
+/* ============================================================
+   feature: balancing stone cairn on the shore
+   click to stack a stone; each sits a little off-center so the stack
+   wobbles. a rising chance of toppling as it climbs (and a hard ceiling)
+   makes going tall a small gamble. height + tallest-ever persist.
+   ============================================================ */
+const CAIRN_KEY = "biosphere02.cairn.v1";
+const cairnEl = document.getElementById("cairn");
+const cairnStonesEl = document.getElementById("cairn-stones");
+let cairn = (() => {
+  try { return JSON.parse(localStorage.getItem(CAIRN_KEY) || "null") || { height: 0, tallest: 0 }; }
+  catch { return { height: 0, tallest: 0 }; }
+})();
+cairn.height = cairn.height || 0;
+cairn.tallest = cairn.tallest || 0;
+function saveCairn() { try { localStorage.setItem(CAIRN_KEY, JSON.stringify(cairn)); } catch {} }
+function renderCairnStat() {
+  const el = document.getElementById("cairn-stat");
+  if (el) el.textContent = (cairn.tallest || 0) + " stone" + (cairn.tallest === 1 ? "" : "s");
+}
+// per-stone dimensions/offset, generated once and kept so a given stone keeps
+// its wobble as the stack rebuilds each render.
+const CAIRN_STONE_DEFS = [];
+function ensureStoneDefs(n) {
+  while (CAIRN_STONE_DEFS.length < n) {
+    const i = CAIRN_STONE_DEFS.length;
+    CAIRN_STONE_DEFS.push({
+      w: Math.max(11, 30 - i * 1.5 + (Math.random() * 4 - 2)),
+      h: 8 + Math.random() * 3,
+      dx: Math.random() * 10 - 5,
+    });
+  }
+}
+function renderCairn() {
+  if (!cairnStonesEl) return;
+  cairnStonesEl.innerHTML = "";
+  const base = document.createElement("div");
+  base.className = "cairn-stone cairn-base";
+  cairnStonesEl.appendChild(base);
+  ensureStoneDefs(cairn.height);
+  let y = 10; // sit the first stone just above the base
+  for (let i = 0; i < cairn.height; i++) {
+    const d = CAIRN_STONE_DEFS[i];
+    const s = document.createElement("div");
+    s.className = "cairn-stone";
+    s.style.width = d.w.toFixed(1) + "px";
+    s.style.height = d.h.toFixed(1) + "px";
+    s.style.bottom = y + "px";
+    s.style.left = `calc(50% + ${d.dx.toFixed(1)}px)`;
+    cairnStonesEl.appendChild(s);
+    y += d.h + 1;
+  }
+  renderCairnStat();
+}
+function toppleCairn() {
+  const stones = Array.from(cairnStonesEl.querySelectorAll(".cairn-stone:not(.cairn-base)"));
+  cairn.height = 0;
+  saveCairn();
+  renderCairnStat();
+  toast("the cairn topples · start again, patiently", 2200);
+  if (isMotionReduced()) { renderCairn(); return; }
+  stones.forEach((s) => {
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    s.style.transition = "transform 640ms ease-in, opacity 640ms ease";
+    s.style.transform =
+      `translateX(calc(-50% + ${(dir * (28 + Math.random() * 40)).toFixed(0)}px)) ` +
+      `translateY(${(40 + Math.random() * 30).toFixed(0)}px) ` +
+      `rotate(${(dir * (60 + Math.random() * 120)).toFixed(0)}deg)`;
+    s.style.opacity = "0";
+  });
+  setTimeout(renderCairn, 680);
+}
+renderCairn();
+if (cairnEl) {
+  cairnEl.addEventListener("click", () => {
+    const h = cairn.height;
+    // no risk for the first few; then a rising chance, plus a hard ceiling
+    const toppleChance = h <= 5 ? 0 : Math.min(0.85, (h - 5) * 0.14);
+    if (h >= 12 || Math.random() < toppleChance) { toppleCairn(); return; }
+    cairn.height = h + 1;
+    if (cairn.height > cairn.tallest) cairn.tallest = cairn.height;
+    saveCairn();
+    renderCairn();
+    if (cairn.height === 1) toast("one stone balanced · see how high it'll go");
+  });
+}
+
+/* ============================================================
+   feature: snail on the shore (the slow visitor)
+   crawls the shoreline far slower than the fox, dropping a faint glistening
+   trail behind it. hover pauses it; click to spot (counts toward the same
+   creatures-spotted total). respects reduced-motion.
+   ============================================================ */
+const snail = document.createElement("div");
+snail.className = "snail";
+snail.textContent = "🐌";
+snail.title = "the slow one — click to spot";
+document.body.appendChild(snail);
+
+let snailState = { active: false, paused: false, pauseStart: 0, totalPaused: 0 };
+
+function dropSnailTrail(x) {
+  if (isMotionReduced()) return;
+  const rect = snail.getBoundingClientRect();
+  const dot = document.createElement("div");
+  dot.className = "snail-trail";
+  dot.style.left = x + "px";
+  dot.style.top = (rect.top + rect.height * 0.7) + "px";
+  document.body.appendChild(dot);
+  setTimeout(() => dot.remove(), 3600);
+}
+
+function startSnailWalk() {
+  if (snailState.active) return;
+  if (isMotionReduced()) { scheduleNextSnail(); return; }
+  snailState = { active: true, paused: false, pauseStart: 0, totalPaused: 0 };
+  const fromLeft = Math.random() < 0.5;
+  const W = window.innerWidth;
+  const startX = fromLeft ? -40 : W + 10;
+  const endX   = fromLeft ? W + 10 : -40;
+  const duration = 60000 + Math.random() * 40000; // slow: 60-100s across
+  snail.classList.toggle("facing-left", !fromLeft);
+  snail.classList.add("crawling");
+  snail.style.left = startX + "px";
+
+  const startTime = performance.now();
+  let lastTrail = 0;
+  function frame(now) {
+    if (!snailState.active) return;
+    if (snailState.paused) { requestAnimationFrame(frame); return; }
+    const elapsed = now - startTime - snailState.totalPaused;
+    const p = Math.min(1, elapsed / duration);
+    const x = startX + (endX - startX) * p;
+    snail.style.left = x + "px";
+    if (now - lastTrail > 650) {
+      lastTrail = now;
+      dropSnailTrail(x + (fromLeft ? 3 : 15));
+    }
+    if (p < 1) requestAnimationFrame(frame);
+    else endSnailWalk(true);
+  }
+  requestAnimationFrame(frame);
+}
+function endSnailWalk(scheduleNext) {
+  snail.classList.remove("crawling", "facing-left");
+  snail.style.left = "-50px";
+  snailState.active = false;
+  if (scheduleNext) scheduleNextSnail();
+}
+snail.addEventListener("mouseenter", () => {
+  if (!snailState.active || snailState.paused) return;
+  snailState.paused = true;
+  snailState.pauseStart = performance.now();
+});
+snail.addEventListener("mouseleave", () => {
+  if (!snailState.paused) return;
+  snailState.totalPaused += performance.now() - snailState.pauseStart;
+  snailState.paused = false;
+});
+snail.addEventListener("click", (e) => {
+  if (!snailState.active) return;
+  snailState.active = false;
+  snail.classList.add("caught");
+  spottedCount++;
+  try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
+  renderSpottedCount();
+  spawnCatchBurst(e.clientX, e.clientY);
+  toast(spottedCount === 1 ? "you spotted the snail 🐌 · slow and sure" : "the slow one, spotted 🐌");
+  setTimeout(() => { snail.classList.remove("caught"); endSnailWalk(true); }, 360);
+});
+function scheduleNextSnail() {
+  const wait = 90_000 + Math.random() * 90_000; // 90-180s between appearances
+  setTimeout(startSnailWalk, wait);
+}
+setTimeout(startSnailWalk, 40_000);
+
+/* ============================================================
+   feature: moth drawn to the hearth
+   ties into the cabin fire: a moth only appears while the fire is warm,
+   fluttering around the bottom-left hearth glow. click to spot; it drifts
+   off on its own, or early if the fire goes cold. respects reduced-motion.
+   ============================================================ */
+const MOTH_WARMTH_MIN = 30;
+let _moth = null;
+function spawnMoth() {
+  if (isMotionReduced() || _moth) return;
+  const m = document.createElement("div");
+  m.className = "moth";
+  m.title = "a moth at the fire — click to spot";
+  m.innerHTML = `
+    <svg class="moth-svg" viewBox="0 0 20 16" aria-hidden="true">
+      <ellipse class="moth-wing left" cx="6" cy="8" rx="5" ry="6" fill="rgba(226, 216, 194, 0.9)"/>
+      <ellipse class="moth-wing right" cx="14" cy="8" rx="5" ry="6" fill="rgba(226, 216, 194, 0.9)"/>
+      <ellipse cx="10" cy="8" rx="1.4" ry="4.5" fill="#4a4238"/>
+      <circle cx="10" cy="3.6" r="1.2" fill="#4a4238"/>
+    </svg>`;
+  document.body.appendChild(m);
+  _moth = m;
+
+  const homeX = 60 + Math.random() * 120;
+  const homeY = window.innerHeight - 90 - Math.random() * 70;
+  m.style.left = homeX + "px";
+  m.style.top = homeY + "px";
+
+  let claimed = false;
+  m.addEventListener("click", (e) => {
+    if (claimed) return;
+    claimed = true;
+    spottedCount++;
+    try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
+    renderSpottedCount();
+    spawnCatchBurst(e.clientX, e.clientY);
+    toast("a moth, spotted · it mistook you for the light");
+    m.classList.add("caught");
+    setTimeout(() => { m.remove(); if (_moth === m) _moth = null; }, 350);
+  });
+
+  const born = performance.now();
+  const lifespan = 16000 + Math.random() * 9000;
+  let tx = homeX, ty = homeY, nx = homeX, ny = homeY, nextDart = 0;
+  function frame(now) {
+    if (claimed || !document.body.contains(m)) return;
+    const cold = !hearth || (hearth.warmth || 0) < 8;
+    if (now - born > lifespan || cold) {
+      m.style.opacity = "0";
+      setTimeout(() => { m.remove(); if (_moth === m) _moth = null; }, 500);
+      return;
+    }
+    if (now > nextDart) {
+      nextDart = now + 300 + Math.random() * 500;
+      nx = homeX + (Math.random() * 80 - 40);
+      ny = homeY + (Math.random() * 70 - 35);
+    }
+    tx += (nx - tx) * 0.08;
+    ty += (ny - ty) * 0.08;
+    m.style.left = tx + "px";
+    m.style.top = ty + "px";
+    m.classList.add("fluttering");
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+(function maybeSpawnMoth() {
+  const wait = 40_000 + Math.random() * 50_000; // 40-90s
+  setTimeout(() => {
+    if (!isMotionReduced() && hearth && (hearth.warmth || 0) >= MOTH_WARMTH_MIN && !_moth) spawnMoth();
+    maybeSpawnMoth();
+  }, wait);
+})();
+
+/* ============================================================
+   feature: guestbook window
+   leave a small mark (a name + one line) that persists in localStorage and
+   renders newest-first. shows up as a real window, so ⌘K / search find it
+   for free. cleared by the settings "reset everything" (biosphere02.* keys).
+   ============================================================ */
+const GUESTBOOK_KEY = "biosphere02.guestbook.v1";
+const guestName = document.getElementById("guest-name");
+const guestNote = document.getElementById("guest-note");
+const guestSign = document.getElementById("guest-sign");
+const guestStatus = document.getElementById("guest-status");
+const guestListEl = document.getElementById("guest-list");
+let guestMarks = (() => { try { return JSON.parse(localStorage.getItem(GUESTBOOK_KEY) || "[]"); } catch { return []; } })();
+function saveGuestbook() { try { localStorage.setItem(GUESTBOOK_KEY, JSON.stringify(guestMarks)); } catch {} }
+function renderGuestCount() {
+  const el = document.getElementById("guestbook-count");
+  if (el) el.textContent = guestMarks.length;
+}
+function renderGuestbook() {
+  renderGuestCount();
+  if (!guestListEl) return;
+  if (guestMarks.length === 0) {
+    guestListEl.innerHTML = `<div class="guest-empty">no marks yet · be the first to sign the wall</div>`;
+    return;
+  }
+  guestListEl.innerHTML = guestMarks.map(mk => {
+    const when = new Date(mk.when).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    return `<div class="guest-mark">
+      <div class="guest-mark-head">
+        <span class="guest-mark-name">${escapeHtml(mk.name)}</span>
+        <span class="guest-mark-when">${escapeHtml(when)}</span>
+      </div>
+      ${mk.note ? `<div class="guest-mark-note">${escapeHtml(mk.note)}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+renderGuestbook();
+if (guestSign) {
+  guestSign.addEventListener("click", () => {
+    const name = ((guestName && guestName.value) || "").trim() || "a passing leaf ✦";
+    const note = ((guestNote && guestNote.value) || "").trim();
+    guestMarks.unshift({ name: name.slice(0, 24), note: note.slice(0, 140), when: Date.now() });
+    if (guestMarks.length > 60) guestMarks.length = 60;
+    saveGuestbook();
+    renderGuestbook();
+    if (guestName) guestName.value = "";
+    if (guestNote) guestNote.value = "";
+    if (guestStatus) {
+      guestStatus.textContent = "marked ✓";
+      setTimeout(() => { if (guestStatus.textContent === "marked ✓") guestStatus.textContent = ""; }, 1600);
+    }
+    if (guestMarks.length === 1) toast("you left a mark · the wall remembers");
+  });
+}
