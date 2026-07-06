@@ -4584,3 +4584,297 @@ if (guestSign) {
     if (guestMarks.length === 1) toast("you left a mark · the wall remembers");
   });
 }
+
+/* ============================================================
+   feature: rope swing on the shore
+   still at rest; a click gives the seat a decaying push, and a wind gust
+   sets it swaying (css off body.wind-gust). the .swinging one-shot clears
+   itself on animationend so a later gust can take over.
+   ============================================================ */
+const swingEl = document.getElementById("swing");
+let _swingPushed = false;
+if (swingEl) {
+  swingEl.addEventListener("click", () => {
+    swingEl.classList.remove("swinging");
+    void swingEl.offsetWidth;
+    swingEl.classList.add("swinging");
+    if (!_swingPushed) {
+      _swingPushed = true;
+      toast("you set the swing going · it creaks on the backswing");
+    }
+  });
+  swingEl.addEventListener("animationend", (e) => {
+    if (e.animationName === "swing-push") swingEl.classList.remove("swinging");
+  });
+}
+
+/* ============================================================
+   feature: bird's nest on the shore
+   advances one stage each new distinct day you visit (reusing the plant's
+   "days seen" idea): eggs → hatchlings → fledglings → they fly off and the
+   nest goes quiet → a fresh clutch of eggs. click to peek. persists.
+   ============================================================ */
+const NEST_KEY = "biosphere02.nest.v1";
+const nestEl = document.getElementById("nest");
+const nestContents = document.getElementById("nest-contents");
+let nest = (() => {
+  try { return JSON.parse(localStorage.getItem(NEST_KEY) || "null") || {}; }
+  catch { return {}; }
+})();
+function saveNest() { try { localStorage.setItem(NEST_KEY, JSON.stringify(nest)); } catch {} }
+
+const NEST_STAGE_ORDER = [1, 2, 3, 0]; // eggs, hatchlings, fledglings, quiet
+const NEST_STAGE_LABEL = { 0: "quiet", 1: "3 eggs", 2: "hatchlings", 3: "fledglings" };
+const NEST_PEEK = {
+  0: "the nest is empty and quiet · something may be along soon",
+  1: "three speckled eggs · warm and patient",
+  2: "hatchlings, all beak and hunger · they grow while you're away",
+  3: "fledglings testing their wings · they'll be gone before long",
+};
+let _nestJustFledged = false;
+// roll the nest forward for each new distinct day the biosphere is opened
+(function advanceNestForToday() {
+  const today = todayISO();
+  if (nest.lastDay === undefined || nest.stage === undefined) {
+    // first ever visit: start with a fresh clutch of eggs
+    nest.stage = 1;
+    nest.broods = nest.broods || 0;
+    nest.lastDay = today;
+    saveNest();
+    return;
+  }
+  if (nest.lastDay !== today) {
+    const idx = NEST_STAGE_ORDER.indexOf(nest.stage);
+    const next = NEST_STAGE_ORDER[(idx + 1) % NEST_STAGE_ORDER.length];
+    if (nest.stage === 3) { nest.broods = (nest.broods || 0) + 1; _nestJustFledged = true; }
+    nest.stage = next;
+    nest.lastDay = today;
+    saveNest();
+  }
+})();
+function renderNestStat() {
+  const el = document.getElementById("nest-stat");
+  if (el) el.textContent = NEST_STAGE_LABEL[nest.stage] || "…";
+}
+function renderNest() {
+  if (nestContents) {
+    let svg = "";
+    if (nest.stage === 1) {
+      // three speckled eggs resting in the bowl
+      const eggs = [[20, 23], [30, 22], [40, 23]];
+      for (const [cx, cy] of eggs) {
+        svg += `<ellipse cx="${cx}" cy="${cy}" rx="4" ry="5.2" fill="#e6dcc4"/>`;
+        svg += `<circle cx="${cx - 1}" cy="${cy - 1}" r="0.6" fill="#b6a888"/><circle cx="${cx + 1.4}" cy="${cy + 1}" r="0.5" fill="#b6a888"/>`;
+      }
+    } else if (nest.stage === 2) {
+      // hatchlings: small dark bodies with open beaks poking up
+      const chicks = [[21, "b"], [30, ""], [39, "c"]];
+      for (const [cx, cls] of chicks) {
+        svg += `<g class="nest-peep ${cls}">`;
+        svg += `<ellipse cx="${cx}" cy="20" rx="3.4" ry="3.8" fill="#3a2f26"/>`;
+        svg += `<circle cx="${cx}" cy="15.5" r="2.4" fill="#4a3d31"/>`;
+        svg += `<polygon points="${cx - 2},15.5 ${cx + 2},15.5 ${cx},18" fill="#f2b23a"/>`;
+        svg += `<circle cx="${cx - 0.8}" cy="15" r="0.5" fill="#0c0c0c"/>`;
+        svg += `</g>`;
+      }
+    } else if (nest.stage === 3) {
+      // fledglings: rounder little birds nearly ready to go
+      const birds = [[22, "b"], [38, "c"]];
+      for (const [cx, cls] of birds) {
+        svg += `<g class="nest-peep ${cls}">`;
+        svg += `<ellipse cx="${cx}" cy="18" rx="5" ry="5.4" fill="#6a5038"/>`;
+        svg += `<circle cx="${cx + 3}" cy="13.5" r="2.8" fill="#7a5c40"/>`;
+        svg += `<polygon points="${cx + 5},13 ${cx + 8},14 ${cx + 5},15" fill="#f2b23a"/>`;
+        svg += `<circle cx="${cx + 3.6}" cy="13" r="0.6" fill="#0c0c0c"/>`;
+        svg += `<path d="M${cx - 4} 17 Q${cx} 22 ${cx + 3} 18" fill="#4a3626"/>`;
+        svg += `</g>`;
+      }
+    } else {
+      // quiet: a single stray feather
+      svg += `<path d="M28 14 Q34 20 30 26 Q27 21 28 14 Z" fill="rgba(220,214,196,0.5)"/>`;
+      svg += `<line x1="29" y1="15" x2="29.5" y2="25" stroke="rgba(180,170,150,0.6)" stroke-width="0.5"/>`;
+    }
+    nestContents.innerHTML = svg;
+  }
+  renderNestStat();
+}
+renderNest();
+if (nestEl) {
+  nestEl.addEventListener("click", () => {
+    toast(NEST_PEEK[nest.stage] || NEST_PEEK[0], 2600);
+  });
+}
+if (_nestJustFledged) {
+  setTimeout(() => toast("the fledglings flew off while you were away 🐦 · the nest is quiet again", 3200), 1400);
+}
+
+/* ============================================================
+   feature: pond turtle
+   surfaces at the water's edge to bask during the day (or a sky-lock to
+   day/dawn), bobs, and slips under with a ripple when clicked — counting
+   toward the shared creatures-spotted total. respects reduced-motion.
+   ============================================================ */
+let _turtle = null;
+function spawnTurtle() {
+  if (isMotionReduced() || _turtle || pondW === 0) return;
+  const t = document.createElement("div");
+  t.className = "turtle";
+  t.title = "a turtle, basking — click to spot";
+  t.innerHTML = `
+    <svg class="turtle-svg" viewBox="0 0 28 20" aria-hidden="true">
+      <ellipse cx="14" cy="12" rx="10" ry="6.5" fill="#4a6a44"/>
+      <path d="M14 6 L18 9 L16 14 L12 14 L10 9 Z" fill="#5f8a54"/>
+      <ellipse cx="14" cy="12" rx="10" ry="6.5" fill="none" stroke="#38502f" stroke-width="0.8"/>
+      <circle cx="24" cy="11" r="2.4" fill="#5f8a54"/>
+      <circle cx="25" cy="10.4" r="0.5" fill="#0c0c0c"/>
+    </svg>`;
+  document.body.appendChild(t);
+  _turtle = t;
+
+  // pick a spot in the pond, store the pond-local coords for the ripple
+  const rect = pondCanvas.getBoundingClientRect();
+  const lx = 70 + Math.random() * Math.max(20, pondW - 140);
+  const ly = 24 + Math.random() * Math.max(8, pondH * 0.22);
+  t.dataset.lx = lx;
+  t.dataset.ly = ly;
+  t.style.left = (rect.left + lx - 14) + "px";
+  t.style.top = (rect.top + ly - 10) + "px";
+  // surface
+  requestAnimationFrame(() => t.classList.add("up"));
+
+  let claimed = false;
+  const slipUnder = () => {
+    if (claimed) return;
+    t.classList.remove("up");
+    t.classList.add("gone");
+    setTimeout(() => { t.remove(); if (_turtle === t) _turtle = null; }, 900);
+  };
+  t.addEventListener("click", (e) => {
+    if (claimed) return;
+    claimed = true;
+    if (typeof addRipple === "function") addRipple(+t.dataset.lx, +t.dataset.ly, 1.8, 80);
+    spottedCount++;
+    try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
+    renderSpottedCount();
+    spawnCatchBurst(e.clientX, e.clientY);
+    toast(spottedCount === 1 ? "you spotted the turtle 🐢 · it slid under, unhurried" : "the turtle slips under 🐢");
+    t.classList.remove("up");
+    t.classList.add("gone");
+    setTimeout(() => { t.remove(); if (_turtle === t) _turtle = null; }, 700);
+  });
+  // basks for a while, then slips under on its own if not spotted
+  setTimeout(slipUnder, 12000 + Math.random() * 8000);
+}
+(function maybeSpawnTurtle() {
+  const wait = 55_000 + Math.random() * 60_000; // 55-115s
+  setTimeout(() => {
+    if (!isMotionReduced() && pondW > 0 && !_turtle &&
+        typeof isDaylight === "function" && isDaylight()) spawnTurtle();
+    maybeSpawnTurtle();
+  }, wait);
+})();
+setTimeout(() => { if (typeof isDaylight === "function" && isDaylight()) spawnTurtle(); }, 30_000);
+
+/* ============================================================
+   feature: telescope window
+   look through it to find one real deep-sky object at a time — each with a
+   one-line fact and a tiny rendering by type (galaxy / nebula / cluster).
+   discovered objects are remembered so you can chart all ten.
+   ============================================================ */
+const TELESCOPE_KEY = "biosphere02.telescope.v1";
+const TELESCOPE_OBJECTS = [
+  { id: "m31",  name: "Andromeda Galaxy (M31)", type: "galaxy",  hue: "#bcd0ff", fact: "the nearest big galaxy · 2.5 million light-years off, and drifting toward us" },
+  { id: "m42",  name: "Orion Nebula (M42)",     type: "nebula",  hue: "#ff9ab0", fact: "a stellar nursery in Orion's sword · new stars igniting inside the cloud" },
+  { id: "m45",  name: "the Pleiades (M45)",     type: "cluster", hue: "#a9c4ff", fact: "the seven sisters · young blue stars wrapped in a wisp of dust" },
+  { id: "m57",  name: "Ring Nebula (M57)",      type: "nebula",  hue: "#8fe0c0", fact: "a dying star's exhaled shell · a smoke ring 2,000 light-years wide" },
+  { id: "m51",  name: "Whirlpool Galaxy (M51)", type: "galaxy",  hue: "#cfe0ff", fact: "a spiral caught mid-embrace with a smaller galaxy tugging its arm" },
+  { id: "m1",   name: "Crab Nebula (M1)",       type: "nebula",  hue: "#ffbf7a", fact: "the wreck of a star that chinese astronomers saw explode in 1054" },
+  { id: "m13",  name: "Hercules Cluster (M13)", type: "cluster", hue: "#ffe6b0", fact: "a swarm of 300,000 ancient stars · older than the sun by billions of years" },
+  { id: "m104", name: "Sombrero Galaxy (M104)", type: "galaxy",  hue: "#d8c8ff", fact: "a galaxy seen edge-on · a bright bulge under a dark brim of dust" },
+  { id: "m8",   name: "Lagoon Nebula (M8)",     type: "nebula",  hue: "#ff9ac0", fact: "a glowing lagoon of gas in Sagittarius, split by a dark channel" },
+  { id: "m33",  name: "Triangulum Galaxy (M33)",type: "galaxy",  hue: "#bfe0e0", fact: "a face-on pinwheel · the third-largest galaxy in our local group" },
+];
+let telescope = (() => {
+  try { return JSON.parse(localStorage.getItem(TELESCOPE_KEY) || "null") || { seen: [], looks: 0, last: null }; }
+  catch { return { seen: [], looks: 0, last: null }; }
+})();
+telescope.seen = telescope.seen || [];
+function saveTelescope() { try { localStorage.setItem(TELESCOPE_KEY, JSON.stringify(telescope)); } catch {} }
+
+function _scopeStars(n, w, h) {
+  let s = "";
+  for (let i = 0; i < n; i++) {
+    const x = (Math.random() * w).toFixed(1), y = (Math.random() * h).toFixed(1);
+    const r = (0.4 + Math.random() * 0.8).toFixed(2);
+    s += `<circle cx="${x}" cy="${y}" r="${r}" fill="rgba(246,241,216,${(0.3 + Math.random() * 0.5).toFixed(2)})"/>`;
+  }
+  return s;
+}
+function renderScopeObject(obj) {
+  const c = obj.hue;
+  let inner = "";
+  if (obj.type === "galaxy") {
+    inner = `
+      <g transform="rotate(24 50 50)">
+        <ellipse cx="50" cy="50" rx="40" ry="15" fill="${c}" opacity="0.12"/>
+        <ellipse cx="50" cy="50" rx="30" ry="10" fill="${c}" opacity="0.20"/>
+        <path d="M18 50 Q50 30 82 50" fill="none" stroke="${c}" stroke-width="1.4" opacity="0.35"/>
+        <path d="M18 50 Q50 70 82 50" fill="none" stroke="${c}" stroke-width="1.4" opacity="0.35"/>
+        <ellipse cx="50" cy="50" rx="9" ry="6" fill="#fff5e0" opacity="0.95"/>
+      </g>`;
+  } else if (obj.type === "nebula") {
+    inner = `
+      <ellipse cx="46" cy="52" rx="30" ry="24" fill="${c}" opacity="0.14"/>
+      <ellipse cx="56" cy="46" rx="22" ry="26" fill="${c}" opacity="0.16"/>
+      <ellipse cx="50" cy="50" rx="14" ry="12" fill="${c}" opacity="0.22"/>
+      <circle cx="50" cy="50" r="2.4" fill="#fff5e0"/>`;
+  } else {
+    // cluster: dense scatter of stars, thicker toward the middle
+    let dots = "";
+    for (let i = 0; i < 40; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const rad = Math.pow(Math.random(), 0.6) * 34;
+      const x = (50 + Math.cos(ang) * rad).toFixed(1);
+      const y = (50 + Math.sin(ang) * rad).toFixed(1);
+      const r = (0.6 + Math.random() * 1.1).toFixed(2);
+      dots += `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" opacity="${(0.5 + Math.random() * 0.5).toFixed(2)}"/>`;
+    }
+    inner = dots;
+  }
+  return `<svg viewBox="0 0 100 100" aria-hidden="true">${_scopeStars(26, 100, 100)}${inner}</svg>`;
+}
+function renderScopeCharted() {
+  const label = `${telescope.seen.length} of ${TELESCOPE_OBJECTS.length} charted`;
+  const el = document.getElementById("scope-charted");
+  if (el) el.textContent = label;
+  const stat = document.getElementById("telescope-stat");
+  if (stat) stat.textContent = `${telescope.seen.length} of ${TELESCOPE_OBJECTS.length}`;
+}
+function scopeLookThrough() {
+  // pick a random object, avoiding an immediate repeat of the last one
+  let obj;
+  let tries = 0;
+  do { obj = TELESCOPE_OBJECTS[Math.floor(Math.random() * TELESCOPE_OBJECTS.length)]; tries++; }
+  while (obj.id === telescope.last && TELESCOPE_OBJECTS.length > 1 && tries < 8);
+  const isNew = !telescope.seen.includes(obj.id);
+  if (isNew) telescope.seen.push(obj.id);
+  telescope.last = obj.id;
+  telescope.looks = (telescope.looks || 0) + 1;
+  saveTelescope();
+
+  const view = document.getElementById("scope-view");
+  const nameEl = document.getElementById("scope-name");
+  const factEl = document.getElementById("scope-fact");
+  if (view) view.innerHTML = renderScopeObject(obj);
+  if (nameEl) nameEl.textContent = obj.name;
+  if (factEl) factEl.textContent = obj.fact;
+  renderScopeCharted();
+  if (isNew && telescope.seen.length === TELESCOPE_OBJECTS.length) {
+    toast("you've charted the whole sky 🔭 · every object found");
+  } else if (isNew) {
+    toast(`charted · ${obj.name}`, 2400);
+  }
+}
+renderScopeCharted();
+const scopeLookBtn = document.getElementById("scope-look");
+if (scopeLookBtn) scopeLookBtn.addEventListener("click", scopeLookThrough);

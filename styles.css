@@ -2497,6 +2497,121 @@ body.motion-reduced .moth { display: none !important; }
 .guest-mark-when { color: var(--ink-dim); font-size: 10px; white-space: nowrap; }
 .guest-mark-note { color: var(--ink); font-size: 12px; margin-top: 3px; line-height: 1.4; word-break: break-word; }
 
+/* ---- rope swing hanging from a branch ----
+   still at rest; a click gives it a decaying push, and a wind gust sets it
+   swaying. the seat + ropes rotate from the branch anchor at the top. */
+#swing {
+  position: fixed;
+  left: 448px;
+  bottom: calc(38px + var(--pond-h) - 8px);
+  width: 56px; height: 132px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+#swing:hover { filter: drop-shadow(0 0 7px rgba(255, 217, 160, 0.4)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)); }
+.swing-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.swing-seat { transform-origin: 30px 8px; }
+#swing.swinging .swing-seat { animation: swing-push 2.6s cubic-bezier(.36, .1, .3, 1); }
+@keyframes swing-push {
+  0%   { transform: rotate(0deg); }
+  18%  { transform: rotate(-19deg); }
+  40%  { transform: rotate(14deg); }
+  60%  { transform: rotate(-9deg); }
+  78%  { transform: rotate(5deg); }
+  100% { transform: rotate(0deg); }
+}
+body.wind-gust .swing-seat { animation: swing-wind 2.4s ease-in-out infinite; }
+@keyframes swing-wind {
+  0%, 100% { transform: rotate(-6deg); }
+  50%      { transform: rotate(6deg); }
+}
+body.motion-reduced .swing-seat { animation: none; }
+body.stargazer #swing { opacity: 0.55; }
+
+/* ---- bird's nest on the shore ----
+   contents are drawn per stage in js; twig bowl is static. hatchlings get a
+   small peeping bob (motion-gated). */
+#nest {
+  position: fixed;
+  left: calc(50% + 90px);
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 48px; height: 32px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease;
+}
+#nest:hover { transform: translateY(-2px); }
+.nest-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.nest-peep { transform-origin: 50% 100%; animation: nest-peep 0.7s ease-in-out infinite alternate; }
+.nest-peep.b { animation-delay: -0.35s; }
+.nest-peep.c { animation-delay: -0.5s; }
+@keyframes nest-peep {
+  from { transform: translateY(0.6px); }
+  to   { transform: translateY(-1.4px); }
+}
+body.motion-reduced .nest-peep { animation: none; }
+body.stargazer #nest { opacity: 0.6; }
+
+/* ---- pond turtle (surfaces to bask by day) ----
+   fades up at the water's edge, bobs, and slips under when clicked. */
+.turtle {
+  position: fixed;
+  width: 28px; height: 20px;
+  z-index: 4;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 900ms ease;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+  will-change: opacity;
+}
+.turtle.up { opacity: 0.95; }
+.turtle:hover { filter: drop-shadow(0 0 7px rgba(143, 212, 154, 0.85)); }
+.turtle.gone { opacity: 0 !important; }
+.turtle-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.turtle.up .turtle-svg { animation: turtle-bob 3.2s ease-in-out infinite; }
+@keyframes turtle-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-1.6px); }
+}
+@media (prefers-reduced-motion: reduce) { .turtle { display: none !important; } }
+body.motion-reduced .turtle { display: none !important; }
+body.motion-reduced .turtle-svg { animation: none; }
+
+/* ---- telescope window ---- */
+.telescope .hint { color: var(--ink-dim); font-style: italic; font-size: 12px; }
+.scope-eyepiece {
+  position: relative;
+  width: 150px; height: 150px;
+  margin: 10px auto 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, #0b1224 0%, #05080f 100%);
+  border: 3px solid rgba(143, 212, 154, 0.22);
+  box-shadow: inset 0 0 34px rgba(0, 0, 0, 0.85), 0 0 0 4px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.scope-eyepiece::before, .scope-eyepiece::after {
+  content: ""; position: absolute; background: rgba(143, 212, 154, 0.10); pointer-events: none;
+}
+.scope-eyepiece::before { left: 8%; right: 8%; top: 50%; height: 1px; }
+.scope-eyepiece::after { top: 8%; bottom: 8%; left: 50%; width: 1px; }
+.scope-view { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.scope-view svg { width: 100%; height: 100%; display: block; }
+.scope-caption { text-align: center; margin: 6px 4px; min-height: 3.2em; }
+.scope-name { color: var(--warm); font-size: 13px; letter-spacing: 0.5px; }
+.scope-fact { color: var(--ink-dim); font-size: 11.5px; font-style: italic; margin-top: 3px; line-height: 1.4; }
+.scope-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.scope-row button {
+  background: linear-gradient(180deg, var(--moss), var(--moss-2));
+  border: none; color: #0c1a12;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  padding: 6px 14px; border-radius: 5px; cursor: pointer;
+  transition: filter 140ms ease;
+}
+.scope-row button:hover { filter: brightness(1.1); }
+.scope-charted { color: var(--ink-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+
 /* ---- breathing room ---- */
 .breathe .hint { color: var(--ink-dim); font-style: italic; font-size: 12px; }
 .breathe-stage {

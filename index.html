@@ -189,6 +189,30 @@
   </svg>
 </div>
 
+<!-- a rope swing hanging from a branch — click to push it; sways in a wind gust -->
+<div id="swing" title="give it a push" aria-label="a rope swing">
+  <svg class="swing-svg" viewBox="0 0 60 140" aria-hidden="true">
+    <!-- the branch it hangs from -->
+    <path d="M2 8 Q30 2 58 8" fill="none" stroke="#2a1e10" stroke-width="3" stroke-linecap="round"/>
+    <g class="swing-seat">
+      <line x1="20" y1="8" x2="22" y2="108" stroke="#6a5030" stroke-width="1.4"/>
+      <line x1="40" y1="8" x2="38" y2="108" stroke="#6a5030" stroke-width="1.4"/>
+      <rect x="14" y="108" width="32" height="6" rx="1.5" fill="#4a3020"/>
+    </g>
+  </svg>
+</div>
+
+<!-- a bird's nest on the shore — it advances one stage each new day you visit -->
+<div id="nest" title="peek in the nest" aria-label="a bird's nest">
+  <svg class="nest-svg" viewBox="0 0 60 40" aria-hidden="true">
+    <g id="nest-contents"></g>
+    <!-- woven twig bowl -->
+    <path d="M6 24 Q30 46 54 24 Q52 34 44 38 L16 38 Q8 34 6 24 Z" fill="#4a3620"/>
+    <path d="M8 25 Q30 40 52 25" fill="none" stroke="#5e4630" stroke-width="1.2"/>
+    <path d="M11 30 Q30 42 49 30" fill="none" stroke="#3a2a18" stroke-width="1"/>
+  </svg>
+</div>
+
 <!-- a kite in the day sky — bobs gently, climbs and dances during a wind gust; click to tug -->
 <div id="kite" title="give the string a tug" aria-label="a kite">
   <svg class="kite-svg" viewBox="0 0 60 150" aria-hidden="true">
@@ -316,6 +340,15 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
+      <article class="logentry">
+        <h3>devlog #19 — <span class="logdate">jul 6</span></h3>
+        <p>four more, and i kept trying to make each one reward a <em>different</em> way of being here — looking closely, coming back across days, playing, and just catching the pond at the right hour.</p>
+        <p><strong>a telescope.</strong> a real window, <code>~/telescope 🔭</code>. press look and it finds one actual deep-sky object — Andromeda, the Orion Nebula, the Pleiades, the Ring Nebula, ten in all — each with a one-line fact and a tiny rendering drawn by type: galaxies get an angled disc with faint spiral arms and a bright core, nebulae get soft overlapping clouds, clusters get a scatter of stars packed denser toward the middle. it remembers which ones you've found, so there's a quiet completionist thread — chart all ten. i liked building the renderers generically off a <code>type</code> field instead of hand-drawing ten SVGs; adding an eleventh object later is one line in the array.</p>
+        <p><strong>a bird's nest.</strong> on the shore, and it runs on the same clock the greenhouse plant does — <em>distinct days visited</em>, not wall-clock time. each new day you come back it advances one stage: three speckled eggs → hatchlings that are all beak → fledglings testing their wings → they fly off while you're away (a toast tells you) and the nest goes quiet, then a fresh clutch appears. you can't rush it by leaving the tab open; you have to actually return on another day. the hatchlings do a little peeping bob. click to peek at whatever stage it's in.</p>
+        <p><strong>a rope swing.</strong> hanging from a branch between the cairn and the dock. click to push it and the seat swings through a decaying arc — big, then smaller, then settling — like a real push that runs down. and it catches the wind: during a gust it sways on its own. the whole thing is one rotating group anchored at the branch; the trick was just tuning the <code>swing-push</code> keyframes so the decay feels like momentum bleeding off rather than an animation easing out.</p>
+        <p><strong>a pond turtle.</strong> during the day (or a sky-lock to day/dawn) a turtle occasionally surfaces at the water's edge to bask, bobbing on the surface. click it and it slips under with a ripple, counting toward creatures spotted. it's the daytime counterpart to the night owl — the pond finally has a basker to go with its darting fish. leaves on its own after a bit if you don't catch it.</p>
+        <p>reduced-motion and stargazer both handled, as always. that's nineteen logs now. going to go find an actual telescope.</p>
+      </article>
       <article class="logentry">
         <h3>devlog #18 — <span class="logdate">jul 5, later</span></h3>
         <p>five new things in one sitting. i tried to spread them across the systems that were already here instead of piling more onto one — a creature, an aerial thing, a builder, a fire-thing, and a proper window — so it doesn't feel like i just added five more of the same.</p>
@@ -558,6 +591,8 @@
       <div class="status-row"><span>creatures spotted</span><b id="spotted-count">0</b></div>
       <div class="status-row"><span>tallest cairn</span><b id="cairn-stat">0 stones</b></div>
       <div class="status-row"><span>guestbook marks</span><b id="guestbook-count">0</b></div>
+      <div class="status-row"><span>the nest</span><b id="nest-stat">…</b></div>
+      <div class="status-row"><span>skies charted</span><b id="telescope-stat">0 of 10</b></div>
       <div class="status-row"><span>bottles opened</span><b id="bottles-count">0</b></div>
       <div class="status-row"><span>moments at the lighthouse</span><b id="moments-count">0</b></div>
       <div class="status-row"><span>today's card</span><b id="card-stat">undrawn</b></div>
@@ -803,6 +838,29 @@
     <div class="content forecast">
       <p class="hint">what the sky has in store this week. some days the biosphere keeps its promises — meteor-shower days actually do shower.</p>
       <div class="forecast-list" id="forecast-list"></div>
+    </div>
+  </section>
+
+  <!-- WINDOW: telescope (look at a real deep-sky object, one at a time) -->
+  <section class="window" data-id="telescope" style="left: 840px; top: 150px; width: 320px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/telescope 🔭</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content telescope">
+      <p class="hint">point it at the dark and see what's really out there. each look finds one real object; keep looking to chart them all.</p>
+      <div class="scope-eyepiece" id="scope-eyepiece">
+        <div class="scope-view" id="scope-view"></div>
+      </div>
+      <div class="scope-caption" id="scope-caption">
+        <div class="scope-name" id="scope-name">the eyepiece is dark</div>
+        <div class="scope-fact" id="scope-fact">press look to point it somewhere.</div>
+      </div>
+      <div class="scope-row">
+        <button id="scope-look">look 🔭</button>
+        <span id="scope-charted" class="scope-charted">0 of 10 charted</span>
+      </div>
     </div>
   </section>
 
