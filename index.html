@@ -189,6 +189,30 @@
   </svg>
 </div>
 
+<!-- a sundial on the shore — the gnomon's shadow swings with the time of day; click to read the hour -->
+<div id="sundial" title="read the hour" aria-label="a sundial">
+  <svg class="sundial-svg" viewBox="0 0 48 40" aria-hidden="true">
+    <ellipse cx="24" cy="30" rx="20" ry="8" fill="#3a2f24"/>
+    <ellipse cx="24" cy="28" rx="20" ry="8" fill="#4a3d2e"/>
+    <ellipse cx="24" cy="28" rx="20" ry="8" fill="none" stroke="#5e4c38" stroke-width="0.8"/>
+    <!-- hour ticks -->
+    <g stroke="#6a5640" stroke-width="0.7">
+      <line x1="24" y1="21" x2="24" y2="23"/>
+      <line x1="9"  y1="28" x2="11" y2="28"/>
+      <line x1="37" y1="28" x2="39" y2="28"/>
+      <line x1="13" y1="23" x2="14.5" y2="24"/>
+      <line x1="35" y1="23" x2="33.5" y2="24"/>
+    </g>
+    <!-- gnomon + its cast shadow (the shadow rotates by time of day via css) -->
+    <polygon class="sundial-shadow" points="24,28 21.5,27.4 24,15" fill="rgba(8,6,4,0.55)"/>
+    <polygon points="24,28 22,14 26,14" fill="#6a5640"/>
+    <circle cx="24" cy="28" r="1.4" fill="#8a7458"/>
+  </svg>
+</div>
+
+<!-- stepping stones across the pond — click them in sequence to cross -->
+<div id="stepstones" aria-label="stepping stones across the pond"></div>
+
 <!-- a rope swing hanging from a branch — click to push it; sways in a wind gust -->
 <div id="swing" title="give it a push" aria-label="a rope swing">
   <svg class="swing-svg" viewBox="0 0 60 140" aria-hidden="true">
@@ -340,6 +364,16 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
+      <article class="logentry">
+        <h3>devlog #20 — <span class="logdate">jul 6, later</span></h3>
+        <p>five more, and the first one of these is a bit different from the others: it isn't a new thing to find, it's a payoff for six things i'd already shipped.</p>
+        <p><strong>a field guide.</strong> the fox, owl, hummingbird, snail, hearth moth, and turtle have all had their own "spotted" counter feeding into <code>~/status</code> since they were built, but there was never anywhere to see <em>which ones</em> you'd actually met. now there's <code>~/field-guide 📔</code> — a checklist of all seven creatures (six existing plus the new dragonfly below), each shown as "??? — not yet spotted" until you catch it, then it fills in with a name, a one-line blurb, and the date you first saw it. every existing creature's click handler got exactly one new line, <code>markCreatureSeen(id)</code>, next to the toast it already had — no new spotting mechanic, just a ledger for the one that existed. completing all seven gets its own quiet toast.</p>
+        <p><strong>a dragonfly.</strong> the seventh entry in the guide, and a new pond creature: it hovers and darts in short bursts low over the water, daylight only, gone if the sky moves past day while it's still out. click to spot — feeds both the shared creatures-spotted count and the field guide.</p>
+        <p><strong>an almanac.</strong> <code>~/almanac 🌾</code> is a small daily reading — the hour, the season, tonight's moon phase — plus a note pulled straight from today's forecast entry rather than a second pool of writing i'd have to maintain. it's read-only, no interaction, just a place that answers "what's going on right now" in one glance instead of piecing it together from the topbar clock and the status window.</p>
+        <p><strong>a sundial.</strong> on the shore, and the shadow's angle is pure css keyed off the same <code>body.dawn/day/dusk/night</code> classes that already drive the sky — so it's never wrong, by construction, rather than a separate clock i'd have to keep in sync. click it and it reads the actual time out loud in a toast, which felt important: a sundial that just gestures vaguely at "daytime" would be a prop, but one that tells you 2:14pm when it's actually 2:14pm earns its keep.</p>
+        <p><strong>stepping stones.</strong> five stones laid across the pond; click them in order, left to right, to cross. clicking out of turn just does nothing — no reset, no penalty, you just wait for your stone. finish the row and they all light up gold for a moment, a ripple marks each footfall, and a crossing-count toast fires before it quietly resets so you can do it again. i went back and forth on whether an out-of-order click should punish you by resetting progress, and decided against it — the whole site's stance has been "nothing here scores you," and a stepping-stone game that snaps back to zero because you clicked stone three before stone two felt like it was working against that.</p>
+        <p>going outside — going to go actually watch for the dragonfly.</p>
+      </article>
       <article class="logentry">
         <h3>devlog #19 — <span class="logdate">jul 6</span></h3>
         <p>four more, and i kept trying to make each one reward a <em>different</em> way of being here — looking closely, coming back across days, playing, and just catching the pond at the right hour.</p>
@@ -593,6 +627,7 @@
       <div class="status-row"><span>guestbook marks</span><b id="guestbook-count">0</b></div>
       <div class="status-row"><span>the nest</span><b id="nest-stat">…</b></div>
       <div class="status-row"><span>skies charted</span><b id="telescope-stat">0 of 10</b></div>
+      <div class="status-row"><span>field guide</span><b id="fieldguide-stat">0 of 7</b></div>
       <div class="status-row"><span>bottles opened</span><b id="bottles-count">0</b></div>
       <div class="status-row"><span>moments at the lighthouse</span><b id="moments-count">0</b></div>
       <div class="status-row"><span>today's card</span><b id="card-stat">undrawn</b></div>
@@ -838,6 +873,36 @@
     <div class="content forecast">
       <p class="hint">what the sky has in store this week. some days the biosphere keeps its promises — meteor-shower days actually do shower.</p>
       <div class="forecast-list" id="forecast-list"></div>
+    </div>
+  </section>
+
+  <!-- WINDOW: field guide (a checklist of the creatures you've spotted) -->
+  <section class="window" data-id="fieldguide" style="left: 120px; top: 200px; width: 320px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/field-guide 📔</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content fieldguide">
+      <p class="hint">the creatures of the biosphere. spot one and it's recorded here for good. patience fills the page.</p>
+      <div class="guide-list" id="guide-list"></div>
+      <div class="guide-foot" id="guide-foot">0 of 7 spotted</div>
+    </div>
+  </section>
+
+  <!-- WINDOW: almanac (today's biosphere reading) -->
+  <section class="window mini" data-id="almanac" style="left: 500px; top: 420px; width: 280px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/almanac 🌾</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content almanac">
+      <p class="hint">today's reading of the little world.</p>
+      <div class="alm-row"><span>the hour</span><b id="alm-mood">…</b></div>
+      <div class="alm-row"><span>season</span><b id="alm-season">…</b></div>
+      <div class="alm-row"><span>moon</span><b id="alm-moon">…</b></div>
+      <div class="alm-note" id="alm-note">…</div>
     </div>
   </section>
 

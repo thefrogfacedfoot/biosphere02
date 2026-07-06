@@ -2683,6 +2683,7 @@ fox.addEventListener("click", (e) => {
   try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
   renderSpottedCount();
   spawnCatchBurst(e.clientX, e.clientY);
+  markCreatureSeen("fox");
   toast(spottedCount === 1
     ? "you spotted the fox 🦊 · it watches back"
     : `spotted ${spottedCount} times 🦊`);
@@ -2729,6 +2730,7 @@ function spawnOwl() {
     try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
     renderSpottedCount();
     spawnCatchBurst(e.clientX, e.clientY);
+    markCreatureSeen("owl");
     toast("the owl saw you back 🦉");
     owl.classList.add("caught");
     setTimeout(() => owl.remove(), 350);
@@ -3898,6 +3900,7 @@ function spawnHummingbird() {
     try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
     renderSpottedCount();
     spawnCatchBurst(e.clientX, e.clientY);
+    markCreatureSeen("hummingbird");
     toast("you saw the hummingbird · fastest visitor in the biosphere");
     hum.classList.add("caught");
     setTimeout(() => hum.remove(), 350);
@@ -4447,6 +4450,7 @@ snail.addEventListener("click", (e) => {
   try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
   renderSpottedCount();
   spawnCatchBurst(e.clientX, e.clientY);
+  markCreatureSeen("snail");
   toast(spottedCount === 1 ? "you spotted the snail 🐌 · slow and sure" : "the slow one, spotted 🐌");
   setTimeout(() => { snail.classList.remove("caught"); endSnailWalk(true); }, 360);
 });
@@ -4492,6 +4496,7 @@ function spawnMoth() {
     try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
     renderSpottedCount();
     spawnCatchBurst(e.clientX, e.clientY);
+    markCreatureSeen("moth");
     toast("a moth, spotted · it mistook you for the light");
     m.classList.add("caught");
     setTimeout(() => { m.remove(); if (_moth === m) _moth = null; }, 350);
@@ -4757,6 +4762,7 @@ function spawnTurtle() {
     try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
     renderSpottedCount();
     spawnCatchBurst(e.clientX, e.clientY);
+    markCreatureSeen("turtle");
     toast(spottedCount === 1 ? "you spotted the turtle 🐢 · it slid under, unhurried" : "the turtle slips under 🐢");
     t.classList.remove("up");
     t.classList.add("gone");
@@ -4878,3 +4884,254 @@ function scopeLookThrough() {
 renderScopeCharted();
 const scopeLookBtn = document.getElementById("scope-look");
 if (scopeLookBtn) scopeLookBtn.addEventListener("click", scopeLookThrough);
+
+/* ============================================================
+   feature: field guide window
+   a checklist of every creature in the biosphere. each existing creature's
+   click handler now calls markCreatureSeen(id) alongside its own toast, so
+   this window is a payoff for a system that already existed rather than a
+   new spotting mechanic. first-seen date persists per species.
+   ============================================================ */
+const FIELDGUIDE_KEY = "biosphere02.fieldguide.v1";
+const CREATURE_SPECIES = [
+  { id: "fox",         glyph: "🦊", name: "the fox",         blurb: "trots the shoreline, shy of a straight approach" },
+  { id: "owl",         glyph: "🦉", name: "the owl",         blurb: "glides the upper sky, night only" },
+  { id: "hummingbird", glyph: "🐦", name: "the hummingbird", blurb: "darts and hovers, daylight only, gone in a blink" },
+  { id: "snail",       glyph: "🐌", name: "the snail",       blurb: "crosses the shore slower than anything else here" },
+  { id: "moth",        glyph: "🪰", name: "the hearth moth", blurb: "only comes when the cabin fire is properly warm" },
+  { id: "turtle",      glyph: "🐢", name: "the turtle",      blurb: "surfaces to bask in daylight, slips under when seen" },
+  { id: "dragonfly",   glyph: "🎐", name: "the dragonfly",   blurb: "hovers low over the pond on warm daylit afternoons" },
+];
+let fieldGuide = (() => {
+  try { return JSON.parse(localStorage.getItem(FIELDGUIDE_KEY) || "{}") || {}; }
+  catch { return {}; }
+})();
+function saveFieldGuide() { try { localStorage.setItem(FIELDGUIDE_KEY, JSON.stringify(fieldGuide)); } catch {} }
+
+function renderFieldGuide() {
+  const list = document.getElementById("guide-list");
+  const foot = document.getElementById("guide-foot");
+  const seenCount = CREATURE_SPECIES.filter(s => fieldGuide[s.id]).length;
+  if (foot) foot.textContent = `${seenCount} of ${CREATURE_SPECIES.length} spotted`;
+  const stat = document.getElementById("fieldguide-stat");
+  if (stat) stat.textContent = `${seenCount} of ${CREATURE_SPECIES.length}`;
+  if (!list) return;
+  list.innerHTML = CREATURE_SPECIES.map(s => {
+    const seenAt = fieldGuide[s.id];
+    const seen = !!seenAt;
+    const when = seen ? new Date(seenAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+    return `<div class="guide-entry ${seen ? "seen" : "unseen"}">
+      <div class="guide-glyph">${s.glyph}</div>
+      <div class="guide-body">
+        <div class="guide-name">${seen ? escapeHtml(s.name) : "??? — not yet spotted"}</div>
+        <div class="guide-blurb">${seen ? escapeHtml(s.blurb) : "keep an eye out"}</div>
+        ${seen ? `<div class="guide-when">first seen ${escapeHtml(when)}</div>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+function markCreatureSeen(id) {
+  const wasComplete = CREATURE_SPECIES.every(s => fieldGuide[s.id]);
+  if (!fieldGuide[id]) {
+    fieldGuide[id] = Date.now();
+    saveFieldGuide();
+    renderFieldGuide();
+    const nowComplete = CREATURE_SPECIES.every(s => fieldGuide[s.id]);
+    if (nowComplete && !wasComplete) {
+      setTimeout(() => toast("the field guide is complete 📔 · every creature, spotted", 3400), 1400);
+    }
+  }
+}
+renderFieldGuide();
+
+/* ============================================================
+   feature: almanac window
+   a quiet daily reading of the biosphere: mood, season, moon phase, and a
+   short note pulled from today's forecast — reusing the forecast system
+   rather than writing a second set of notes.
+   ============================================================ */
+function renderAlmanac() {
+  const almMood = document.getElementById("alm-mood");
+  const almSeason = document.getElementById("alm-season");
+  const almMoon = document.getElementById("alm-moon");
+  const almNote = document.getElementById("alm-note");
+  if (!almMood) return;
+  const moodLabels = { dawn: "first light 🌅", day: "open sky ☀️", dusk: "amber hour 🌇", night: "clear night 🌌" };
+  const mood = currentMood();
+  almMood.textContent = moodLabels[mood] || mood;
+  const seasonEl = document.getElementById("season-label");
+  almSeason.textContent = seasonEl ? seasonEl.textContent : currentSeason();
+  const moonEl = document.getElementById("moon");
+  almMoon.textContent = moonEl ? moonEl.textContent : "…";
+  if (almNote) {
+    const f = (typeof forecastFor === "function") ? forecastFor(new Date()) : null;
+    almNote.textContent = f ? `${f.glyph} ${f.note}` : "the biosphere keeps its own quiet time.";
+  }
+}
+renderAlmanac();
+setInterval(renderAlmanac, 5 * 60 * 1000);
+
+/* ============================================================
+   feature: sundial on the shore
+   the shadow's rotation is pure css off the body mood class (see
+   styles.css) so it always agrees with the actual sky. clicking reads the
+   real clock time out loud as a toast — the dial isn't just decorative.
+   ============================================================ */
+const sundialEl = document.getElementById("sundial");
+if (sundialEl) {
+  sundialEl.addEventListener("click", () => {
+    const time = new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    toast(`the dial reads ${time.toLowerCase()} · give or take a shadow's width`, 2600);
+  });
+}
+
+/* ============================================================
+   feature: stepping stones across the pond
+   a row of stones over the water; click them left-to-right to cross.
+   clicking out of order just doesn't advance — no penalty, no reset.
+   completing the row lights every stone briefly, counts a crossing, then
+   quietly resets so you can cross again.
+   ============================================================ */
+const STEPSTONES_KEY = "biosphere02.stepstones.v1";
+const stepstonesHost = document.getElementById("stepstones");
+let stepCrossings = (() => { try { return +localStorage.getItem(STEPSTONES_KEY) || 0; } catch { return 0; } })();
+const stepStoneEls = [];
+let stepProgress = 0;
+
+function layoutStepstones() {
+  if (!stepstonesHost || pondW === 0) return;
+  const rect = pondCanvas.getBoundingClientRect();
+  const n = stepStoneEls.length || 5;
+  const startFrac = 0.28, endFrac = 0.72;
+  for (let i = 0; i < n; i++) {
+    const el = stepStoneEls[i];
+    if (!el) continue;
+    const frac = n === 1 ? startFrac : startFrac + (endFrac - startFrac) * (i / (n - 1));
+    const x = rect.left + pondW * frac;
+    const y = rect.top + pondH * 0.32 + Math.sin(i * 1.4) * pondH * 0.10;
+    el.style.left = (x - 13) + "px";
+    el.style.top = (y - 6) + "px";
+  }
+}
+function renderStepProgress() {
+  stepStoneEls.forEach((el, i) => {
+    el.classList.toggle("next", i === stepProgress);
+  });
+}
+function buildStepstones() {
+  if (!stepstonesHost) return;
+  stepstonesHost.innerHTML = "";
+  stepStoneEls.length = 0;
+  for (let i = 0; i < 5; i++) {
+    const el = document.createElement("div");
+    el.className = "stepstone";
+    el.title = "step here";
+    el.dataset.i = i;
+    el.addEventListener("click", () => onStepstoneClick(i));
+    stepstonesHost.appendChild(el);
+    stepStoneEls.push(el);
+  }
+  layoutStepstones();
+  renderStepProgress();
+}
+function onStepstoneClick(i) {
+  if (i !== stepProgress) return; // out of order — no penalty, just wait your turn
+  const el = stepStoneEls[i];
+  const rect = el.getBoundingClientRect();
+  const pr = pondCanvas.getBoundingClientRect();
+  if (typeof addRipple === "function" && pondW > 0) {
+    addRipple(rect.left + 13 - pr.left, rect.top + 6 - pr.top, 1.0, 55);
+  }
+  stepProgress++;
+  if (stepProgress >= stepStoneEls.length) {
+    stepStoneEls.forEach(s => { s.classList.remove("next"); s.classList.add("lit"); });
+    stepCrossings++;
+    try { localStorage.setItem(STEPSTONES_KEY, String(stepCrossings)); } catch {}
+    toast(stepCrossings === 1 ? "you cross the pond, stone by stone" : `crossed ${stepCrossings} times`, 2400);
+    setTimeout(() => {
+      stepProgress = 0;
+      stepStoneEls.forEach(s => s.classList.remove("lit"));
+      renderStepProgress();
+    }, 1600);
+  } else {
+    renderStepProgress();
+  }
+}
+buildStepstones();
+window.addEventListener("resize", () => {
+  clearTimeout(window._stepResize);
+  window._stepResize = setTimeout(layoutStepstones, 160);
+});
+
+/* ============================================================
+   feature: dragonfly over the pond (day-only, fills the field guide)
+   hovers and darts in short bursts low over the water during daylight.
+   click to spot — feeds the shared field guide + creatures-spotted total.
+   ============================================================ */
+let _dragonfly = null;
+function spawnDragonfly() {
+  if (isMotionReduced() || _dragonfly || pondW === 0) return;
+  if (!(typeof isDaylight === "function" && isDaylight())) return;
+  const rect = pondCanvas.getBoundingClientRect();
+  const d = document.createElement("div");
+  d.className = "dragonfly";
+  d.title = "a dragonfly — click to spot";
+  d.innerHTML = `
+    <svg viewBox="0 0 30 20" aria-hidden="true" style="width:100%;height:100%;overflow:visible;">
+      <ellipse cx="8" cy="10" rx="16" ry="2.6" fill="rgba(190,230,255,0.35)" transform="rotate(-8 8 10)"/>
+      <ellipse cx="8" cy="10" rx="16" ry="2.6" fill="rgba(190,230,255,0.35)" transform="rotate(8 8 10)"/>
+      <ellipse cx="6" cy="10" rx="7" ry="1.6" fill="#2f6a5a"/>
+      <circle cx="1" cy="10" r="2.2" fill="#254f42"/>
+    </svg>`;
+  document.body.appendChild(d);
+  _dragonfly = d;
+
+  let hx = rect.left + 40 + Math.random() * Math.max(20, pondW - 80);
+  let hy = rect.top + pondH * 0.35 + Math.random() * pondH * 0.3;
+  d.style.left = hx + "px";
+  d.style.top = hy + "px";
+  requestAnimationFrame(() => d.classList.add("hovering"));
+
+  let claimed = false;
+  d.addEventListener("click", (e) => {
+    if (claimed) return;
+    claimed = true;
+    spottedCount++;
+    try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
+    renderSpottedCount();
+    spawnCatchBurst(e.clientX, e.clientY);
+    markCreatureSeen("dragonfly");
+    toast("the dragonfly, spotted 🎐 · gone in a wingbeat");
+    d.classList.add("caught");
+    setTimeout(() => { d.remove(); if (_dragonfly === d) _dragonfly = null; }, 320);
+  });
+
+  const born = performance.now();
+  const lifespan = 13000 + Math.random() * 8000;
+  let tx = hx, ty = hy, nx = hx, ny = hy, nextDart = 0;
+  function frame(now) {
+    if (claimed || !document.body.contains(d)) return;
+    if (now - born > lifespan || !(typeof isDaylight === "function" && isDaylight())) {
+      d.style.opacity = "0";
+      setTimeout(() => { d.remove(); if (_dragonfly === d) _dragonfly = null; }, 450);
+      return;
+    }
+    if (now > nextDart) {
+      nextDart = now + 500 + Math.random() * 700;
+      const r2 = pondCanvas.getBoundingClientRect();
+      nx = r2.left + 30 + Math.random() * Math.max(20, pondW - 60);
+      ny = r2.top + pondH * 0.25 + Math.random() * pondH * 0.4;
+    }
+    tx += (nx - tx) * 0.12;
+    ty += (ny - ty) * 0.12;
+    d.style.left = tx + "px";
+    d.style.top = ty + "px";
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+(function maybeSpawnDragonfly() {
+  const wait = 45_000 + Math.random() * 50_000; // 45-95s
+  setTimeout(() => { spawnDragonfly(); maybeSpawnDragonfly(); }, wait);
+})();
+setTimeout(spawnDragonfly, 22_000);
