@@ -367,7 +367,8 @@ document.getElementById("water").addEventListener("click", () => {
 });
 document.getElementById("reset-plant").addEventListener("click", () => {
   if (!confirm("reset your plant? the seed will start over.")) return;
-  plant = { water: 0, visits: plant.visits, lastVisitDate: plant.lastVisitDate, daysSeen: plant.daysSeen };
+  // reset daysSeen too, otherwise stageFor() keeps the old plant grown
+  plant = { water: 0, visits: plant.visits, lastVisitDate: plant.lastVisitDate, daysSeen: 1 };
   savePlant(plant);
   renderPlant();
 });
@@ -405,6 +406,9 @@ resizeConstellation();
 
 let userStars = [];   // {x, y, label?}
 let userLines = [];   // {a, b}
+// chronological history of user actions so undo pops the most recent item
+// regardless of whether it was a star or a line
+let userHistory = [];
 let pendingStar = null; // index of first-clicked star to draw line
 let hoverLine = -1;
 let mouseX = -1, mouseY = -1;
@@ -523,7 +527,10 @@ cCanvas.addEventListener("click", (e) => {
       const exists = userLines.some(l =>
         (l.a === pendingStar && l.b === hit) || (l.a === hit && l.b === pendingStar)
       );
-      if (!exists) userLines.push({ a: pendingStar, b: hit });
+      if (!exists) {
+        userLines.push({ a: pendingStar, b: hit });
+        userHistory.push("line");
+      }
       pendingStar = null;
       saveConstellation();
     } else {
@@ -532,6 +539,7 @@ cCanvas.addEventListener("click", (e) => {
   } else {
     // drop a new star
     userStars.push({ x, y });
+    userHistory.push("star");
     pendingStar = null;
     saveConstellation();
   }
@@ -557,10 +565,15 @@ document.getElementById("undo-star").addEventListener("click", () => {
     toast("this is a shared sky · return to yours to edit");
     return;
   }
-  if (userLines.length) userLines.pop();
-  else if (userStars.length) {
+  // pop chronologically: undo most recent user action (star or line)
+  const last = userHistory.pop();
+  if (last === "line") {
+    userLines.pop();
+  } else if (last === "star") {
     const removed = userStars.length - 1;
     userStars.pop();
+    // any line that referenced the removed star now points at a stale index;
+    // drop those lines too so the constellation stays valid
     userLines = userLines.filter(l => l.a !== removed && l.b !== removed);
   }
   pendingStar = null;
@@ -572,7 +585,7 @@ document.getElementById("clear-stars").addEventListener("click", () => {
     return;
   }
   if (!confirm("clear all your stars and lines? (the ambient background stars stay)")) return;
-  userStars = []; userLines = []; pendingStar = null;
+  userStars = []; userLines = []; userHistory = []; pendingStar = null;
   saveConstellation();
 });
 
@@ -1113,6 +1126,11 @@ function playBell() {
 function stopOrbit() {
   if (!orbit.playing) return;
   const ctx = orbit.ctx;
+  // cancel pending fade-in ramp before scheduling fade-out, otherwise
+  // linearRampToValueAtTime throws InvalidStateError when the new
+  // end-time is earlier than the previously scheduled one (rapid play/stop)
+  orbit.master.gain.cancelScheduledValues(ctx.currentTime);
+  orbit.master.gain.setValueAtTime(orbit.master.gain.value, ctx.currentTime);
   orbit.master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6);
   setTimeout(() => {
     try { orbit.oscA.stop(); orbit.oscB.stop(); orbit.lfo.stop(); } catch {}
