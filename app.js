@@ -1137,6 +1137,16 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && orbit.playing && orbit.ctx && orbit.ctx.state === "suspended") {
     orbit.ctx.resume();
   }
+  // same treatment for the cricket chorus — browsers auto-suspend contexts
+  // on background tabs, and the first chirp after the user returns would see
+  // suspended state and silently bail. only act if the user has armed (given
+  // a gesture) so we don't try to resume before the context exists.
+  if (!document.hidden
+      && _cricketCtxRef.armed
+      && _cricketCtxRef.ctx
+      && _cricketCtxRef.ctx.state === "suspended") {
+    _cricketCtxRef.ctx.resume().catch(() => {});
+  }
 });
 
 /* ============================================================
@@ -4900,7 +4910,7 @@ const CREATURE_SPECIES = [
   { id: "snail",       glyph: "🐌", name: "the snail",       blurb: "crosses the shore slower than anything else here" },
   { id: "moth",        glyph: "🪰", name: "the hearth moth", blurb: "only comes when the cabin fire is properly warm" },
   { id: "turtle",      glyph: "🐢", name: "the turtle",      blurb: "surfaces to bask in daylight, slips under when seen" },
-  { id: "dragonfly",   glyph: "🎐", name: "the dragonfly",   blurb: "hovers low over the pond on warm daylit afternoons" },
+  { id: "dragonfly",   glyph: "🎐", name: "the dragonfly",   blurb: "hovers low over the pond on warm daylit afternoons" },{ id: "butterfly",   glyph: "🦋", name: "the butterfly",   blurb: "drifts through the upper sky on warm daylit hours" },
 ];
 let fieldGuide = (() => {
   try { return JSON.parse(localStorage.getItem(FIELDGUIDE_KEY) || "{}") || {}; }
@@ -5135,3 +5145,325 @@ function spawnDragonfly() {
   setTimeout(() => { spawnDragonfly(); maybeSpawnDragonfly(); }, wait);
 })();
 setTimeout(spawnDragonfly, 22_000);
+/* ============================================================
+   feature: butterfly (8th field-guide entry)
+   drifts the upper sky during day and dusk on a slow sine wobble,
+   hover-to-pause like the fox and snail do, click to spot — feeds
+   the shared creatures-spotted counter and the field guide. night
+   (or sky-locked night) is never a butterfly hour; if a flight is
+   still in progress when night falls, it leaves anyway.
+   ============================================================ */
+const _butterflyEl = document.getElementById("butterfly");
+let _butterfly = null;
+function spawnButterfly() {
+  if (_butterfly || isMotionReduced()) { scheduleNextButterfly(); return; }
+  if (!_butterflyEl) return;
+  if (typeof currentMood === "function" && currentMood() === "night") {
+    scheduleNextButterfly();
+    return;
+  }
+  const W = window.innerWidth, H = window.innerHeight;
+  const fromLeft = Math.random() < 0.5;
+  const startX = fromLeft ? -60 : W + 50;
+  const endX = fromLeft ? W + 50 : -60;
+  const startY = H * 0.10 + Math.random() * H * 0.22;
+  const duration = 18000 + Math.random() * 14000;
+  _butterfly = { el: _butterflyEl, paused: false, pauseStart: 0, totalPaused: 0 };
+  _butterflyEl.style.left = startX + "px";
+  _butterflyEl.style.top = startY + "px";
+  _butterflyEl.style.transform = "";
+  _butterflyEl.classList.remove("caught");
+  _butterflyEl.classList.add("flying");
+  const startT = performance.now();
+  function frame(now) {
+    if (!_butterfly || _butterfly.el !== _butterflyEl) return;
+    if (_butterfly.paused) { requestAnimationFrame(frame); return; }
+    // mid-flight: if the sky has moved past dusk while it was out, leave
+    if (typeof currentMood === "function" && currentMood() === "night") {
+      endButterfly(true);
+      return;
+    }
+    const elapsed = now - startT - _butterfly.totalPaused;
+    const p = Math.min(1, elapsed / duration);
+    const baseX = startX + (endX - startX) * p;
+    const wob = Math.sin(now * 0.0028) * 14 + Math.cos(now * 0.0017) * 6;
+    _butterflyEl.style.left = baseX + "px";
+    _butterflyEl.style.top = (startY + wob) + "px";
+    if (p < 1) requestAnimationFrame(frame);
+    else endButterfly(true);
+  }
+  requestAnimationFrame(frame);
+}
+function endButterfly(reschedule) {
+  if (!_butterfly) return;
+  _butterflyEl.classList.remove("flying");
+  _butterflyEl.classList.remove("caught");
+  _butterflyEl.style.left = "";
+  _butterflyEl.style.top = "";
+  _butterfly = null;
+  if (reschedule) scheduleNextButterfly();
+}
+function scheduleNextButterfly() {
+  const wait = 95_000 + Math.random() * 130_000; // 95 - 225s
+  setTimeout(spawnButterfly, wait);
+}
+if (_butterflyEl) {
+  _butterflyEl.addEventListener("mouseenter", () => {
+    if (!_butterfly || _butterfly.paused) return;
+    _butterfly.paused = true;
+    _butterfly.pauseStart = performance.now();
+  });
+  _butterflyEl.addEventListener("mouseleave", () => {
+    if (!_butterfly || !_butterfly.paused) return;
+    _butterfly.totalPaused += performance.now() - _butterfly.pauseStart;
+    _butterfly.paused = false;
+  });
+  _butterflyEl.addEventListener("click", (e) => {
+    if (!_butterfly || _butterflyEl.classList.contains("caught")) return;
+    spottedCount++;
+    try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
+    renderSpottedCount();
+    spawnCatchBurst(e.clientX, e.clientY);
+    markCreatureSeen("butterfly");
+    toast(spottedCount === 1
+      ? "you spotted the butterfly 🦋 · gone with the breeze"
+      : `spotted a butterfly 🦋`);
+    _butterflyEl.classList.add("caught");
+    setTimeout(() => endButterfly(true), 350);
+  });
+}
+setTimeout(spawnButterfly, 22_000);
+
+/* ============================================================
+   feature: cricket chorus (pure audio)
+   fires a faint 3-6 burst chirp around 4 kHz every 22-50s at night.
+   uses a lazy AudioContext that stays suspended until the user's
+   first pointerdown anywhere — autoplay policy, but kept out of the
+   shared orbit context (orbit only exists when you press ▶).
+   respects settings.mute. no visual presence.
+   ============================================================ */
+const _cricketCtxRef = { ctx: null, armed: false };
+function cricketChirp() {
+  if (settings && settings.mute) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  if (!_cricketCtxRef.ctx) {
+    try { _cricketCtxRef.ctx = new AC(); } catch { return; }
+  }
+  const ctx = _cricketCtxRef.ctx;
+  if (ctx.state !== "running") return; // browser autoplay-blocked until first gesture
+  const t0 = ctx.currentTime;
+  const count = 3 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < count; i++) {
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = 4100 + Math.random() * 700;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    o.connect(g).connect(ctx.destination);
+    const start = t0 + i * 0.13;
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(0.022, start + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + 0.045);
+    o.start(start);
+    o.stop(start + 0.06);
+  }
+}
+function scheduleCricket() {
+  // first chirp after arming: wait at least 1.5s real-time so the burst
+  // doesn't fire the instant the user happens to click something at dusk.
+  const sinceArmed = _cricketCtxRef.armedAt ? performance.now() - _cricketCtxRef.armedAt : Infinity;
+  const settle = sinceArmed < 1500 ? 1500 - sinceArmed : 0;
+  const wait = (22_000 + Math.random() * 28_000) + settle;
+  setTimeout(() => {
+    if (typeof currentMood === "function" && currentMood() === "night") cricketChirp();
+    scheduleCricket();
+  }, wait);
+}
+// arm the audio context on first user gesture; afterwards the chirp fires
+// whenever night falls even if no further interaction happens.
+document.addEventListener("pointerdown", () => {
+  if (_cricketCtxRef.armed) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  if (!_cricketCtxRef.ctx) { try { _cricketCtxRef.ctx = new AC(); } catch { return; } }
+  const ctx = _cricketCtxRef.ctx;
+  // .resume() is async. gate `armed` on the promise so the next chirp doesnt
+  // race against a still-suspended context and silently bail.
+  if (ctx.state === "suspended") {
+    ctx.resume().then(() => { _cricketCtxRef.armed = true; _cricketCtxRef.armedAt = performance.now(); }).catch(() => { _cricketCtxRef.armed = true; _cricketCtxRef.armedAt = performance.now(); });
+  } else {
+    _cricketCtxRef.armed = true;
+  }
+});
+scheduleCricket();
+
+/* ============================================================
+   feature: a rowboat tied to the dock
+   sits at the right of the dock with a thin svg rope. clicking
+   casts it off — the boat glides a slow arc to the far-right end
+   of the pond via CSS transition, then arcs back the same way.
+   counter shows up in ~/status as "voyages taken". pattern
+   mirrors dockWalks — same shape, same first-launch toast.
+   ============================================================ */
+const ROW_KEY = "biosphere02.rowboat.v1";
+const _rowboatEl = document.getElementById("rowboat");
+let voyages = (() => { try { return +localStorage.getItem(ROW_KEY) || 0; } catch { return 0; } })();
+function renderVoyages() {
+  const el = document.getElementById("voyages-count");
+  if (el) el.textContent = voyages;
+}
+renderVoyages();
+if (_rowboatEl) {
+  _rowboatEl.addEventListener("click", () => {
+    if (_rowboatEl.classList.contains("cast-off")) return;
+    // take the boat out of the css flow position so we can transition its
+    // left/top freely without inheriting the dock-side offset
+    const r = _rowboatEl.getBoundingClientRect();
+    _rowboatEl.classList.add("cast-off");
+    _rowboatEl.style.position = "absolute";
+    _rowboatEl.style.bottom = "auto";
+    _rowboatEl.style.left = r.left + "px";
+    _rowboatEl.style.top = r.top + "px";
+    // force reflow so re-applied transitions actually take effect
+    void _rowboatEl.offsetWidth;
+    voyages++;
+    try { localStorage.setItem(ROW_KEY, String(voyages)); } catch {}
+    renderVoyages();
+    if (voyages === 1) toast("the rope slips · the rowboat pulls out across the pond");
+    else if (voyages % 5 === 0) toast(`voyage #${voyages} · the planks know the weight`, 2200);
+    const pondRect = pondCanvas.getBoundingClientRect();
+    const endLeft = pondRect.left + pondRect.width * 0.82;
+    const endTop = pondRect.top + pondRect.height * 0.55;
+    _rowboatEl.style.transition = "left 16s cubic-bezier(.42, 0, .58, 1), top 16s ease-in-out";
+    _rowboatEl.style.left = endLeft + "px";
+    _rowboatEl.style.top = endTop + "px";
+    setTimeout(() => {
+      _rowboatEl.style.transition = "left 14s ease, top 14s ease";
+      _rowboatEl.style.left = r.left + "px";
+      _rowboatEl.style.top = r.top + "px";
+    }, 16500);
+    setTimeout(() => {
+      _rowboatEl.classList.remove("cast-off");
+      _rowboatEl.style.position = "";
+      _rowboatEl.style.bottom = "";
+      _rowboatEl.style.left = "";
+      _rowboatEl.style.top = "";
+      _rowboatEl.style.transition = "";
+    }, 31000);
+  });
+}
+
+/* ============================================================
+   feature: tide wobble
+   --pond-h cycles between 17vh and 19vh on a slow ~7-min sine.
+   shore elements that pos with calc(--pond-h) (swing, dock, kettle,
+   wishing tree, moonflower, all of them) shift a little with the
+   breath. throttle to ~7 fps to keep the per-tick reflow cheap.
+   status reads low / mid / high tide.
+   ============================================================ */
+let _tidePhase = 0;
+function tideTick() {
+  _tidePhase += 0.00224; // ~7-min cycle: 2pi/420s/1Hz
+  const t = (Math.sin(_tidePhase) + 1) / 2;
+  const h = 17 + t * 2; // 17..19 vh
+  document.documentElement.style.setProperty("--pond-h", h.toFixed(2) + "vh");
+  const statEl = document.getElementById("tide-stat");
+  if (statEl) {
+    if (t > 0.78) statEl.textContent = "high tide";
+    else if (t < 0.22) statEl.textContent = "low tide";
+    else statEl.textContent = "mid";
+  }
+}
+setInterval(tideTick, 1000);
+tideTick();
+
+/* ============================================================
+   feature: a fern patch on the left shore
+   sits between the dandelion and the wind vane. fronds grow over
+   time: every 5th watering of the greenhouse plant, a new frond
+   unfurls. capped at 8. each new frond sits at scaleY(0) until
+   .unfurled flips the class — same pattern as the lotus elsewhere,
+   here it pays off a low-value daily ritual.
+   ============================================================ */
+const FERN_KEY = "biosphere02.ferns.v1";
+let fernsGrown = (() => { try { return +localStorage.getItem(FERN_KEY) || 0; } catch { return 0; } })();
+function renderFernsStat() {
+  const el = document.getElementById("ferns-stat");
+  if (el) el.textContent = fernsGrown;
+}
+renderFernsStat();
+// hand-picked slot layout — each frond has its own base x/y, lean, length
+// and hue shift so the cluster reads as a fern mound rather than a row of
+// identical stalks
+const FERN_SLOTS = [
+  { x: 14, y: 78, len: 38, lean: -14, hue: 0 },
+  { x: 26, y: 78, len: 48, lean:  -6, hue: 1 },
+  { x: 42, y: 78, len: 40, lean:   2, hue: 0 },
+  { x: 50, y: 78, len: 34, lean:   8, hue: 1 },
+  { x: 22, y: 80, len: 54, lean:  -8, hue: 0 },
+  { x: 36, y: 80, len: 58, lean:  -2, hue: 1 },
+  { x: 46, y: 80, len: 46, lean:   6, hue: 0 },
+  { x: 30, y: 80, len: 62, lean:   4, hue: 1 },
+];
+function fernFrondSVG(idx) {
+  const s = FERN_SLOTS[idx % FERN_SLOTS.length];
+  const baseColor = s.hue ? "#6cb37e" : "#8fd49a";
+  const tipColor  = s.hue ? "#3e8a6a" : "#5fa78a";
+  const leaflets = [];
+  const n = 7;
+  for (let i = 1; i <= n; i++) {
+    const t = i / (n + 1);
+    const ly = s.y - s.len * t;
+    const lxBase = s.x + s.lean * 0.4 + Math.sin(i * 0.9) * 0.6;
+    const sideSign = i % 2 === 0 ? -1 : 1;
+    const leafLen = 5 + (n - i + 1) * 1.3;
+    leaflets.push(
+      `<ellipse cx="${lxBase + sideSign * leafLen / 2}" cy="${ly}" rx="${leafLen / 2}" ry="${leafLen * 0.26}" fill="${baseColor}" opacity="0.92" transform="rotate(${sideSign * 28} ${lxBase} ${ly})"/>`,
+    );
+  }
+  leaflets.push(`<circle cx="${s.x + s.lean}" cy="${s.y - s.len}" r="1.4" fill="${tipColor}"/>`);
+  return `<g class="fern-frond" data-idx="${idx}">
+    <path d="M${s.x} ${s.y} Q${s.x + s.lean * 0.4} ${s.y - s.len * 0.5} ${s.x + s.lean} ${s.y - s.len}" fill="none" stroke="${baseColor}" stroke-width="1.1" stroke-linecap="round"/>
+    ${leaflets.join("")}
+  </g>`;
+}
+// mature-paint on initial render so existing fronds aren't forced to replay
+// their unfurl keyframe on every fresh load.
+function renderFernPatch() {
+  const host = document.getElementById("fern-fronds");
+  if (!host) return;
+  host.innerHTML = "";
+  for (let i = 0; i < Math.min(fernsGrown, FERN_SLOTS.length); i++) {
+    host.insertAdjacentHTML("beforeend", fernFrondSVG(i));
+  }
+  requestAnimationFrame(() => {
+    host.querySelectorAll(".fern-frond").forEach(el => {
+      el.style.transform = "scaleY(1)";
+      el.style.opacity = "0.95";
+    });
+  });
+}
+// grow-one: append ONLY the new frond; existing mature fronds stay put
+function appendNewFern(idx) {
+  const host = document.getElementById("fern-fronds");
+  if (!host) return;
+  host.insertAdjacentHTML("beforeend", fernFrondSVG(idx));
+  const fresh = host.querySelector(`.fern-frond[data-idx="${idx}"]`);
+  if (fresh) requestAnimationFrame(() => fresh.classList.add("unfurled"));
+}
+renderFernPatch();
+const _waterBtn = document.getElementById("water");
+if (_waterBtn) {
+  _waterBtn.addEventListener("click", () => {
+    if (fernsGrown >= FERN_SLOTS.length) return;
+    if ((plant && plant.water) && plant.water % 5 === 0) {
+      const newIdx = fernsGrown; // index of the about-to-grow frond
+      fernsGrown++;
+      try { localStorage.setItem(FERN_KEY, String(fernsGrown)); } catch {}
+      renderFernsStat();
+      appendNewFern(newIdx);
+      if (fernsGrown === 1) toast("a fern has unfurled at the shore 🌿", 2600);
+    }
+  });
+}

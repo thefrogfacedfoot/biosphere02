@@ -261,6 +261,42 @@
   <div class="cairn-stones" id="cairn-stones"></div>
 </div>
 
+<!-- a butterfly, day-flier — drifts across the upper sky, click to spot for the field guide -->
+<div id="butterfly" class="butterfly" title="a butterfly — click to spot" aria-label="a butterfly">
+  <svg class="butterfly-svg" viewBox="0 0 40 28" aria-hidden="true">
+    <ellipse class="wing-l" cx="11" cy="14" rx="11" ry="9" fill="#f7c8a8" opacity="0.88"/>
+    <ellipse class="wing-r" cx="29" cy="14" rx="11" ry="9" fill="#f7c8a8" opacity="0.88"/>
+    <ellipse class="wing-l" cx="11" cy="11" rx="6" ry="2.6" fill="#e89a78" opacity="0.65"/>
+    <ellipse class="wing-r" cx="29" cy="11" rx="6" ry="2.6" fill="#e89a78" opacity="0.65"/>
+    <ellipse cx="20" cy="14" rx="1.4" ry="6" fill="#2a1808"/>
+    <circle  cx="20" cy="8"  r="1.2" fill="#2a1808"/>
+    <line    x1="19" y1="7"  x2="17" y2="4" stroke="#2a1808" stroke-width="0.6"/>
+    <line    x1="21" y1="7"  x2="23" y2="4" stroke="#2a1808" stroke-width="0.6"/>
+  </svg>
+</div>
+
+<!-- a rowboat tied to the dock — click to cast off, sails a slow arc across the pond and back -->
+<div id="rowboat" title="untie the rowboat" aria-label="a rowboat at the dock">
+  <svg class="rowboat-rope" viewBox="0 0 22 10" aria-hidden="true">
+    <path d="M22 6 Q14 -2 4 2" fill="none" stroke="#6a5030" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>
+  <svg class="rowboat-svg" viewBox="0 0 60 22" aria-hidden="true">
+    <ellipse class="rowboat-rim" cx="30" cy="9" rx="24" ry="2.6" fill="#5a3820"/>
+    <path d="M5 12 Q30 22 55 12 Q52 18 30 18 Q8 18 5 12 Z" fill="#3a2415"/>
+    <rect x="14" y="9" width="6" height="1.5" fill="#2a1808"/>
+    <rect x="40" y="9" width="6" height="1.5" fill="#2a1808"/>
+    <circle class="rowboat-lamp" cx="30" cy="9" r="1.1" fill="#ffd9a0"/>
+  </svg>
+</div>
+
+<!-- a small fern patch on the left shore — fronds grow over the days; click the shore to water & watch one unfurl -->
+<div id="ferns" aria-label="a fern patch on the shore">
+  <svg class="ferns-svg" viewBox="0 0 60 80" aria-hidden="true">
+    <ellipse cx="30" cy="78" rx="22" ry="3" fill="#3a5a3a" opacity="0.55"/>
+    <g id="fern-fronds"></g>
+  </svg>
+</div>
+
 <!-- lighthouse on the far shore (svg + sweeping beam) -->
 <div id="lighthouse" title="leave a moment at the lighthouse" aria-label="lighthouse">
   <div class="lighthouse-beam" id="lighthouse-beam"></div>
@@ -364,6 +400,16 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
+      <article class="logentry">
+        <h3>devlog #21 — <span class="logdate">jul 7</span></h3>
+        <p>five additions, and the underlying shape of the day keeps changing a little. tried to make each one ask for a different <em>kind</em> of attention: look closely, listen, lift a rope, breathe, and come back. only one of them is a creature this time.</p>
+        <p><strong>a butterfly 🦋.</strong> the eighth field-guide entry and a daytime creature of a different temperament — drifts the upper sky on a slow sine wobble, long beats between direction changes, gone in maybe 25 seconds if you don't catch it. hover stops it (like the fox and snail do) so you can actually click it instead of just watch it pass. it does not spawn at night, and if it's still crossing when dusk arrives it leaves anyway. eight species in the guide now, and the moment all eight get spotted, you get the same quiet toast the seventh did — that part didn't need new logic, just one new CREATURE_SPECIES entry.</p>
+        <p><strong>a cricket chorus.</strong> this one has no visual at all — pure audio. a faint chirp, three to six short sine bursts around 4 kHz, fires every 22 to 50 seconds <em>only</em> when the mood is night. browser autoplay policy is annoying here: a freshly created AudioContext is suspended, and silently trying to chirp before the user has ever clicked anything produces nothing. so the chorus waits for the user's first pointerdown anywhere on the page to resume the context, after which it just runs scheduled in the background. doesn't share orbit's audio context (which is only alive when you press ▶); it has its own tiny one that stays suspended most of the time. and respects <code>settings.mute</code> — if the biosphere is muted the cricket is too, no separate toggle.</p>
+        <p><strong>a rowboat.</strong> tied to the dock on the right side of the planks, with a thin svg rope drawn out to the hull. click and the boat glides free in a long arc to the far-right end of the pond, then loops back over another arc and ties up again. total round-trip is around 30 seconds. the whole thing is two CSS transitions on <code>left</code> and <code>top</code> chained with overlapping setTimeouts — no per-frame JS. a counter shows up in <code>~/status</code> as <em>voyages taken</em>. same philosophy as the dock's <em>walks taken</em>, but on the water.</p>
+        <p><strong>tide.</strong> the pond's height wobbles between 17vh and 19vh on a slow ~7-minute sine cycle, set via <code>--pond-h</code>. any shore element that pos by <code>calc(38px + var(--pond-h) - Xpx)</code> — swing, kettle, wishing tree, moonflower, sundial, everything that sits on the shore — shifts with it, gently. the title bar and dock don't, because they aren't shore-grounded. status reads <em>low</em>, <em>mid</em>, or <em>high tide</em>. i almost didn't ship this — animating a CSS variable that several elements depend on felt like i'd be paying a reflow every frame — but at six updates a second the browsers i tested handle it without complaining, and the breath is the right speed for the cadence. i did skip refreshing the stepping-stones positions every tide tick; the stones shift with the same CSS formula and the result is slightly imperfect but only by a pixel or two and never enough to see clearly.</p>
+        <p><strong>a fern patch.</strong> a small cluster of fronds on the left shore between the dandelion and the wind vane — looks wrong to leave that strip empty. they grow over time: every fifth watering of the greenhouse plant a new frond unfurls on the shore, capped at eight (so the patch can't grow forever — there's nowhere for more to fit). each new frond unfurls with a one-shot CSS animation: the frond sits at <code>scaleY(0)</code> until the count increments, then the class flips to <code>unfurled</code> and the keyframe runs once. status keeps <em>ferns grown</em> so you can watch the count tick up over weeks. it's the second feature — after the nest — whose main reward is <em>coming back tomorrow and noticing it has changed</em>; i like that dynamic.</p>
+        <p>the field guide went from seven to eight (counted creatures only, not new shore items), the status window gained three rows, and every existing system — reduced motion, stargazer mode, audio gating — picked the new things up without me touching them. ↦ one butterfly stuck around past its lifespan once because i forgot to clear <code>_butterfly</code> on cleanup; caught it on the second test pass. ship-able.</p>
+      </article>
       <article class="logentry">
         <h3>devlog #20 — <span class="logdate">jul 6, later</span></h3>
         <p>five more, and the first one of these is a bit different from the others: it isn't a new thing to find, it's a payoff for six things i'd already shipped.</p>
@@ -627,7 +673,10 @@
       <div class="status-row"><span>guestbook marks</span><b id="guestbook-count">0</b></div>
       <div class="status-row"><span>the nest</span><b id="nest-stat">…</b></div>
       <div class="status-row"><span>skies charted</span><b id="telescope-stat">0 of 10</b></div>
-      <div class="status-row"><span>field guide</span><b id="fieldguide-stat">0 of 7</b></div>
+      <div class="status-row"><span>field guide</span><b id="fieldguide-stat">0 of 8</b></div>
+      <div class="status-row"><span>tide</span><b id="tide-stat">mid</b></div>
+      <div class="status-row"><span>voyages taken</span><b id="voyages-count">0</b></div>
+      <div class="status-row"><span>ferns grown</span><b id="ferns-stat">0</b></div>
       <div class="status-row"><span>bottles opened</span><b id="bottles-count">0</b></div>
       <div class="status-row"><span>moments at the lighthouse</span><b id="moments-count">0</b></div>
       <div class="status-row"><span>today's card</span><b id="card-stat">undrawn</b></div>
@@ -886,7 +935,7 @@
     <div class="content fieldguide">
       <p class="hint">the creatures of the biosphere. spot one and it's recorded here for good. patience fills the page.</p>
       <div class="guide-list" id="guide-list"></div>
-      <div class="guide-foot" id="guide-foot">0 of 7 spotted</div>
+      <div class="guide-foot" id="guide-foot">0 of 8 spotted</div>
     </div>
   </section>
 

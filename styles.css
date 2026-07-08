@@ -2554,6 +2554,147 @@ body.stargazer #swing { opacity: 0.55; }
 body.motion-reduced .nest-peep { animation: none; }
 body.stargazer #nest { opacity: 0.6; }
 
+/* ---- butterfly (8th creature) ----
+   a day/dusk creature that drifts the upper sky on a slow sine wobble.
+   the wing flap is two keyframe animations with a half-period offset so the
+   wings are out of sync, like a real butterfly in flight rather than a
+   mechanical symmetric blurr. spawn / drift / spot follows the same
+   pattern as .fox / .snail — spawns its own div, rAF-animates the path,
+   click → counted via markCreatureSeen("butterfly"). */
+.butterfly {
+  position: fixed;
+  top: 12vh; left: -50px;
+  z-index: 3;
+  width: 40px; height: 28px;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0;
+  will-change: left, top;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35))
+          drop-shadow(0 0 4px rgba(247, 200, 168, 0.30));
+  transition: filter 200ms ease, opacity 600ms ease;
+}
+.butterfly.flying { opacity: 0.92; }
+.butterfly:hover {
+  filter: drop-shadow(0 0 12px rgba(247, 200, 168, 0.85))
+          drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+}
+.butterfly.caught {
+  opacity: 0 !important;
+  transform: scale(1.4);
+  transition: opacity 280ms ease, transform 280ms ease;
+}
+.butterfly-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.butterfly-svg .wing-l,
+.butterfly-svg .wing-r {
+  transform-origin: 20px 14px;
+  animation: butterfly-flap 0.20s ease-in-out infinite alternate;
+}
+.butterfly-svg .wing-r { animation-delay: -0.10s; }
+@keyframes butterfly-flap {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .butterfly { display: none !important; }
+  .butterfly-svg .wing-l, .butterfly-svg .wing-r { animation: none; }
+}
+body.motion-reduced .butterfly { display: none !important; }
+body.motion-reduced .butterfly-svg .wing-l,
+body.motion-reduced .butterfly-svg .wing-r { animation: none; }
+body.stargazer .butterfly { opacity: 0.5; }
+
+/* ---- rowboat tied to the dock ----
+   sits to the right of the dock planks with a thin rope from the dock post.
+   clicking casts the boat off — it glides a slow arc across the pond with
+   two overlapping CSS transitions, then loops back. the rope svg disappears
+   while the boat is out. */
+#rowboat {
+  position: fixed;
+  left: calc(50% + 38px);
+  bottom: calc(38px + var(--pond-h) - 24px);
+  width: 60px; height: 28px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: filter 200ms ease, transform 220ms ease;
+}
+#rowboat:hover { filter: drop-shadow(0 0 8px rgba(255, 217, 160, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); transform: translateY(-1px); }
+.rowboat-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  display: block; overflow: visible;
+  transition: left 16s cubic-bezier(.42, 0, .58, 1), top 16s ease-in-out;
+}
+.rowboat-rope {
+  position: absolute;
+  left: -22px; top: 4px;
+  width: 22px; height: 10px;
+  display: block;
+  pointer-events: none;
+  transition: opacity 280ms ease;
+}
+.rowboat-rim { transition: transform 1.2s ease-in-out; }
+.rowboat-lamp { filter: drop-shadow(0 0 4px rgba(255, 217, 160, 0.6)); }
+#rowboat.cast-off { cursor: default; }
+#rowboat.cast-off .rowboat-rope { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .rowboat-svg { transition: none; }
+}
+body.motion-reduced .rowboat-svg { transition: none; }
+body.stargazer #rowboat { opacity: 0.55; }
+
+/* ---- fern patch on the left shore ----
+   8 fronds max, each on its own transform-origin so it unfurls from the
+   base. before .unfurled is added, fronds sit at scaleY(0) and opacity 0 —
+   invisible. once the count increments and the class flips, the
+   keyframe animation runs once. */
+#ferns {
+  position: fixed;
+  left: 200px;
+  bottom: calc(38px + var(--pond-h) - 6px);
+  width: 64px; height: 88px;
+  z-index: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+.ferns-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.fern-frond {
+  transform-origin: 50% 100%;
+  /* default = invisible until .unfurled flips the class */
+  transform: scaleY(0);
+  opacity: 0;
+}
+.fern-frond.unfurled {
+  animation: fern-unfurl 1.6s cubic-bezier(.2, .8, .3, 1) forwards;
+}
+@keyframes fern-unfurl {
+  from { transform: scaleY(0); opacity: 0; }
+  to   { transform: scaleY(1); opacity: 0.95; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fern-frond { animation: none; }
+}
+body.motion-reduced #ferns .fern-frond {
+  animation: none !important;
+  transform: scaleY(1) !important;
+  opacity: 0.95 !important;
+}
+body.stargazer #ferns { opacity: 0.55; }
+
+/* ---- tide wobble ----
+   --pond-h is updated by js on a slow cycle. shore elements that pos with
+   calc(--pond-h) shift gently with it; giving them a transition makes the
+   breath smooth instead of stuttering per-frame. */
+#wishing-tree, #dandelion, #cattails, #dock, #bench,
+#firefly-jar, #wind-vane, #wind-chime, #moonflower, #sundial,
+#swing, #nest, #cairn, #lighthouse, .fox, .snail,
+#rowboat, #ferns, .stepstone {
+  transition: bottom 1100ms ease, left 1100ms ease, right 1100ms ease, top 1100ms ease;
+}
+
 /* ---- pond turtle (surfaces to bask by day) ----
    fades up at the water's edge, bobs, and slips under when clicked. */
 .turtle {
