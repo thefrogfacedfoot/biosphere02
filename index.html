@@ -401,6 +401,16 @@
     </div>
     <div class="content">
       <article class="logentry">
+        <h3>devlog #22 — <span class="logdate">jul 9</span></h3>
+        <p>five additions, and for the first time two of them are <em>windows</em> — the biosphere has enough stuff in it now that finding things and remembering things became features in their own right.</p>
+        <p><strong>~/search 🔎.</strong> a dedicated, google-styled search over everything: windows, mycelium notes, devlog entries, projects, wishes, creatures, named stars, the telescope's deep-sky objects, bottle notes, forecast days, the shore. one registry array — adding a future source is appending one object. result cards show a glyph, a highlighted snippet, and a source tag; arrows move, enter jumps you to the thing itself (opening and focusing its window on the way), tab cycles category chips, and when local results run dry there's a google escape hatch that opens a real web search in a new tab. scoring is substring plus a word-boundary bonus — nothing clever, but it feels right at this scale.</p>
+        <p><strong>~/signals 📡.</strong> a live event feed. one tiny entry point — <code>gLog(kind, title, source)</code> — and now wishes cast, meteors caught, bottles opened, mycelium edits, creatures spotted, hearth peaks, aurora bells, and tide marks all leave a row. capped at 80, persistent, filterable by kind with live-count chips. the interesting part was wiring it into code i didn't want to re-open: most hooks are small wrappers around existing render functions that compare a count before and after, so the original handlers never knew anything happened. the titlebar dot pulses when a signal lands.</p>
+        <p><strong>aurora bells.</strong> a second, colder bell voice — two-tone FM, glassy, six-second decay — that rings occasionally at night, more readily on aurora-forecast days. if ambient orbit is already playing, the bell rides orbit's AudioContext and volume; otherwise it uses its own tiny context that stays silent until the browser lets it speak (the same autoplay-wall trick the cricket uses). each audible ring counts in <code>~/status</code>; only the first ring of a session leaves a signal row, so a long night of listening can't scroll your real history away.</p>
+        <p><strong>a river otter 🦦.</strong> the ninth field-guide entry, and the first creature keyed to <em>mood</em> rather than day or night: it only swims at dawn and dusk, which on a real clock is a narrow window — you have to be here at the edges of the day to ever see it. long slow crossings (38–68s), hover pauses it, click to spot. appending one entry to CREATURE_SPECIES grew the guide to "9 of 9" without touching the completion logic.</p>
+        <p><strong>meteor wishes + a tide gauge.</strong> two small ones: if today's forecast is a meteor shower, catching a shooting star now <em>is</em> a wish — it files itself in the wishing tree and fires a wish-star back across the sky. and the tide row in <code>~/status</code> grew a little animated gauge bar that fills with the ~7-minute cycle, tinted at the high and low bands.</p>
+        <p>↦ found the bottle hook half-wired on a re-read (variables declared, wrap never applied) and the hearth-peak signal missing entirely; both fixed before ship. a test pass caught three more: the bell was counting rings the suspended AudioContext never actually played, four a minute, every one of them a feed row — twenty idle minutes would have wiped the whole 80-row history; the field guide painted "of 8" at boot because the otter joins CREATURE_SPECIES after the first render, so it now repaints on arrival; and search's little timer was printing milliseconds with an "s" suffix — a 5ms search bragging it took 5.30 seconds. the signals feed only emits its "signals online" row on a truly fresh install, never on reload — churning the cap with boot rows would silently eat real history.</p>
+      </article>
+      <article class="logentry">
         <h3>devlog #21 — <span class="logdate">jul 7</span></h3>
         <p>five additions, and the underlying shape of the day keeps changing a little. tried to make each one ask for a different <em>kind</em> of attention: look closely, listen, lift a rope, breathe, and come back. only one of them is a creature this time.</p>
         <p><strong>a butterfly 🦋.</strong> the eighth field-guide entry and a daytime creature of a different temperament — drifts the upper sky on a slow sine wobble, long beats between direction changes, gone in maybe 25 seconds if you don't catch it. hover stops it (like the fox and snail do) so you can actually click it instead of just watch it pass. it does not spawn at night, and if it's still crossing when dusk arrives it leaves anyway. eight species in the guide now, and the moment all eight get spotted, you get the same quiet toast the seventh did — that part didn't need new logic, just one new CREATURE_SPECIES entry.</p>
@@ -673,8 +683,9 @@
       <div class="status-row"><span>guestbook marks</span><b id="guestbook-count">0</b></div>
       <div class="status-row"><span>the nest</span><b id="nest-stat">…</b></div>
       <div class="status-row"><span>skies charted</span><b id="telescope-stat">0 of 10</b></div>
-      <div class="status-row"><span>field guide</span><b id="fieldguide-stat">0 of 8</b></div>
-      <div class="status-row"><span>tide</span><b id="tide-stat">mid</b></div>
+      <div class="status-row"><span>field guide</span><b id="fieldguide-stat">0 of 9</b></div>
+      <div class="status-row status-tide"><span>tide</span><span class="tide-ga"><b id="tide-stat">mid tide</b><span class="tide-ga-track"><span class="tide-ga-fill" id="tide-ga-fill" style="width:50%;"></span></span></span></div>
+      <div class="status-row"><span>aurora bells</span><b id="aurora-bells-count">0</b></div>
       <div class="status-row"><span>voyages taken</span><b id="voyages-count">0</b></div>
       <div class="status-row"><span>ferns grown</span><b id="ferns-stat">0</b></div>
       <div class="status-row"><span>bottles opened</span><b id="bottles-count">0</b></div>
@@ -1039,6 +1050,60 @@
       <button id="set-show-welcome" class="set-ghost">show the welcome page again</button>
       <button id="set-reset" class="set-danger">reset everything</button>
       <p class="tiny">clears your sky, plant, notes, wishes and window positions.</p>
+    </div>
+  </section>
+
+  <!-- WINDOW: gsearch (a dedicated, google-style search across the biosphere) -->
+  <section class="window" data-id="gsearch" style="left: 220px; top: 220px; width: 540px; min-height: 380px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/search 🔎</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content gsearch">
+      <p class="hint">search everything in the biosphere — windows, notes, devlog entries, projects, wishes, the field guide, telescope objects, forecast days, named stars, and the shore. press <kbd>↵</kbd> to jump to the selected result. google is one tap away when local results run out.</p>
+      <div class="gsearch-stage">
+        <div class="gsearch-input-wrap">
+          <span class="gsearch-icon">🔍</span>
+          <input id="gsearch-input" type="text" placeholder="search the biosphere…" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="gsearch-foot">
+          <span id="gsearch-count">about 0 results</span>
+          <span id="gsearch-time">0.00s</span>
+        </div>
+        <div class="gsearch-filter-chips" id="gsearch-filter-chips">
+          <!-- filled in js from BIOSPHERE_INDEX -->
+        </div>
+        <div class="gsearch-results" id="gsearch-results"></div>
+        <div class="gsearch-keys">
+          <span><kbd>↵</kbd> jump</span>
+          <span><kbd>↑</kbd> <kbd>↓</kbd> move</span>
+          <span><kbd>esc</kbd> clear</span>
+          <span><kbd>tab</kbd> switch category</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WINDOW: ~/signals 📡 (live event log: wishes, meteor catches, bottles, mycelium edits, hearth peaks, aurora bells, tide marks) -->
+  <section class="window" data-id="signals" style="left: 1090px; top: 90px; width: 300px; min-height: 320px;">
+    <div class="titlebar">
+      <span class="tdot"></span>
+      <span class="tname">~/signals 📡</span>
+      <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
+    </div>
+    <div class="content signals">
+      <p class="hint">a live feed of the biosphere. wishes cast, meteor catches, bottles opened, mycelium edits, hearth peaks, aurora bells, tide marks. last 80 events.</p>
+      <div class="signals-foot">
+        <span id="signals-count">0 events</span>
+        <span id="signals-time"></span>
+      </div>
+      <div class="sig-chips" id="signals-filter">
+        <!-- filled in js: chips per kind + an "all" chip -->
+      </div>
+      <div class="signals-list" id="signals-list">
+        <!-- rows injected by js -->
+      </div>
     </div>
   </section>
 

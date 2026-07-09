@@ -1891,7 +1891,24 @@ function tryCatchShooter(x, y) {
       caughtCount++;
       try { localStorage.setItem(CAUGHT_KEY, String(caughtCount)); } catch {}
       renderCaughtCount();
-      if (caughtCount === 1) toast("you caught one ✦ keep an eye on the sky");
+      // catch-a-meteor (meteor wish): if today's forecast is meteors,
+      // the catch itself is a wish — fires a slow star with the wish trailing
+      let meteorsToday = false;
+      try { meteorsToday = forecastFor(new Date()).kind === "meteors"; } catch {}
+      if (meteorsToday) {
+        const tm = new Date();
+        const wText = "wish on a falling star · " + tm.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        const wishes = loadWishes();
+        wishes.push({ text: wText, when: Date.now(), from: "shooting-star" });
+        saveWishes(wishes);
+        renderWishCount();
+        sendWishStar(wText);
+        toast("you wished on a shooting star 🌠", 3200);
+        if (typeof gLog === "function") gLog("meteor", "wish on a shooting star", "meteor shower");
+      } else {
+        if (caughtCount === 1) toast("you caught one ✦ keep an eye on the sky");
+        if (typeof gLog === "function") gLog("star", "star caught", "the sky");
+      }
       return true;
     }
   }
@@ -5381,16 +5398,29 @@ if (_rowboatEl) {
    status reads low / mid / high tide.
    ============================================================ */
 let _tidePhase = 0;
+let _tideLastLog = "mid"; // tracks which tide band we last pushed to ~/signals
 function tideTick() {
   _tidePhase += 0.00224; // ~7-min cycle: 2pi/420s/1Hz
   const t = (Math.sin(_tidePhase) + 1) / 2;
   const h = 17 + t * 2; // 17..19 vh
   document.documentElement.style.setProperty("--pond-h", h.toFixed(2) + "vh");
+  let level = "mid";
+  if (t > 0.78) level = "high";
+  else if (t < 0.22) level = "low";
   const statEl = document.getElementById("tide-stat");
-  if (statEl) {
-    if (t > 0.78) statEl.textContent = "high tide";
-    else if (t < 0.22) statEl.textContent = "low tide";
-    else statEl.textContent = "mid";
+  if (statEl) statEl.textContent = level + " tide";
+  // visual gauge bar (only painted if the tide-gauge element exists)
+  const fill = document.getElementById("tide-ga-fill");
+  if (fill) {
+    fill.style.width = (t * 100).toFixed(0) + "%";
+    fill.classList.toggle("high", level === "high");
+    fill.classList.toggle("low",  level === "low");
+  }
+  // log a tide mark in ~/signals the first time the tide crosses a band
+  if (typeof gLog === "function" && level !== _tideLastLog) {
+    _tideLastLog = level;
+    if (level === "high") gLog("tide", "high tide mark", "the pond breathes");
+    else if (level === "low") gLog("tide", "low tide mark", "the pond breathes");
   }
 }
 setInterval(tideTick, 1000);
@@ -5485,3 +5515,1073 @@ if (_waterBtn) {
     }
   });
 }
+/* ============================================================
+   feature: ~/search 🔎 — a dedicated, google-style cross-search
+   searches every meaningful piece of content in the biosphere:
+   windows, mycelium notes, devlog entries, projects, wishes, the
+   eight creatures, the named stars, the telescope's deep-sky
+   objects, the shore items, the bottle notes, the forecast, AND
+   a Google web fallback. result cards show glyph + title +
+   highlighted snippet + source tag. arrow keys move, enter jumps,
+   escape clears, tab cycles category filters. registry pattern:
+   adding a new source is appending one object to BIOSPHERE_INDEX.
+   ============================================================ */
+const gSearchWin    = document.querySelector('[data-id="gsearch"]');
+const gSearchInput  = document.getElementById("gsearch-input");
+const gSearchResEl  = document.getElementById("gsearch-results");
+const gSearchCount  = document.getElementById("gsearch-count");
+const gSearchTime   = document.getElementById("gsearch-time");
+const gSearchChips  = document.getElementById("gsearch-filter-chips");
+let   gSearchRaw    = "";
+let   gSearchQ      = "";
+let   gSearchItems  = [];
+let   gSearchSel    = 0;
+let   gSearchActiveKind = "all";
+
+/* ---- 1. the search registry ----
+   each source = { key, chipLabel, glyph, get(q) → [ {kind,title,snippet,source,glyph,action} ] }
+   adding a new source = adding one more object below. */
+const BIOSPHERE_INDEX = [
+  /* windows: their titlebar name + full innerHTML text */
+  {
+    key: "window", chipLabel: "windows", glyph: "▢",
+    get: function (q) {
+      const out = [];
+      document.querySelectorAll(".window").forEach(w => {
+        if (w.dataset.id === "gsearch") return; // don't surface self
+        const title = w.querySelector(".tname").textContent.replace(/^~\//, "");
+        const text = (w.textContent || "").replace(/\s+/g, " ");
+        if (title.toLowerCase().includes(q) || text.toLowerCase().includes(q)) {
+          out.push({
+            kind: "window",
+            glyph: "▢",
+            title: title,
+            snippet: makeSnippet(text, q),
+            source: "~/ " + w.dataset.id,
+            action: (() => {
+              const probe = w;
+              return () => {
+                probe.classList.remove("minimized");
+                probe.style.display = "";
+                if (probe.dataset.closed === "1") {
+                  delete probe.dataset.closed;
+                  const chip = taskbar.querySelector(`[data-task="${probe.dataset.id}"]`);
+                  if (chip) chip.remove();
+                }
+                bringToFront(probe);
+                saveWindowState();
+              };
+            })(),
+          });
+        }
+      });
+      return out;
+    },
+  },
+
+  /* mycelium notes (titles + bodies) */
+  {
+    key: "note", chipLabel: "notes", glyph: "🍄",
+    get: function (q) {
+      const out = [];
+      if (typeof mycNotes !== "undefined" && Array.isArray(mycNotes)) {
+        for (const n of mycNotes) {
+          if (n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q)) {
+            out.push({
+              kind: "note",
+              glyph: "🍄",
+              title: n.title,
+              snippet: makeSnippet(n.body, q),
+              source: "mycelium",
+              action: (() => {
+                const idx = n.id, t = n.title, b = n.body;
+                return () => {
+                  const w = document.querySelector('[data-id="mycelium"]');
+                  if (!w) return;
+                  gFocusWindow(w);
+                  mycTitle.value = t;
+                  mycBody.value = b;
+                  editingId = idx;
+                  if (mycStatus) mycStatus.textContent = "from search";
+                };
+              })(),
+            });
+          }
+        }
+      }
+      return out;
+    },
+  },
+
+  /* devlog entries */
+  {
+    key: "devlog", chipLabel: "devlog", glyph: "📓",
+    get: function (q) {
+      const out = [];
+      document.querySelectorAll(".logentry").forEach(le => {
+        const text = le.textContent.replace(/\s+/g, " ");
+        if (text.toLowerCase().includes(q)) {
+          const h3 = le.querySelector("h3");
+          const title = h3 ? h3.textContent.trim() : "devlog entry";
+          out.push({
+            kind: "devlog",
+            glyph: "📓",
+            title,
+            snippet: makeSnippet(text, q),
+            source: "devlog",
+            action: (() => { const el = le; return () => gFocusInsideWindow("devlog", el); })(),
+          });
+        }
+      });
+      return out;
+    },
+  },
+
+  /* projects */
+  {
+    key: "project", chipLabel: "projects", glyph: "✦",
+    get: function (q) {
+      const out = [];
+      document.querySelectorAll(".proj").forEach(p => {
+        const text = (p.textContent || "").replace(/\s+/g, " ");
+        if (text.toLowerCase().includes(q)) {
+          const h = p.querySelector("h4");
+          out.push({
+            kind: "project",
+            glyph: "✦",
+            title: h ? h.textContent.trim() : "project",
+            snippet: makeSnippet(text, q),
+            source: "projects",
+            action: (() => { const el = p; return () => gFocusInsideWindow("projects", el); })(),
+          });
+        }
+      });
+      return out;
+    },
+  },
+
+  /* wishes */
+  {
+    key: "wish", chipLabel: "wishes", glyph: "✦",
+    get: function (q) {
+      const out = [];
+      if (typeof loadWishes === "function") {
+        for (const w of loadWishes()) {
+          if (w.text.toLowerCase().includes(q)) {
+            const when = new Date(w.when).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+            out.push({
+              kind: "wish",
+              glyph: "✦",
+              title: `"${w.text}"`,
+              snippet: when,
+              source: "wish",
+              action: (() => { const t = w.text, dte = when; return () => toast(`"${t}" · ${dte}`, 3200); })(),
+            });
+          }
+        }
+      }
+      return out;
+    },
+  },
+
+  /* creatures (from CREATURE_SPECIES) */
+  {
+    key: "creature", chipLabel: "creatures", glyph: "🦊",
+    get: function (q) {
+      const out = [];
+      if (typeof CREATURE_SPECIES === "undefined" || !Array.isArray(CREATURE_SPECIES)) return out;
+      for (const s of CREATURE_SPECIES) {
+        const hay = `${s.name} ${s.blurb}`.toLowerCase();
+        if (hay.includes(q)) {
+          out.push({
+            kind: "creature",
+            glyph: s.glyph || "🦊",
+            title: s.name,
+            snippet: s.blurb,
+            source: "field guide",
+            action: (() => { const id = s.id, name = s.name; return () => {
+              const w = document.querySelector('[data-id="fieldguide"]');
+              if (!w) return;
+              gFocusWindow(w);
+              setTimeout(() => toast(`${name} · ${typeof fieldGuide !== "undefined" && fieldGuide[id] ? "spotted already" : "not yet spotted"}`, 2400), 80);
+            }; })(),
+          });
+        }
+      }
+      return out;
+    },
+  },
+
+  /* telescope deep-sky objects */
+  {
+    key: "telescope", chipLabel: "telescope", glyph: "🔭",
+    get: function (q) {
+      const out = [];
+      if (typeof TELESCOPE_OBJECTS === "undefined" || !Array.isArray(TELESCOPE_OBJECTS)) return out;
+      for (const obj of TELESCOPE_OBJECTS) {
+        const hay = `${obj.name} ${obj.fact} ${obj.type}`.toLowerCase();
+        if (hay.includes(q)) {
+          out.push({
+            kind: "telescope",
+            glyph: "🔭",
+            title: obj.name,
+            snippet: obj.fact,
+            source: `deep sky · ${obj.type}`,
+            action: (() => { const objId = obj.id, objName = obj.name, objFact = obj.fact; return () => {
+              const w = document.querySelector('[data-id="telescope"]');
+              if (!w) return;
+              gFocusWindow(w);
+              setTimeout(() => toast(`${objName} · ${objFact}`, 3400), 80);
+            }; })(),
+          });
+        }
+      }
+      return out;
+    },
+  },
+
+  /* forecast */
+  {
+    key: "forecast", chipLabel: "forecast", glyph: "🌤",
+    get: function (q) {
+      const out = [];
+      if (typeof forecastFor !== "function") return out;
+      const today = new Date();
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today); d.setDate(d.getDate() + i);
+        const f = forecastFor(d);
+        const hay = `${f.label} ${f.note} ${f.kind}`.toLowerCase();
+        if (hay.includes(q)) {
+          const dateLbl = d.toLocaleDateString(undefined, { month: "short", day: "numeric", weekday: "short" });
+          out.push({
+            kind: "forecast",
+            glyph: f.glyph || "✦",
+            title: `${f.label} — ${dateLbl}${i === 0 ? " · today" : ""}`,
+            snippet: f.note,
+            source: "forecast",
+            action: (() => { return () => {
+              const w = document.querySelector('[data-id="forecast"]');
+              if (!w) return;
+              gFocusWindow(w);
+              setTimeout(() => toast(`${f.glyph || "✦"} ${f.label} · ${f.note}`, 2800), 80);
+            }; })(),
+          });
+        }
+      }
+      return out;
+    },
+  },
+
+  /* named stars (the daily-star pool of 20) */
+  {
+    key: "named-star", chipLabel: "named stars", glyph: "✦",
+    get: function (q) {
+      const out = [];
+      if (typeof namedStars === "undefined" || !Array.isArray(namedStars)) return out;
+      for (const s of namedStars) {
+        const hay = `${s.name} ${s.lore}`.toLowerCase();
+        if (hay.includes(q)) {
+          out.push({
+            kind: "named-star",
+            glyph: "✦",
+            title: s.name,
+            snippet: s.lore,
+            source: "named stars",
+            action: (() => { const name = s.name, lore = s.lore; return () => toast(`${name} · ${lore}`, 4800); })(),
+          });
+        }
+      }
+      return out;
+    },
+  },
+
+  /* shore items */
+  {
+    key: "shore", chipLabel: "shore", glyph: "🌾",
+    get: function (q) {
+      const out = [];
+      const items = [
+        { id: "wishing-tree",  title: "wishing tree",   hint: "left shore · one glowing lantern per wish you've made" },
+        { id: "dandelion",     title: "dandelion",      hint: "left shore · click to blow, seeds drift up into the sky" },
+        { id: "cattails",      title: "cattails",       hint: "shore reeds · sway idly, lean hard during a wind gust" },
+        { id: "dock",          title: "wooden dock",    hint: "extends into the pond · click the far plank to walk out" },
+        { id: "bench",         title: "carved bench",   hint: "by the pond · click to sit for a moment" },
+        { id: "firefly-jar",   title: "firefly jar",    hint: "right corner · one glow per firefly you've caught" },
+        { id: "wind-vane",     title: "wind vane",      hint: "shore · idles pointing left, swings hard during a gust" },
+        { id: "wind-chime",    title: "wind chimes",    hint: "shepherd's hook · sway and ring on the wind" },
+        { id: "moonflower",    title: "moonflower",     hint: "right shore · opens into a glowing bloom at night" },
+        { id: "sundial",       title: "sundial",        hint: "shore · shadow swings with the time of day" },
+        { id: "swing",         title: "rope swing",     hint: "hangs from a branch · click to push, sways in a gust" },
+        { id: "nest",          title: "bird's nest",    hint: "shore · advances one stage each new day you visit" },
+        { id: "cairn",         title: "stone cairn",    hint: "shore · click to stack a stone; too tall and it topples" },
+        { id: "rowboat",       title: "rowboat",        hint: "tied to the dock · cast off on a slow arc across the pond" },
+        { id: "ferns",         title: "fern patch",     hint: "left shore · unfurls a frond every fifth watering" },
+        { id: "lighthouse",    title: "lighthouse",     hint: "far shore · sweeps a beam at night; click to leave a moment" },
+        { id: "named-star",    title: "named star of the day", hint: "one real star in the sky daily · click for lore" },
+      ];
+      for (const it of items) {
+        const el = document.getElementById(it.id);
+        if (!el) continue;
+        const hay = `${it.title} ${it.hint}`.toLowerCase();
+        if (hay.includes(q)) {
+          out.push({
+            kind: "shore",
+            glyph: "🌾",
+            title: it.title,
+            snippet: it.hint,
+            source: "shore",
+            action: (() => { const id = it.id, hint = it.hint; return () => {
+              const e = document.getElementById(id);
+              if (!e) { toast(hint, 2800); return; }
+              const orig = e.style.filter;
+              e.style.transition = "filter 600ms ease";
+              e.style.filter = (orig || "") + " drop-shadow(0 0 14px rgba(255, 217, 160, 0.85))";
+              setTimeout(() => { e.style.filter = orig; }, 1200);
+              toast(hint, 2800);
+            }; })(),
+          });
+        }
+      }
+      return out;
+    },
+  },
+
+  /* bottle notes */
+  {
+    key: "bottle", chipLabel: "bottles", glyph: "🍾",
+    get: function (q) {
+      const out = [];
+      if (typeof bottleNotes === "undefined" || !Array.isArray(bottleNotes)) return out;
+      const used = new Set();
+      for (const n of bottleNotes) {
+        const dedupe = `${n.body.slice(0, 32)}|${n.from}`;
+        if (used.has(dedupe)) continue;
+        const hay = `${n.body} ${n.from}`.toLowerCase();
+        if (hay.includes(q)) {
+          used.add(dedupe);
+          out.push({
+            kind: "bottle",
+            glyph: "🍾",
+            title: n.body,
+            snippet: n.from,
+            source: "drifting bottle",
+            action: (() => { const body = n.body, from = n.from; return () => toast(`"${body}" · ${from}`, 3800); })(),
+          });
+        }
+      }
+      return out;
+    },
+  },
+
+  /* google web fallback (always comes last via score=-1) */
+  {
+    key: "google", chipLabel: "web", glyph: "🌐",
+    get: function () {
+      const raw = gSearchRaw.trim();
+      if (!raw) return [];
+      return [{
+        kind: "google",
+        glyph: "🌐",
+        title: `search google for "${raw}"`,
+        snippet: "opens google.com in a new tab",
+        source: "the wider web",
+        action: (() => { const q = raw; return () => window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, "_blank", "noopener,noreferrer"); })(),
+      }];
+    },
+  },
+];
+
+/* ---- 2. scoring — substring + word-boundary bonus ---- */
+function scoreHit(text, q) {
+  const lc = text.toLowerCase();
+  const idx = lc.indexOf(q);
+  if (idx === -1) return 0;
+  let s = 1;
+  if (idx === 0 || /[\s\W]/.test(lc[idx - 1])) s += 1.2;
+  s += 0.4;
+  s += Math.max(0, 0.8 - lc.length / 200);
+  return s;
+}
+
+/* ---- 3. safe highlight (escapes text first, then wraps matches in <mark>) ---- */
+function hi(snippet, q) {
+  if (snippet === undefined || snippet === null) return "";
+  if (!q) return escapeHtml(snippet);
+  const safe = escapeHtml(snippet);
+  const safeQ = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return safe.replace(new RegExp(safeQ, "ig"), m => `<mark>${m}</mark>`);
+}
+
+/* ---- 4. render a single result card ---- */
+function renderResultCard(it, i) {
+  const safeTitle = hi(it.title, gSearchQ);
+  const safeSnippet = it.snippet ? hi(it.snippet, gSearchQ) : "";
+  return `<div class="gsearch-result kind-${escapeHtml(it.kind)}" data-i="${i}">
+    <div class="gsearch-glyph">${escapeHtml(it.glyph || "✦")}</div>
+    <div class="gsearch-result-body">
+      <div class="gsearch-result-title">${safeTitle}</div>
+      ${safeSnippet ? `<span class="gsearch-result-snippet">${safeSnippet}</span>` : ""}
+      <span class="gsearch-result-source">${escapeHtml(it.source || it.kind)}</span>
+    </div>
+  </div>`;
+}
+
+/* ---- 5. the master search ---- */
+function runBiosphereSearch() {
+  const t0 = performance.now();
+  gSearchRaw = gSearchInput ? (gSearchInput.value || "") : "";
+  const raw = gSearchRaw;
+  gSearchQ = raw.trim().toLowerCase();
+  gSearchItems = [];
+  gSearchSel = 0;
+
+  if (!gSearchQ) {
+    if (gSearchResEl) gSearchResEl.innerHTML = "";
+    if (gSearchCount) gSearchCount.textContent = "type to search";
+    if (gSearchTime) gSearchTime.textContent = "";
+    return;
+  }
+
+  for (const src of BIOSPHERE_INDEX) {
+    let hits = [];
+    try { hits = src.get(gSearchQ) || []; } catch (e) { hits = []; }
+    for (const h of hits) {
+      if (h.kind === "google") { h._score = -1; }
+      else {
+        const hay = `${h.title} ${h.snippet || ""}`;
+        h._score = scoreHit(hay, gSearchQ);
+      }
+    }
+    for (const h of hits) gSearchItems.push(h);
+  }
+
+  if (gSearchActiveKind !== "all") {
+    gSearchItems = gSearchItems.filter(it => it.kind === gSearchActiveKind);
+  }
+
+  // sort: score desc; google pinned last
+  gSearchItems.sort((a, b) => {
+    if (a._score !== b._score) return b._score - a._score;
+    if (a.kind === "google") return 1;
+    if (b.kind === "google") return -1;
+    return 0;
+  });
+
+  // cap to 30 (preserve google fallback if present)
+  const googleItem = gSearchItems.find(it => it.kind === "google");
+  if (gSearchItems.length > 30) {
+    gSearchItems = gSearchItems.slice(0, 30);
+    if (googleItem && !gSearchItems.includes(googleItem)) {
+      gSearchItems = gSearchItems.slice(0, 29);
+      gSearchItems.push(googleItem);
+    }
+  }
+  gSearchItems.forEach((it, i) => { it._i = i; });
+
+  if (gSearchResEl) {
+    gSearchResEl.innerHTML = gSearchItems.length
+      ? gSearchItems.map(renderResultCard).join("")
+      : renderEmptyState();
+  }
+
+  if (gSearchResEl) {
+    const first = gSearchResEl.querySelector(".gsearch-result");
+    if (first) first.classList.add("sel");
+  }
+
+  const totalCount = gSearchItems.length;
+  if (gSearchCount) {
+    gSearchCount.textContent = totalCount === 0
+      ? "no results"
+      : totalCount === 1
+        ? "about 1 result"
+        : `about ${totalCount} results`;
+  }
+  if (gSearchTime) {
+    const dt = ((performance.now() - t0) / 1000).toFixed(2);
+    gSearchTime.textContent = `${dt}s`;
+  }
+}
+
+/* ---- 6. empty state with tips + Google escape hatch ---- */
+function renderEmptyState() {
+  const raw = (gSearchRaw || "").trim();
+  let googleBtn = "";
+  if (raw) {
+    const safeRaw = escapeHtml(raw);
+    googleBtn = `<button id="gsearch-go-google" class="gsearch-chip" style="margin-top:10px;">🌐 search google for "${safeRaw}"</button>`;
+  }
+  return `<div class="gsearch-empty">
+    <div class="gsearch-empty-mark">✦</div>
+    <div class="gsearch-empty-msg">${raw ? `nothing in the biosphere matches "${escapeHtml(raw)}"` : "type a query above"}</div>
+    ${googleBtn}
+    <div class="gsearch-tips">
+      try <b>fox</b> · <b>pond</b> · <b>wish</b> · <b>kite</b> · <b>greenhouse</b> · <br/>
+      <b>mushroom</b> · <b>owl</b> · <b>telescope</b> · <b>aurora</b>
+    </div>
+  </div>`;
+}
+
+/* ---- 7. the filter chips — kept in sync with active kind ---- */
+function renderChips() {
+  if (!gSearchChips) return;
+  if (!gSearchQ) { gSearchChips.innerHTML = ""; return; }
+  const kindCounts = {};
+  for (const it of gSearchItems) kindCounts[it.kind] = (kindCounts[it.kind] || 0) + 1;
+  const kindLabels = {
+    window: "windows", note: "notes", devlog: "devlog", project: "projects",
+    wish: "wishes", creature: "creatures", telescope: "telescope",
+    forecast: "forecast", "named-star": "named stars", shore: "shore",
+    bottle: "bottles", google: "web",
+  };
+  const allCount = gSearchItems.length;
+  gSearchChips.innerHTML = "";
+  const mkChip = (key, label) => {
+    const count = key === "all" ? allCount : (kindCounts[key] || 0);
+    if (key !== "all" && count === 0) return;
+    const b = document.createElement("button");
+    b.className = "gsearch-chip" + (gSearchActiveKind === key ? " active" : "");
+    b.dataset.kind = key;
+    b.innerHTML = `${escapeHtml(label)}<span class="gsearch-chip-count">${count}</span>`;
+    b.addEventListener("click", () => {
+      gSearchActiveKind = key;
+      runBiosphereSearch();
+      renderChips();
+    });
+    gSearchChips.appendChild(b);
+  };
+  mkChip("all", "all");
+  for (const src of BIOSPHERE_INDEX) {
+    if (src.key === "google") continue;
+    if (kindLabels[src.key]) mkChip(src.key, kindLabels[src.key]);
+  }
+}
+
+/* ---- 8. keyboard + mouse wiring ---- */
+function gSelMove(delta) {
+  if (!gSearchItems.length) return;
+  gSearchSel = (gSearchSel + delta + gSearchItems.length) % gSearchItems.length;
+  if (!gSearchResEl) return;
+  gSearchResEl.querySelectorAll(".gsearch-result").forEach((el, i) => {
+    el.classList.toggle("sel", i === gSearchSel);
+  });
+  const sel = gSearchResEl.querySelector(".gsearch-result.sel");
+  if (sel) sel.scrollIntoView({ block: "nearest" });
+}
+
+function gSelRun() {
+  const it = gSearchItems[gSearchSel];
+  if (!it) return;
+  try { it.action(); } catch (e) {}
+  if (gSearchInput) {
+    gSearchInput.value = "";
+    runBiosphereSearch();
+    gSearchInput.focus();
+  }
+}
+
+function gCycleKind(delta) {
+  const keys = ["all"];
+  for (const src of BIOSPHERE_INDEX) if (src.key !== "google") keys.push(src.key);
+  const idx = keys.indexOf(gSearchActiveKind);
+  const next = (idx + delta + keys.length) % keys.length;
+  gSearchActiveKind = keys[next];
+  runBiosphereSearch();
+  renderChips();
+}
+
+if (gSearchInput) {
+  gSearchInput.addEventListener("input", () => {
+    runBiosphereSearch();
+    renderChips();
+  });
+  gSearchInput.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); gSelMove(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); gSelMove(-1); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      gSelRun();
+    } else if (e.key === "Escape") {
+      if (gSearchInput.value) { gSearchInput.value = ""; runBiosphereSearch(); renderChips(); }
+      else gSearchInput.blur();
+    } else if (e.key === "Tab") {
+      // hijack tab to cycle category filters inside the new window
+      e.preventDefault();
+      gCycleKind(e.shiftKey ? -1 : 1);
+    }
+  });
+}
+
+if (gSearchResEl) {
+  gSearchResEl.addEventListener("click", (e) => {
+    if (e.target && e.target.id === "gsearch-go-google") {
+      const raw = (gSearchRaw || "").trim();
+      if (!raw) return;
+      window.open(`https://www.google.com/search?q=${encodeURIComponent(raw)}`, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const card = e.target.closest(".gsearch-result");
+    if (!card) return;
+    const idx = +card.dataset.i;
+    if (Number.isNaN(idx)) return;
+    gSearchSel = idx;
+    gSelRun();
+  });
+  gSearchResEl.addEventListener("mousemove", (e) => {
+    const card = e.target.closest(".gsearch-result");
+    if (!card) return;
+    const idx = +card.dataset.i;
+    if (Number.isNaN(idx) || idx === gSearchSel) return;
+    gSearchSel = idx;
+    gSearchResEl.querySelectorAll(".gsearch-result").forEach((el, i) => {
+      el.classList.toggle("sel", i === gSearchSel);
+    });
+  });
+}
+
+/* initial paint of the empty state so the chips area + count line are
+   meaningful before any keystroke (counts as 0 results + google chip). */
+if (gSearchInput && gSearchResEl) runBiosphereSearch();
+
+/* ============================================================
+   feature 1: ~/signals (live event log feed window)
+   a single shared queue of noteworthy biosphere events. calling
+   sites: wish save, meteor catch, mycelium save, bottle open,
+   every creature spotted, hearth peak, aurora bell rung,
+   tide high/low. cap: 80 events. persistent. filterable by kind.
+   ============================================================ */
+const SIGNAL_KEY = "biosphere02.signals.v1";
+const SIGNAL_CAP = 80;
+const signalsWin    = document.querySelector('[data-id="signals"]');
+const signalsList   = document.getElementById("signals-list");
+const signalsCount  = document.getElementById("signals-count");
+const signalsTime   = document.getElementById("signals-time");
+const signalsFilter = document.getElementById("signals-filter");
+let signalsAll = [];
+let signalsKindFilter = "all";
+let _auroraBellsCount = (() => { try { return +localStorage.getItem("biosphere02.auroraBells.v1") || 0; } catch { return 0; } })();
+
+function loadSignals() {
+  try { return JSON.parse(localStorage.getItem(SIGNAL_KEY) || "[]") || []; }
+  catch { return []; }
+}
+function saveSignals() {
+  try { localStorage.setItem(SIGNAL_KEY, JSON.stringify(signalsAll)); } catch {}
+}
+
+function gLog(kind, title, source) {
+  // unified event-log entry point. safe before the signals UI is ready.
+  try {
+    signalsAll.unshift({ kind, title: String(title || "").slice(0, 80), source: String(source || "").slice(0, 28), t: Date.now() });
+    if (signalsAll.length > SIGNAL_CAP) signalsAll.length = SIGNAL_CAP;
+    saveSignals();
+  } catch {}
+  if (signalsWin && signalsList) renderSignals();
+  // tiny titlebar-dot pulse so the user knows ~something happened~
+  if (signalsWin) {
+    const dot = signalsWin.querySelector(".tdot");
+    if (dot && typeof dot.animate === "function") {
+      try {
+        dot.animate(
+          [{ filter: "drop-shadow(0 0 16px rgba(255,217,160,0.95))" },
+           { filter: "drop-shadow(0 0 0px rgba(255,217,160,0))" }],
+          { duration: 1200 }
+        );
+      } catch {}
+    }
+  }
+}
+
+const KIND_INFO = {
+  wish:      { glyph: "✦",  label: "wishes"     },
+  meteor:    { glyph: "🌠", label: "meteors"    },
+  star:      { glyph: "✦",  label: "stars"      },
+  bottle:    { glyph: "🍾", label: "bottles"    },
+  note:      { glyph: "🍄", label: "notes"      },
+  creature:  { glyph: "🦊", label: "creatures"  },
+  hearth:    { glyph: "🔥", label: "hearth"     },
+  aurora:    { glyph: "🌌", label: "aurora"     },
+  tide:      { glyph: "🌊", label: "tide"       },
+  biosphere: { glyph: "📡", label: "events" },
+};
+
+function fmtSignalTime(ts) {
+  const now = Date.now();
+  const d = new Date(ts);
+  const diffSec = (now - ts) / 1000;
+  let human;
+  if (diffSec < 60)       human = "just now";
+  else if (diffSec < 3600) human = Math.floor(diffSec / 60) + "m ago";
+  else if (diffSec < 86400) human = Math.floor(diffSec / 3600) + "h ago";
+  else human = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return human + " · " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function renderSignals() {
+  if (!signalsList) return;
+  // first paint: remember when we last painted, so the "new since" badge can show
+  const counts = { all: signalsAll.length };
+  for (const k of Object.keys(KIND_INFO)) counts[k] = 0;
+  for (const s of signalsAll) counts[s.kind] = (counts[s.kind] || 0) + 1;
+  // rebuild filter chips with live counts (chips with zero non-"all" counts are hidden)
+  if (signalsFilter) {
+    const keys = ["all", ...Object.keys(KIND_INFO).filter(k => counts[k] > 0)];
+    signalsFilter.innerHTML = keys.map(k => {
+      const info = k === "all" ? { glyph: "✦", label: "all" } : KIND_INFO[k];
+      return `<button class="sig-chip${signalsKindFilter === k ? " active" : ""}" data-kind="${k}">` +
+        escapeHtml(info.glyph + " " + info.label) +
+        `<span class="sig-chip-count">${counts[k]}</span></button>`;
+    }).join("");
+  }
+  // filtered rows
+  const items = signalsKindFilter === "all"
+    ? signalsAll
+    : signalsAll.filter(s => s.kind === signalsKindFilter);
+  if (!items.length) {
+    signalsList.innerHTML =
+      `<div class="signals-empty"><div class="signals-empty-mark">✦</div>` +
+      `<div>${signalsKindFilter === "all"
+        ? "no events yet — make something happen"
+        : "nothing of this kind yet"}</div></div>`;
+  } else {
+    signalsList.innerHTML = items.map(s => {
+      const info = KIND_INFO[s.kind] || { glyph: "✦" };
+      return `<div class="sig-row kind-${escapeHtml(s.kind)}">` +
+        `<span class="sig-glyph">${escapeHtml(info.glyph)}</span>` +
+        `<span class="sig-body">` +
+          `<span class="sig-title">${escapeHtml(s.title)}</span>` +
+          (s.source ? `<span class="sig-source">${escapeHtml(s.source)}</span>` : "") +
+        `</span>` +
+        `<span class="sig-time">${escapeHtml(fmtSignalTime(s.t))}</span>` +
+      `</div>`;
+    }).join("");
+  }
+  if (signalsCount) {
+    signalsCount.textContent = signalsKindFilter === "all"
+      ? `${items.length} event${items.length === 1 ? "" : "s"}`
+      : `${items.length} of ${signalsAll.length}`;
+  }
+  if (signalsTime) signalsTime.textContent = String(items.length).padStart(2, "0");
+}
+
+if (signalsFilter) {
+  signalsFilter.addEventListener("click", (e) => {
+    const b = e.target.closest(".sig-chip");
+    if (!b) return;
+    signalsKindFilter = b.dataset.kind;
+    renderSignals();
+  });
+}
+
+// boot signals — load existing log, paint once
+signalsAll = loadSignals();
+renderSignals();
+
+/* ============================================================
+   feature 2: aurora bells
+   when today's forecast is "aurora drift" and the sky is dim
+   enough for the wash to be visible, occasional two-tone FM
+   bell tones ring (distinct from orbit's warm sine bells —
+   these are glassier / colder). ride orbit's AudioContext if
+   the user is already listening; otherwise make a tiny self-cleaning
+   context that only fires once the user has done a single gesture
+   (the browser autoplay-policy wall, same trick cricket uses).
+   ============================================================ */
+function renderAuroraBellsCount() {
+  const el = document.getElementById("aurora-bells-count");
+  if (el) el.textContent = String(_auroraBellsCount);
+}
+renderAuroraBellsCount();
+
+function scheduleAuroraBell() {
+  // try again every 9..22s regardless of whether we rang
+  const wait = 9000 + Math.random() * 13000;
+  setTimeout(() => {
+    if (!isMotionReduced()) maybeFireAuroraBell();
+    scheduleAuroraBell();
+  }, wait);
+}
+let _auroraBellLogged = false; // one feed row per session — the counter still counts every ring
+function maybeFireAuroraBell() {
+  if (settings && settings.mute) return;
+  let isAuroraDay = false;
+  try { isAuroraDay = forecastFor(new Date()).kind === "aurora"; } catch {}
+  const sky = document.body.classList;
+  // fire on aurora-forecast days, OR on any night at all (so the chime is rare but real)
+  const allowedMood = sky.contains("night") || sky.contains("dusk") || isAuroraDay;
+  if (!allowedMood) return;
+  // occasional, not metronomic: likely on aurora days, rare on a plain night
+  if (Math.random() > (isAuroraDay ? 0.5 : 0.15)) return;
+  // ride orbit's AudioContext if available, else use a tiny self-cleaning one.
+  // both paths report whether a tone actually sounded — before the first user
+  // gesture the lazy context stays suspended and nothing is audible, and a
+  // silent bell must not tick the counter or leave a feed row.
+  let rang = false;
+  if (typeof orbit !== "undefined" && orbit.ctx && orbit.playing) {
+    rang = playAuroraBellInto(orbit.ctx, orbit.master, +document.getElementById("orbit-vol").value / 100);
+  } else {
+    rang = playAuroraBellLazy();
+  }
+  if (!rang) return;
+  _auroraBellsCount++;
+  try { localStorage.setItem("biosphere02.auroraBells.v1", String(_auroraBellsCount)); } catch {}
+  renderAuroraBellsCount();
+  if (!_auroraBellLogged) {
+    _auroraBellLogged = true;
+    gLog("aurora", "bell rung", "aurora wash");
+  }
+}
+
+function playAuroraBellInto(ctx, dst, volScale) {
+  // two-tone FM bell — base carrier modulated by a slower carrier for glassy timbre
+  const base = 760 + Math.random() * 380;
+  const carrier = ctx.createOscillator();
+  carrier.type = "sine";
+  carrier.frequency.value = base;
+  const modOsc = ctx.createOscillator();
+  modOsc.type = "sine";
+  modOsc.frequency.value = base * 0.502;
+  const modGain = ctx.createGain();
+  modGain.gain.value = 280;
+  modOsc.connect(modGain).connect(carrier.frequency);
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  carrier.connect(g).connect(dst);
+  const now = ctx.currentTime;
+  g.gain.linearRampToValueAtTime(0.14 * volScale, now + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 6.2);
+  carrier.start(now);  modOsc.start(now);
+  carrier.stop(now + 6.3); modOsc.stop(now + 6.3);
+  return true;
+}
+
+let _auroraBellCtx = null;
+function playAuroraBellLazy() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return false;
+  try {
+    if (!_auroraBellCtx) _auroraBellCtx = new AC();
+    const ctx = _auroraBellCtx;
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    // short-circuit if we never resumed: no point spewing osc nodes we can't hear
+    if (ctx.state !== "running") return false;
+    return playAuroraBellInto(ctx, ctx.destination, 0.6);
+  } catch { return false; }
+}
+
+// kick the aurora chime loop after the page has settled
+setTimeout(scheduleAuroraBell, 18000);
+
+/* ============================================================
+   feature 5: river otter (new creature, dawn/dusk only)
+   the otter appears at the back of the pond and swims the
+   shoreline at dawn and dusk moods only — left to right or
+   right to left at random. hover pauses it; click to spot
+   (counts toward creatures spotted and the field-guide entry).
+   rare enough to feel like a small event when you see it.
+   ============================================================ */
+const otter = document.createElement("div");
+otter.className = "otter";
+otter.title = "the river otter — click to spot (rare)";
+otter.innerHTML =
+  '<svg class="otter-svg" viewBox="0 0 44 24" aria-hidden="true">' +
+    '<ellipse cx="22" cy="13" rx="18" ry="5.5" fill="#5e4a38"/>' +
+    '<g class="otter-head">' +
+      '<ellipse cx="36" cy="11" rx="6" ry="4.5" fill="#6e5944"/>' +
+      '<circle cx="38" cy="10" r="0.7" fill="#0a0a0a"/>' +
+      '<ellipse cx="34" cy="13.5" rx="2.2" ry="1.5" fill="#d8d8d8"/>' +
+    '</g>' +
+    '<path d="M4 13 Q12 7 18 13" fill="none" stroke="#5e4a38" stroke-width="1.5" stroke-linecap="round"/>' +
+  '</svg>';
+document.body.appendChild(otter);
+
+let otterState = { active: false, paused: false, pauseStart: 0, totalPaused: 0 };
+
+function otterMoodOK() {
+  const b = document.body.classList;
+  return b.contains("dawn") || b.contains("dusk");
+}
+function startOtterWalk() {
+  if (otterState.active) return;
+  if (isMotionReduced()) { scheduleNextOtter(); return; }
+  if (!otterMoodOK()) { scheduleNextOtter(); return; }
+  otterState = { active: true, paused: false, pauseStart: 0, totalPaused: 0 };
+  const fromLeft = Math.random() < 0.5;
+  const W = window.innerWidth;
+  const startX = fromLeft ? -60 : W + 30;
+  const endX   = fromLeft ? W + 30 : -60;
+  const duration = 38000 + Math.random() * 30000;
+  otter.classList.toggle("facing-left", !fromLeft);
+  otter.classList.add("swimming");
+  otter.style.left = startX + "px";
+  const startTime = performance.now();
+  function frame(now) {
+    if (!otterState.active) return;
+    if (otterState.paused) { requestAnimationFrame(frame); return; }
+    const elapsed = now - startTime - otterState.totalPaused;
+    const p = Math.min(1, elapsed / duration);
+    const x = startX + (endX - startX) * p;
+    otter.style.left = x + "px";
+    if (p < 1) requestAnimationFrame(frame);
+    else endOtterWalk(false);
+  }
+  requestAnimationFrame(frame);
+}
+function endOtterWalk() {
+  otterState.active = false;
+  otter.classList.remove("swimming", "caught", "facing-left");
+  otter.style.left = "-60px";
+  scheduleNextOtter();
+}
+function scheduleNextOtter() {
+  // try again in 40..110s. if we're not in dawn/dusk, re-attempts naturally skip
+  const wait = 40000 + Math.random() * 70000;
+  setTimeout(() => startOtterWalk(), wait);
+}
+otter.addEventListener("mouseenter", () => {
+  if (!otterState.active || otterState.paused) return;
+  otterState.paused = true;
+  otterState.pauseStart = performance.now();
+});
+otter.addEventListener("mouseleave", () => {
+  if (!otterState.paused) return;
+  otterState.totalPaused += performance.now() - otterState.pauseStart;
+  otterState.paused = false;
+});
+otter.addEventListener("click", (e) => {
+  if (!otterState.active) return;
+  // stopPropagation first so this click doesn't reach the constellation
+  // canvas (and accidentally feed tryCatchShooter's head hit-test).
+  e.stopPropagation();
+  otter.classList.add("caught");
+  spottedCount++;
+  try { localStorage.setItem(SPOTTED_KEY, String(spottedCount)); } catch {}
+  renderSpottedCount();
+  spawnCatchBurst(e.clientX, e.clientY);
+  markCreatureSeen("otter");
+  toast(spottedCount === 1 ? "you spotted the river otter 🦦" : "the river otter, spotted 🦦", 2400);
+  setTimeout(() => { otter.classList.remove("caught"); endOtterWalk(); }, 380);
+});
+
+// add the otter to the field guide — appending to CREATURE_SPECIES so
+// renderFieldGuide() picks it up automatically (and the guide's "X of N"
+// text and complete-toast both grow to "9 of 9")
+if (typeof CREATURE_SPECIES !== "undefined" && !CREATURE_SPECIES.some(s => s.id === "otter")) {
+  CREATURE_SPECIES.push({
+    id: "otter", glyph: "🦦", name: "the river otter",
+    blurb: "surfaces at dusk and dawn to swim the length of the pond",
+  });
+  // the guide and its status row already painted "of 8" during boot — repaint
+  // so the ninth species shows up without waiting for the next spot event
+  if (typeof renderFieldGuide === "function") renderFieldGuide();
+}
+
+// boot the otter scheduler with an initial delay so the very first
+// candidate check happens once the page is settled
+setTimeout(startOtterWalk, 32000);
+
+/* ============================================================
+   wire gLog() into existing handlers (wishes, bottles, mycelium)
+   - markCreatureSeen already calls gLog("creature",...) below
+   - tryCatchShooter already calls gLog("meteor"|"star") from the patch
+   - tideTick already calls gLog("tide") from the patch
+   remaining: wish save, bottle open, mycelium save, mycelium delete
+   ============================================================ */
+// wish save — wishInput keydown "Enter" handler already exists; we hook
+// the saveWishes call by wrapping renderWishCount() (called immediately after
+// saveWishes in the original handler). wrapping is the lowest-risk place
+// because we don't disturb the keypress logic or the toasts.
+let _lastWishCount;
+const _origRenderWishCount = renderWishCount;
+renderWishCount = function () {
+  _origRenderWishCount();
+  // detect newly-added wishes by comparing length to lastValue we saw.
+  // only fires when the count went UP — not on initial paint.
+  if (typeof _lastWishCount === "number" && signalsAll.length >= 0) {
+    const now = (typeof loadWishes === "function") ? loadWishes().length : 0;
+    if (now > _lastWishCount) {
+      const wishes = (typeof loadWishes === "function") ? loadWishes() : [];
+      const newest = wishes[wishes.length - 1];
+      if (newest && newest.from !== "shooting-star") {
+        gLog("wish", "wish made", newest.text ? newest.text.slice(0, 38) + (newest.text.length > 38 ? "…" : "") : "—");
+      }
+      _lastWishCount = now;
+    } else {
+      _lastWishCount = now;
+    }
+  } else {
+    _lastWishCount = (typeof loadWishes === "function") ? loadWishes().length : 0;
+  }
+};
+// boot the counter so the first paint doesn't fire a phantom signal row
+_lastWishCount = (typeof loadWishes === "function") ? loadWishes().length : 0;
+
+// bottle hook: wrap openBottleNote (defined earlier in the file) and emit
+// exactly one gLog row per bottle actually opened. openBottleNote early-
+// returns on a missing note or overlay, so compare bottlesRead before/after
+// instead of logging unconditionally.
+const _bottleOrig = openBottleNote;
+openBottleNote = function (noteIdx) {
+  const before = bottlesRead;
+  _bottleOrig(noteIdx);
+  if (bottlesRead > before) {
+    const n = bottleNotes[noteIdx];
+    gLog("bottle", "bottle opened", n ? n.from : "the pond");
+  }
+};
+
+// mycelium note save / delete. wrap saveMyc + renderMyc to detect count changes.
+const _origRenderMycOuter = renderMyc;
+let _lastMycCount = mycNotes.length;
+renderMyc = function () {
+  _origRenderMycOuter();
+  const now = mycNotes.length;
+  if (typeof _lastMycCount === "number" && now > _lastMycCount) {
+    // a note was added
+    const newest = mycNotes[mycNotes.length - 1];
+    gLog("note", "note saved: " + newest.title, "mycelium");
+  } else if (typeof _lastMycCount === "number" && now < _lastMycCount) {
+    // a note was deleted — title isn't trivially available, so emit a generic line
+    gLog("note", "note deleted", "mycelium");
+  }
+  _lastMycCount = now;
+};
+
+// markCreatureSeen hook — push a creature signal every time a new species is
+// spotted. markCreatureSeen already has its own guard (only fires on first
+// spot), so wrapping it would double-fire; instead we monkey-patch and add
+// a gLog call AFTER the existing toast logic, gated by the same first-spot
+// check that markCreatureSeen already runs.
+const _origMarkCreatureSeen = markCreatureSeen;
+markCreatureSeen = function (id) {
+  const wasComplete = CREATURE_SPECIES.every(s => fieldGuide[s.id]);
+  const wasSeen = !!fieldGuide[id];
+  _origMarkCreatureSeen(id);
+  if (!wasSeen && fieldGuide[id]) {
+    const spec = CREATURE_SPECIES.find(s => s.id === id);
+    if (spec) gLog("creature", spec.name + " spotted", "the biosphere");
+  }
+};
+
+// hearth peak — one signal each time the fire climbs into the "blazing"
+// band (w >= 88), re-armed only after it cools back below the "warm"
+// ceiling (w < 65). renderWarmth runs on every add-log click and on the
+// 2.2s decay tick, so wrapping it sees every crossing in both directions
+// without touching the hearth logic itself.
+let _hearthPeaked = (hearth.warmth || 0) >= 88;
+const _origRenderWarmth = renderWarmth;
+renderWarmth = function () {
+  _origRenderWarmth();
+  const w = hearth.warmth || 0;
+  if (w >= 88 && !_hearthPeaked) {
+    _hearthPeaked = true;
+    gLog("hearth", "the fire is blazing", "hearth");
+  } else if (w < 65 && _hearthPeaked) {
+    _hearthPeaked = false;
+  }
+};
+
+// bootstrap-row: only on a truly fresh install (signalsAll is still empty)
+// does the feed show a "signals online" row at position 0. After that, never
+// re-emit on reload — signal-cap churn would silently push real entries down.
+try { if (signalsAll.length === 0) gLog("biosphere", "signals online", "✽ onboarded"); } catch {}
