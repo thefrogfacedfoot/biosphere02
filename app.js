@@ -6373,6 +6373,261 @@ function playAuroraBellLazy() {
 setTimeout(scheduleAuroraBell, 18000);
 
 /* ============================================================
+   feature A: tidepool with hermit crab 🦀
+   ------------------------------------------------- the 10th
+   field-guide entry. the crab scuttles around the tidepool
+   perimeter on a slow timer, occasionally slipping off-frame
+   the way shore crabs do. only spawns during the daylit part
+   of the cycle (dawn / day / dusk) — the same daylight gate
+   the turtle uses. click to spot it; markCreatureSeen picks
+   up the field-guide bookkeeping since the species is
+   appended to CREATURE_SPECIES below (next to the otter append).
+   ============================================================ */
+const crab = document.createElement("div");
+crab.className = "crab";
+crab.title = "a hermit crab — click to spot";
+crab.innerHTML =
+  '<svg class="crab-svg" viewBox="0 0 14 11" aria-hidden="true">' +
+    // four legs each side (two per side, animated)
+    '<ellipse class="crab-leg-l" cx="3"    cy="6"   rx="1.4" ry="0.6" fill="#a83820"/>' +
+    '<ellipse class="crab-leg-l" cx="3.5"  cy="8.5" rx="1.4" ry="0.6" fill="#a83820"/>' +
+    '<ellipse class="crab-leg-r" cx="11"   cy="6"   rx="1.4" ry="0.6" fill="#a83820"/>' +
+    '<ellipse class="crab-leg-r" cx="10.5" cy="8.5" rx="1.4" ry="0.6" fill="#a83820"/>' +
+    // claws
+    '<ellipse cx="2"  cy="4"   rx="2.2" ry="1.4" fill="#c84830"/>' +
+    '<ellipse cx="12" cy="4"   rx="2.2" ry="1.4" fill="#c84830"/>' +
+    // body and shell (the shell is the part that suggests "hermit")
+    '<ellipse cx="7"  cy="6"   rx="3.2" ry="2.2" fill="#b0402a"/>' +
+    '<ellipse cx="7"  cy="5.4" rx="1.9" ry="1.4" fill="#e0b08a" stroke="#8a5a30" stroke-width="0.3"/>' +
+    '<ellipse cx="7"  cy="5.4" rx="1.5" ry="1.0" fill="rgba(0,0,0,0.18)"/>' +
+  '</svg>';
+document.body.appendChild(crab);
+
+let crabState = { active: false, paused: false, pauseStart: 0, totalPaused: 0, dir: 1 };
+const CRAB_KEY = "biosphere02.crab.v1";
+let crabSpotCount = (() => { try { return +localStorage.getItem(CRAB_KEY) || 0; } catch { return 0; } })();
+function renderCrabSpotCount() {
+  const el = document.getElementById("crab-stat");
+  if (el) el.textContent = crabSpotCount;
+}
+renderCrabSpotCount();
+
+function crabMoodOK() {
+  const b = document.body.classList;
+  return b.contains("day") || b.contains("dawn") || b.contains("dusk");
+}
+
+function endCrab() {
+  crab.classList.remove("walking");
+  crabState.active = false;
+  setTimeout(() => { if (!crabState.active && crab.parentNode) crab.style.opacity = "0"; }, 700);
+  setTimeout(() => { if (!crabState.active && crab.parentNode) crab.style.opacity = ""; }, 1500);
+}
+
+function startCrabWalk() {
+  if (isMotionReduced() || crabState.active) return;
+  const poolEl = document.getElementById("tidepool");
+  if (!poolEl) return;
+  const rect = poolEl.getBoundingClientRect();
+  const cy = rect.bottom - 8;
+  crabState.dir = Math.random() < 0.5 ? -1 : 1;
+  const startX = crabState.dir === 1 ? rect.left - 18 : rect.right + 4;
+  crab.style.left = startX + "px";
+  crab.style.top = (cy - 4) + "px";
+  crab.style.transform = crabState.dir === 1 ? "scaleX(1)" : "scaleX(-1)";
+  crab.classList.add("walking");
+  crabState.active = true;
+  crabState.paused = false;
+  crabState.totalPaused = 0;
+  const speed = 0.16 + Math.random() * 0.06;
+  const distance = rect.width + 36 + Math.random() * 80;
+  const startT = performance.now();
+  const dur = distance / speed;
+  function frame(now) {
+    if (!crabState.active || !document.body.contains(crab)) return;
+    if (crabState.paused) {
+      // hover-pause: just stall the loop here; on mouseleave we add the
+      // full elapsed delta to totalPaused once. the previous version
+      // added min(pausedFor, 100) per rAF tick, which over-counted by
+      // roughly the frame count — a 1-second pause added ~6 seconds.
+      requestAnimationFrame(frame);
+      return;
+    }
+    const effectiveT = now - startT - crabState.totalPaused;
+    const p = Math.min(1, effectiveT / dur);
+    const x = startX + (rect.width + 32) * p;
+    const bob = Math.sin(effectiveT * 0.012) * 0.6;
+    crab.style.left = x + "px";
+    crab.style.transform = crabState.dir === 1
+      ? `scaleX(1) translateY(${bob}px)`
+      : `scaleX(-1) translateY(${bob}px)`;
+    if (p < 1) requestAnimationFrame(frame);
+    else endCrab();
+  }
+  requestAnimationFrame(frame);
+}
+
+crab.addEventListener("mouseenter", () => {
+  if (crabState.active) { crabState.paused = true; crabState.pauseStart = performance.now(); }
+});
+crab.addEventListener("mouseleave", () => {
+  if (crabState.active && crabState.paused) {
+    crabState.totalPaused += performance.now() - crabState.pauseStart;
+    crabState.paused = false;
+  }
+});
+crab.addEventListener("click", () => {
+  if (!crabState.active) return;
+  crab.classList.add("caught");
+  crabSpotCount++;
+  try { localStorage.setItem(CRAB_KEY, String(crabSpotCount)); } catch {}
+  renderCrabSpotCount();
+  if (typeof markCreatureSeen === "function") markCreatureSeen("crab");
+  if (typeof toast === "function") {
+    toast(crabSpotCount === 1
+      ? "you spotted the hermit crab 🦀 · it slipped into its shell"
+      : "the hermit crab, spotted 🦀", 2400);
+  }
+  setTimeout(() => {
+    crab.classList.remove("caught", "walking");
+    crabState.active = false;
+    crab.style.opacity = "";
+  }, 320);
+});
+
+(function scheduleCrab() {
+  // 80-150s between visits; only attempt during the daylight moods so the
+  // crab is a sun-side creature (matches the turtle's daytime bash).
+  const wait = 80_000 + Math.random() * 70_000;
+  setTimeout(() => {
+    if (!isMotionReduced() && crabMoodOK()) startCrabWalk();
+    scheduleCrab();
+  }, wait);
+})();
+setTimeout(() => { if (!isMotionReduced() && crabMoodOK()) startCrabWalk(); }, 35_000);
+
+/* ============================================================
+   feature B: hourglass ⏳
+   ------------------------------------------------- a small
+   wooden hourglass on the shore between the sundial and the
+   dock. sand falls from upper to lower chamber via a 24s
+   css keyframe; click flips the frame and resets the sand so
+   they animate again from the top. count lives in ~/status.
+   no sound — it's a way to feel time pass rather than to
+   mark it precisely.
+   ============================================================ */
+const hourglassEl = document.getElementById("hourglass");
+const HOURGLASS_KEY = "biosphere02.hourglass.v1";
+let hourglassFlips = (() => { try { return +localStorage.getItem(HOURGLASS_KEY) || 0; } catch { return 0; } })();
+function renderHourglassStat() {
+  const el = document.getElementById("hourglass-stat");
+  if (el) el.textContent = hourglassFlips;
+}
+renderHourglassStat();
+if (hourglassEl) {
+  // the inline animation declarations don't restart when .flipped toggles,
+  // so we manually toggle the shorthand animations with a forced reflow in
+  // between. sand fills or empties whichever chamber is "up" after the flip.
+  function restartSandAnim() {
+    const upper = hourglassEl.querySelector(".hg-upper-fill");
+    const lower = hourglassEl.querySelector(".hg-lower-fill");
+    if (!upper || !lower) return;
+    // track orientation via .flipped and swap which rect gets which
+    // animation so the visually-upper chamber always empties. without
+    // this swap, a second click animates the chambers in the wrong
+    // direction (the geometrically-down chamber would empty further).
+    // also seed explicit starting transforms so the snap to scaleY(1)
+    // doesn't flicker visibly on the first restart frame.
+    const flipped = hourglassEl.classList.contains("flipped");
+    upper.style.animation = "none";
+    lower.style.animation = "none";
+    if (flipped) {
+      // after a flip the LOWER rect is now geometrically the top chamber.
+      upper.style.transform = "scaleY(0)"; // bottom chamber: empty
+      lower.style.transform = "scaleY(1)"; // top chamber: full
+    } else {
+      upper.style.transform = "scaleY(1)"; // top chamber: full
+      lower.style.transform = "scaleY(0)"; // bottom chamber: empty
+    }
+    void upper.offsetWidth;
+    if (flipped) {
+      upper.style.animation = "hg-lower-fill 24s linear forwards";
+      lower.style.animation = "hg-upper-empty 24s linear forwards";
+    } else {
+      upper.style.animation = "hg-upper-empty 24s linear forwards";
+      lower.style.animation = "hg-lower-fill 24s linear forwards";
+    }
+  }
+  restartSandAnim(); // first run on load (no class yet)
+  hourglassEl.addEventListener("click", () => {
+    hourglassEl.classList.toggle("flipped");
+    hourglassFlips++;
+    try { localStorage.setItem(HOURGLASS_KEY, String(hourglassFlips)); } catch {}
+    renderHourglassStat();
+    restartSandAnim();
+    if (typeof toast === "function") {
+      toast(hourglassFlips === 1
+        ? "you flipped the hourglass · the sand starts over"
+        : `flipped ${hourglassFlips} times · the sand has fallen a long way`, 2200);
+    }
+    if (typeof gLog === "function") gLog("flora", "hourglass flipped", "the shore");
+  });
+}
+
+/* ============================================================
+   feature C: a small windmill 🌾
+   ------------------------------------------------- clicks push
+   the sails through one strong rotation burst that decays
+   to idle. idle and gust spin rates are pure css. the
+   wind-gust state is body.wind-gust, already maintained by
+   the scheduleWindGust hook, so the windmill reads it via
+   css and runs faster without polling. pushes count in
+   ~/status and emit a single signal row on the first push
+   of a session — same courtesy as aurora bells and
+   crickets, so a fling session can't churn the feed.
+   ============================================================ */
+const windmillEl = document.getElementById("windmill");
+const WINDMILL_KEY = "biosphere02.windmill.v1";
+let windmillPushes = (() => { try { return +localStorage.getItem(WINDMILL_KEY) || 0; } catch { return 0; } })();
+function renderWindmillStat() {
+  const el = document.getElementById("windmill-stat");
+  if (el) el.textContent = windmillPushes;
+}
+renderWindmillStat();
+let _windmillFirstPushLogged = false;
+if (windmillEl) {
+  windmillEl.addEventListener("click", () => {
+    windmillEl.classList.remove("pushed");
+    void windmillEl.offsetWidth; // restart the one-shot keyframes
+    windmillEl.classList.add("pushed");
+    setTimeout(() => windmillEl.classList.remove("pushed"), 2050);
+    windmillPushes++;
+    try { localStorage.setItem(WINDMILL_KEY, String(windmillPushes)); } catch {}
+    renderWindmillStat();
+    if (typeof toast === "function") {
+      toast(windmillPushes === 1
+        ? "you gave the sails a push · they spin down over a few seconds"
+        : `pushed ${windmillPushes} times · the wind stays grateful`, 2200);
+    }
+    if (!_windmillFirstPushLogged && typeof gLog === "function") {
+      _windmillFirstPushLogged = true;
+      gLog("flora", "windmill push", "the shore");
+    }
+  });
+}
+
+/* add the crab to CREATURE_SPECIES — appending so renderFieldGuide picks it
+   up automatically (and the guide's "X of N" text grows to "10 of 10"). */
+if (typeof CREATURE_SPECIES !== "undefined" && !CREATURE_SPECIES.some(s => s.id === "crab")) {
+  CREATURE_SPECIES.push({
+    id: "crab", glyph: "🦀", name: "the hermit crab",
+    blurb: "scuttles the tidepool rim, daylight only, gone if the sky moves past dusk",
+  });
+  if (typeof renderFieldGuide === "function") renderFieldGuide();
+}
+
+/* ============================================================
+/* ============================================================
    feature 5: river otter (new creature, dawn/dusk only)
    the otter appears at the back of the pond and swims the
    shoreline at dawn and dusk moods only — left to right or

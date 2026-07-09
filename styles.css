@@ -3043,6 +3043,173 @@ body.stargazer #sundial { opacity: 0.55; }
 body.motion-reduced .stepstone { transition: none; }
 body.stargazer #stepstones { opacity: 0.5; }
 
+/* ---- tidepool with hermit crab (10th field-guide entry) ----
+   a small wood-rimmed pool at sand level on the right shore, right of
+   the dock area. an anemone around the pool sways with a keyframe; the
+   crab spawns occasionally, scuttles in (or out of) frame, and walks the
+   perimeter. hover pauses the crab so it's clickable. */
+#tidepool {
+  position: fixed;
+  /* right shore, left of the wind chime so they don't crowd each other */
+  left: calc(50% + 158px);
+  bottom: calc(38px + var(--pond-h) - 8px);
+  width: 76px; height: 36px;
+  z-index: 3;
+  cursor: default;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+}
+.tidepool-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tp-water { transition: transform 800ms ease; }
+.tp-shimmer {
+  animation: tp-shimmer 4.6s ease-in-out infinite;
+}
+@keyframes tp-shimmer {
+  0%, 100% { opacity: 0.15; transform: translateX(0); }
+  50%      { opacity: 0.32; transform: translateX(2px); }
+}
+.anemone { transform-origin: center bottom; animation: anemone-sway 3.1s ease-in-out infinite; }
+.anemone:nth-child(2) { animation-delay: -1.4s; }
+.anemone:nth-child(3) { animation-delay: -0.7s; animation-duration: 2.7s; }
+@keyframes anemone-sway {
+  0%, 100% { transform: scaleY(0.95) rotate(-3deg); }
+  50%      { transform: scaleY(1.1)  rotate(3deg); }
+}
+body.motion-reduced .tp-shimmer,
+body.motion-reduced .anemone { animation: none; }
+body.stargazer #tidepool { opacity: 0.55; }
+
+/* the crab itself — a tiny colored creature with a shell on its back.
+   spawns its own dom node like the otter/snail so the click handler is
+   owned by the crab (not by the tidepool svg, which would also catch the
+   anemones). */
+.crab {
+  position: fixed;
+  width: 14px; height: 11px;
+  z-index: 4;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 700ms ease, transform 220ms ease;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  will-change: left, top;
+}
+.crab.walking { opacity: 0.95; }
+.crab.caught { opacity: 0 !important; transform: scale(1.4); transition: opacity 280ms ease, transform 280ms ease; }
+.crab-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.crab-leg-l, .crab-leg-r {
+  transform-origin: 7px 5px;
+  animation: crab-legs 0.14s ease-in-out infinite alternate;
+}
+.crab-leg-r { animation-delay: -0.07s; }
+@keyframes crab-legs {
+  from { transform: translateY(0) rotate(-3deg); }
+  to   { transform: translateY(0.8px) rotate(3deg); }
+}
+body.motion-reduced .crab-leg-l, body.motion-reduced .crab-leg-r { animation: none; }
+@media (prefers-reduced-motion: reduce) { .crab { display: none !important; } }
+body.motion-reduced .crab { display: none !important; }
+
+/* ---- hourglass on the shore ----
+   upper chamber sand shrinks from 'sand full' to 'sand empty' over ~24s
+   via a keyframe; lower chamber sand grows in the matching window. the
+   whole frame rotates 180deg on .flipped, then the sand animates again.
+   we drive the flip via js (no per-frame js for the sand itself). */
+#hourglass {
+  position: fixed;
+  left: 568px;
+  bottom: calc(38px + var(--pond-h) - 12px);
+  width: 26px; height: 52px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+  transition: transform 240ms ease, filter 240ms ease;
+}
+#hourglass:hover { transform: translateY(-2px); filter: drop-shadow(0 0 7px rgba(255, 217, 160, 0.5)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)); }
+.hourglass-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+/* the inner flip rotation pivots around the middle of the svg so it
+   tumbles in place rather than the surrounding container */
+.hg-frame-flip {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 600ms cubic-bezier(.4, .0, .3, 1);
+}
+#hourglass.flipped .hg-frame-flip { transform: rotate(180deg); }
+/* sand falls (animation defined per-instance via inline animation when set;
+   we default to the empty/empty state). the upper-and-lower halves are
+   clipped to their respective chambers so the sand never spills out. */
+.hg-upper-fill {
+  transform-origin: 5px 22px;
+  /* default: shrinking upper sand; the matching lower-fill (height 0)
+     grows into the lower chamber */
+  animation: hg-upper-empty 24s linear forwards;
+}
+.hg-lower-fill {
+  transform-origin: 5px 46px;
+  animation: hg-lower-fill 24s linear forwards;
+}
+@keyframes hg-upper-empty {
+  from { transform: scaleY(1); }
+  to   { transform: scaleY(0); }
+}
+@keyframes hg-lower-fill {
+  from { transform: scaleY(0.01); }
+  to   { transform: scaleY(1); }
+}
+/* after a flip, the previous run's animation has finished; we re-key by
+   toggling these animation names from js when .flipped flips. */
+body.motion-reduced #hourglass .hg-frame-flip,
+body.motion-reduced .hg-upper-fill,
+body.motion-reduced .hg-lower-fill,
+body.motion-reduced .hg-stream { animation: none; transition: none; }
+body.stargazer #hourglass { opacity: 0.55; }
+
+/* ---- windmill on the shore ----
+   sails idle slowly (one full turn every ~14s); during a wind-gust they
+   turn fast (~2s per turn). the click handler adds a "pushed" class that
+   rotates fast for one second and then eases back to idle over a few
+   more. the wrapper group rotation is pure css off a class. */
+#windmill {
+  position: fixed;
+  /* tucked between moonflower (left:284 ends ~314) and cairn (left:360).
+     width 44 keeps the right edge at 356, just shy of the cairn's 360. */
+  left: 312px;
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 44px; height: 80px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 220ms ease, filter 220ms ease;
+}
+#windmill:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(220, 232, 240, 0.5)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.windmill-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.windmill-sails {
+  animation: windmill-idle 14s linear infinite;
+}
+.windmill-sails .sail-arm { transform-box: fill-box; transform-origin: center; }
+body.wind-gust .windmill-sails {
+  animation: windmill-fast 2.4s linear infinite;
+}
+#windmill.pushed .windmill-sails {
+  animation: windmill-push 2s ease-out;
+}
+@keyframes windmill-idle {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes windmill-fast {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes windmill-push {
+  /* one strong burst that decays back; runs once */
+  0%   { transform: rotate(0deg);   animation-timing-function: cubic-bezier(.1, .1, .3, 1); }
+  20%  { transform: rotate(120deg); }
+  60%  { transform: rotate(360deg); animation-timing-function: cubic-bezier(.6, 0, .8, 1); }
+  100% { transform: rotate(540deg); }
+}
+body.motion-reduced .windmill-sails { animation: none; }
+body.stargazer #windmill { opacity: 0.55; }
+
+
 /* ---- field guide window ---- */
 .fieldguide .hint { color: var(--ink-dim); font-style: italic; font-size: 12px; }
 .guide-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; max-height: 260px; overflow-y: auto; }

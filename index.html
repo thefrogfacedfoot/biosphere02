@@ -297,6 +297,105 @@
   </svg>
 </div>
 
+<!-- tidepool on the far shore — small circular pool with a hermit crab that
+     scuttles around the perimeter; click the crab to spot it (counts as the
+     10th field-guide entry). drawn here so the wood rim and sand cast proper
+     shadows on the gravel band. anemones around the edge sway with the tide. -->
+<div id="tidepool" title="peer into the tidepool" aria-label="tidepool">
+  <svg class="tidepool-svg" viewBox="0 0 70 32" aria-hidden="true">
+    <!-- sandy bowl shadow -->
+    <ellipse cx="35" cy="29" rx="32" ry="4" fill="#3a2818" opacity="0.5"/>
+    <!-- pool rim (wood) -->
+    <ellipse cx="35" cy="20" rx="30" ry="9" fill="#2a1e10"/>
+    <ellipse cx="35" cy="19.5" rx="28.5" ry="8.5" fill="#3a2415"/>
+    <!-- water -->
+    <ellipse class="tp-water" cx="35" cy="20" rx="24" ry="6.3" fill="rgba(20, 46, 68, 0.85)"/>
+    <!-- water shimmer + highlight strip -->
+    <ellipse class="tp-shimmer" cx="35" cy="19" rx="20" ry="3" fill="rgba(220, 240, 230, 0.18)"/>
+    <!-- three small anemones around the perimeter -->
+    <g class="anemones">
+      <ellipse class="anemone" cx="14" cy="25" rx="2.4" ry="1.4" fill="#a8576a" opacity="0.8"/>
+      <ellipse class="anemone" cx="56" cy="26" rx="2.4" ry="1.4" fill="#a8576a" opacity="0.8"/>
+      <ellipse class="anemone" cx="34" cy="27" rx="2.6" ry="1.5" fill="#c2617a" opacity="0.85"/>
+    </g>
+  </svg>
+</div>
+
+<!-- a small wooden hourglass on the shore — click to flip; sand falls from
+     upper to lower chamber on a slow keyframe; each flip counts in ~/status.
+     position: left of the dock, on the gravel between sundial and the
+     dock planks, far enough from the sundial not to crowd it. -->
+<div id="hourglass" title="flip the hourglass" aria-label="an hourglass">
+  <svg class="hourglass-svg" viewBox="0 0 28 56" aria-hidden="true">
+    <!-- wooden frame -->
+    <rect x="3"  y="2"  width="22" height="2.6" fill="#3a2415"/>
+    <rect x="3"  y="51" width="22" height="2.6" fill="#3a2415"/>
+    <rect x="2"  y="2"  width="2"  height="50" fill="#4a3020"/>
+    <rect x="24" y="2"  width="2"  height="50" fill="#4a3020"/>
+    <!-- glass chambers (simple trapezoids) -->
+    <path d="M5 6 L23 6 L15 26 L15 26 L23 46 L5 46 L15 26 Z"
+          fill="rgba(220, 226, 236, 0.10)" stroke="rgba(200, 220, 230, 0.35)" stroke-width="0.7"/>
+    <!-- sand in the upper chamber (clipped via mask) -->
+    <g class="hg-sand-upper">
+      <rect class="hg-upper-fill" x="5" y="22" width="20" height="20" fill="rgba(220, 180, 110, 0.7)"/>
+    </g>
+    <!-- sand stream falling through the waist -->
+    <rect class="hg-stream" x="14.5" y="22" width="1" height="34" fill="rgba(220, 180, 110, 0.6)"/>
+    <!-- sand in the lower chamber (grows upward as time passes) -->
+    <g class="hg-sand-lower">
+      <rect class="hg-lower-fill" x="5" y="46" width="20" height="0" fill="rgba(220, 180, 110, 0.7)"/>
+    </g>
+    <!-- the whole frame inverts on .flipped class -->
+    <g class="hg-frame-flip">
+      <rect x="3"  y="2"  width="22" height="2.6" fill="#3a2415"/>
+      <rect x="2"  y="2"  width="2"  height="50" fill="#4a3020"/>
+      <rect x="24" y="2"  width="2"  height="50" fill="#4a3020"/>
+    </g>
+  </svg>
+</div>
+
+<!-- a small windmill perched on a hummock, in the empty strip between the
+     bench and the moonflower. sails idle at a slow spin; during a wind
+     gust (body.wind-gust) the whole assembly turns faster. click to give
+     it one strong push — a one-shot burst that decays back to idle over
+     a few seconds. the sails are tied to the existing wind system so the
+     feature reaches wind days without re-wiring anything. -->
+<div id="windmill" title="give the sails a push" aria-label="a small windmill">
+  <svg class="windmill-svg" viewBox="0 0 56 80" aria-hidden="true">
+    <!-- hummock base -->
+    <ellipse cx="28" cy="76" rx="22" ry="3" fill="#2a4a32" opacity="0.75"/>
+    <!-- wooden tower body -->
+    <path d="M22 76 L24 44 L32 44 L34 76 Z" fill="#5a4022"/>
+    <!-- small door -->
+    <rect x="26" y="60" width="4" height="14" rx="1" fill="#2a1808"/>
+    <!-- roof cap that holds the shaft -->
+    <polygon points="20,44 36,44 28,30" fill="#3a2415"/>
+    <circle cx="28" cy="29" r="1.6" fill="#3a2415"/>
+    <!-- the sails: a rotating group around (28, 18) -->
+    <g class="windmill-sails" style="transform-origin: 28px 18px;">
+      <!-- shaft dot at hub -->
+      <circle cx="28" cy="18" r="1.6" fill="#3a2415"/>
+      <!-- four sail arms 90deg apart -->
+      <g class="sail-arm" style="transform: rotate(0deg); transform-origin: 28px 18px;">
+        <rect x="26.6" y="4" width="2.8" height="14" fill="#3a2415"/>
+        <rect x="22"  y="4.5" width="12" height="9" fill="#dde4e8" opacity="0.88"/>
+      </g>
+      <g class="sail-arm" style="transform: rotate(90deg); transform-origin: 28px 18px;">
+        <rect x="26.6" y="4" width="2.8" height="14" fill="#3a2415"/>
+        <rect x="22"  y="4.5" width="12" height="9" fill="#dde4e8" opacity="0.88"/>
+      </g>
+      <g class="sail-arm" style="transform: rotate(180deg); transform-origin: 28px 18px;">
+        <rect x="26.6" y="4" width="2.8" height="14" fill="#3a2415"/>
+        <rect x="22"  y="4.5" width="12" height="9" fill="#dde4e8" opacity="0.88"/>
+      </g>
+      <g class="sail-arm" style="transform: rotate(270deg); transform-origin: 28px 18px;">
+        <rect x="26.6" y="4" width="2.8" height="14" fill="#3a2415"/>
+        <rect x="22"  y="4.5" width="12" height="9" fill="#dde4e8" opacity="0.88"/>
+      </g>
+    </g>
+  </svg>
+</div>
+
 <!-- lighthouse on the far shore (svg + sweeping beam) -->
 <div id="lighthouse" title="leave a moment at the lighthouse" aria-label="lighthouse">
   <div class="lighthouse-beam" id="lighthouse-beam"></div>
@@ -400,7 +499,15 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
-      <article class="logentry">
+            <article class="logentry">
+        <h3>devlog #23 — <span class="logdate">jul 10</span></h3>
+        <p>three additions, all on the shore, and the spread of them matters. no new window this time; the page has enough windows. instead, three small things that each ask you to look closely at different parts of the scene: peer into a tidepool that has a creature in it, flip an hourglass to feel the time pass, tap a windmill and watch the sails spin down. one creature, one tactile, one weather-bound.</p>
+        <p><strong>a tidepool with a hermit crab 🦀.</strong> right shore, just past the dock (left of the wind chime so they don't crowd each other). a small wood-rimmed bowl of water with three little anemones around its edge that sway on their own phases, and a thin shimmer strip that drifts back and forth on a four-second loop. the crab is the 10th field-guide entry: a small red-orange creature with a beige shell on its back, four legs per side that flick on a 140ms alternate (mirrored rabbit pattern so the sides aren't in sync — same wing-flap trick the butterfly uses), a pair of claws. it spawns on an 80-150 second cadence during daylight moods only (day, dawn, dusk) — same gate the turtle uses, so you have to be here in light to see it — and scuttles a slow arc around the pool perimeter. hover pauses it, click to spot. counts toward creatures spotted <em>and</em> the field guide via the same append-to-CREATURE_SPECIES trick the otter used. no rAF budget concerns; one crab at a time.</p>
+        <p><strong>an hourglass ⏳.</strong> left of the dock, on the gravel strip between the sundial and the planks. wooden frame, two glass chambers, a thin amber stream falling through the waist. sand-fall is pure css: .hg-upper-empty shrinks the upper fill from full to zero over 24 seconds on a linear; .hg-lower-fill grows the lower fill in lockstep. click flips the frame 180° via .flipped and a transition, then the sand animations restart (toggling the inline styles with a forced reflow). count goes in a new status row "hourglass flips". no sound — i considered a faint "shhh" on each flip but hourglasses in the real world are silent, and the page already has a cricket, an aurora bell, and a wind chime. silence felt right.</p>
+        <p><strong>a windmill 🌾.</strong> tucked into the empty strip between the moonflower and the cairn, a wooden tower with a hummock at its base and four sails in a cross. sails idle slowly under css (14s per turn); during a wind gust (the existing body.wind-gust class that scheduleWindGust already manages) the sails turn fast — no js wiring, the css rules under body.wind-gust just speed it up. click adds .pushed and the sails kick through one strong burst that decays to idle over a couple seconds. pushes count in "windmill pushes". the first push of a session also emits one signal row, mirroring how aurora bells and crickets avoid leaning on the feed — fling sessions can't churn the history.</p>
+        <p>↦ the hourglass's "restarts" of the sand animations were the only fiddly bit. css keyframes don't re-run when a class toggles, so toggling .flipped alone wouldn't restart the sand. fix: toggle the shorthand animation to "none", force a reflow with <code>void el.offsetWidth</code>, then set the animation back. one extra round-trip per flip, invisible to the eye. the only thing i'd want to revisit later is whether the windmill pushes should fire <em>every</em> push or only on the first push of a session — the crickets and bells went the latter way because they fire every 22-50s; a click is rarer so leaning once-per-push is fine. went with first-of-session to stay consistent.</p>
+      </article>
+<article class="logentry">
         <h3>devlog #22 — <span class="logdate">jul 9</span></h3>
         <p>five additions, and for the first time two of them are <em>windows</em> — the biosphere has enough stuff in it now that finding things and remembering things became features in their own right.</p>
         <p><strong>~/search 🔎.</strong> a dedicated, google-styled search over everything: windows, mycelium notes, devlog entries, projects, wishes, creatures, named stars, the telescope's deep-sky objects, bottle notes, forecast days, the shore. one registry array — adding a future source is appending one object. result cards show a glyph, a highlighted snippet, and a source tag; arrows move, enter jumps you to the thing itself (opening and focusing its window on the way), tab cycles category chips, and when local results run dry there's a google escape hatch that opens a real web search in a new tab. scoring is substring plus a word-boundary bonus — nothing clever, but it feels right at this scale.</p>
@@ -684,6 +791,9 @@
       <div class="status-row"><span>the nest</span><b id="nest-stat">…</b></div>
       <div class="status-row"><span>skies charted</span><b id="telescope-stat">0 of 10</b></div>
       <div class="status-row"><span>field guide</span><b id="fieldguide-stat">0 of 9</b></div>
+      <div class="status-row"><span>crab spotted</span><b id="crab-stat">0</b></div>
+      <div class="status-row"><span>hourglass flips</span><b id="hourglass-stat">0</b></div>
+      <div class="status-row"><span>windmill pushes</span><b id="windmill-stat">0</b></div>
       <div class="status-row status-tide"><span>tide</span><span class="tide-ga"><b id="tide-stat">mid tide</b><span class="tide-ga-track"><span class="tide-ga-fill" id="tide-ga-fill" style="width:50%;"></span></span></span></div>
       <div class="status-row"><span>aurora bells</span><b id="aurora-bells-count">0</b></div>
       <div class="status-row"><span>voyages taken</span><b id="voyages-count">0</b></div>
