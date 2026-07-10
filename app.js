@@ -6840,3 +6840,503 @@ renderWarmth = function () {
 // does the feed show a "signals online" row at position 0. After that, never
 // re-emit on reload — signal-cap churn would silently push real entries down.
 try { if (signalsAll.length === 0) gLog("biosphere", "signals online", "✽ onboarded"); } catch {}
+
+
+/* ============================================================
+   devlog #24 — jul 11: five additions
+   - fire salamander (11th field-guide entry, night-only spawn)
+   - tide clock that watches the pond for you
+   - glass floats that wash up on the gravel
+   - copper rain chain that fills on rain days
+   - a small raked sand garden on the left shore
+   every block is a self-contained IIFE so the order at the bottom
+   of the file doesn't matter. they read existing globals (settings,
+   isMotionReduced, forecastFor, etc) and only add their own keys.
+   ============================================================ */
+
+/* ---- 1) append the salamander to CREATURE_SPECIES ----
+   guarded so re-loading the file can't double-append. renderFieldGuide()
+   picks up the new total on its own. */
+(function appendSalamanderToSpecies() {
+  if (typeof CREATURE_SPECIES === "undefined" || !Array.isArray(CREATURE_SPECIES)) return;
+  if (CREATURE_SPECIES.some(s => s.id === "salamander")) return;
+  CREATURE_SPECIES.push({
+    id: "salamander",
+    name: "fire salamander",
+    glyph: "🦎",
+    blurb: "a small orange-black nocturnal salamander that walks the shoreline between dusk and dawn"
+  });
+  if (typeof renderFieldGuide === "function") renderFieldGuide();
+})();
+
+/* ---- 2) fire salamander — night-only scuttler ----
+   one salamander is plenty; we gate the schedule on body.night
+   (which the applyTimeOfDay sky-lock already mirrors for free).
+   cadence 70–130s so it doesn't crowd anything else, and each
+   appearance lasts ~25s before alpha-fading. hover pauses
+   the leg flap via animation-play-state so a moment of
+   stillness lets you click it. */
+(function scheduleSalamander() {
+  const host = document.getElementById("salamanders");
+  if (!host) return;
+  let active = null;
+
+  function nightMood() {
+    return document.body.classList.contains("night");
+  }
+  function motionReduced() {
+    return typeof isMotionReduced === "function" && isMotionReduced();
+  }
+  function salamanderSVG() {
+    // body: orange with a black stripe; tail flick; 4 legs that flap
+    return (
+      `<svg class="salamander-svg" viewBox="0 0 76 32" aria-hidden="true">` +
+        // body ellipse
+        `<ellipse cx="36" cy="16" rx="22" ry="6" fill="#e07a3a"/>` +
+        // shoulder + tail (thin flick that bends)
+        `<path d="M14 16 Q4 14 0 18 Q4 19 14 19 Z" fill="#e07a3a"/>` +
+        `<path d="M58 16 Q70 14 76 18 Q70 19 58 19 Z" fill="#e07a3a"/>` +
+        // dorsal stripe
+        `<rect x="10" y="14.5" width="50" height="2.2" fill="#1a0e08" rx="1"/>` +
+        // head dot (eye)
+        `<circle cx="13" cy="14.5" r="1.1" fill="#1a0e08"/>` +
+        // four legs, alternating phase so left/right sides aren't in sync
+        `<ellipse class="salamander-leg r1" cx="20" cy="22" rx="2.6" ry="1.4" fill="#1a0e08"/>` +
+        `<ellipse class="salamander-leg r2" cx="30" cy="22" rx="2.6" ry="1.4" fill="#1a0e08"/>` +
+        `<ellipse class="salamander-leg r3" cx="42" cy="22" rx="2.6" ry="1.4" fill="#1a0e08"/>` +
+        `<ellipse class="salamander-leg r4" cx="52" cy="22" rx="2.6" ry="1.4" fill="#1a0e08"/>` +
+      `</svg>`
+    );
+  }
+
+  function spawn() {
+    if (active) return;
+    if (!nightMood()) { schedule(); return; }
+    if (motionReduced()) { schedule(); return; }
+
+    const el = document.createElement("div");
+    el.className = "salamander";
+    el.innerHTML = salamanderSVG();
+    host.appendChild(el);
+
+    // walk from off-left to off-right along the lower shore
+    const W = window.innerWidth;
+    const startX = -60;
+    const endX = W + 60;
+    const y = window.innerHeight - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pond-h")) || 18) - 38 + 18;
+    const dur = 22_000 + Math.random() * 6_000;
+    el.style.left = startX + "px";
+    el.style.top = y + "px";
+    el.style.transition = `left ${dur}ms linear, top ${dur / 4}ms ease-in-out ${dur / 4}ms`;
+    active = { el, startX, endX, walked: 0 };
+    // force reflow so the transition kicks in from the startLeft
+    void el.offsetWidth;
+    el.style.left = endX + "px";
+    // micro vertical wobble halfway so it doesn't feel flat
+    setTimeout(() => { if (active && active.el === el) active.el.style.top = (y - 4) + "px"; }, dur / 4);
+    setTimeout(() => { if (active && active.el === el) active.el.style.top = (y + 4) + "px"; }, dur / 2);
+    setTimeout(() => { if (active && active.el === el) active.el.style.top = y + "px"; }, (dur * 3) / 4);
+    el.classList.add("walking");
+    setTimeout(() => { if (active && active.el === el) despawn(el); }, dur + 200);
+
+    el.addEventListener("click", () => {
+      if (!active || active.el !== el) return;
+      el.classList.add("caught");
+      // markCreatureSeen handles the roaring/spotted/fieldguide counts + first-sight toast
+      if (typeof markCreatureSeen === "function") markCreatureSeen("salamander");
+      if (typeof gLog === "function") gLog("creature", "spotted a fire salamander", "the shore");
+      setTimeout(() => despawn(el, true), 320);
+    });
+
+    schedule();
+  }
+  function despawn(el, immediate) {
+    if (active && active.el === el) active = null;
+    if (immediate) { if (el.parentNode) el.parentNode.removeChild(el); }
+    else {
+      el.classList.remove("walking");
+      setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 720);
+    }
+  }
+  function schedule() {
+    const wait = 70_000 + Math.random() * 60_000; // 70–130s
+    setTimeout(() => { spawn(); }, wait);
+  }
+  // boot a short delay so the first appearance still feels "later tonight"
+  setTimeout(spawn, 35_000 + Math.random() * 20_000);
+})();
+
+/* ---- 3) tide clock hand — derives --tide-frac from --pond-h ----
+   we poll the existing --pond-h once a second and write a 0..1
+   fraction into --tide-frac. css does the rest via transition.
+   polling keeps the tideclock fully decoupled from tideTick —
+   the two cannot disagree because they both read the same
+   single source of truth. clicking the face reads the state
+   aloud + shows the actual vh at the moment of the click. */
+(function tideClock() {
+  const root = document.documentElement;
+  const el = document.getElementById("tide-clock");
+  if (!el) return;
+  // bounding the height range: --pond-h cycles between 17vh and 19vh
+  // tide gauge row already says "low" / "mid" / "high" with the
+  // same thresholds used by tideTick — share those by reading tide-stat
+  // at click time rather than recomputing them here.
+  const TIDE_MIN_VH = 17.0, TIDE_RANGE_VH = 2.0;
+
+  function render() {
+    const s = getComputedStyle(root).getPropertyValue("--pond-h").trim();
+    const vh = parseFloat(s);
+    if (!isFinite(vh)) return;
+    const frac = Math.max(0, Math.min(1, (vh - TIDE_MIN_VH) / TIDE_RANGE_VH));
+    root.style.setProperty("--tide-frac", frac.toFixed(3));
+  }
+  // synchronous initial render so the hand lands on its real position
+  // on first load rather than swinging from 0deg to whatever the
+  // first poll finds. this was the trailing bug from devlog #24.
+  render();
+  setInterval(render, 1200);
+
+  el.addEventListener("click", () => {
+    const s = getComputedStyle(root).getPropertyValue("--pond-h").trim();
+    const vh = parseFloat(s);
+    const frac = isFinite(vh) ? (vh - TIDE_MIN_VH) / TIDE_RANGE_VH : 0.5;
+    const phase = frac < 0.22 ? "low" : frac > 0.78 ? "high" : "mid";
+    // direction: read _tidePhase's derivative without poking at the
+    // global; the test below returns "rising" if the hand is on the
+    // upward half of its 0..1 path, "falling" otherwise.
+    const dir = frac < 0.5 ? "rising" : "falling";
+    if (typeof toast === "function") {
+      toast(`${dir} · ${phase} tide · ${vh.toFixed(2)}vh`, 2400);
+    }
+  });
+})();
+
+/* ---- 4) copper rain chain — fills on rain days ----
+   body.rain-day is set by a 60s cadence check on today's forecast,
+   the same query the existing rain-layer uses (forecastFor is the
+   deterministic one — verified with my devlog entry). cups are
+   added once on boot; a click on the top cup tips every cup
+   top-to-bottom via staggered timing, with a tiny 880hz sine ping
+   per tip. the audio context is lazy + first-gesture-armed, just
+   like the cricket chorus. */
+(function rainChain() {
+  const chain = document.getElementById("rain-chain");
+  const cupsHost = document.getElementById("rc-cups");
+  if (!chain || !cupsHost) return;
+
+  // 8 cups, each with its own y in the 92vh viewBox
+  const CUP_YS = [10, 22, 34, 46, 58, 70, 80, 88];
+  // build cup markup once on boot so the visual exists from the first paint
+  const svgNS = "http://www.w3.org/2000/svg";
+  const xmlAt = (s) => s.replace(/"/g, "'"); // any user input — none here, just for className
+  cupsHost.innerHTML = CUP_YS.map((y, i) => {
+    const cup = `<polygon class="rc-cup" points="10,${y} 18,${y} 15.5,${y + 4} 12.5,${y + 4}"/>`;
+    const water = `<rect class="rc-cup-water" x="12.5" y="${y - 1}" width="3" height="2.5" fill="rgba(124, 174, 220, 0.85)"/>`;
+    return cup + water;
+  }).join("");
+
+  // toggle body.rain-day on a 60s cadence so a tab left open past
+  // a forecast boundary will switch its cup fill state
+  function applyRainDay() {
+    let kind = null;
+    try { if (typeof forecastFor === "function") kind = forecastFor(new Date()).kind; } catch {}
+    document.body.classList.toggle("rain-day", kind === "rain");
+  }
+  applyRainDay();
+  setInterval(applyRainDay, 60_000);
+
+  // lazy audio: create the context on the first click (so the
+  // user-gesture policy permits it), arms before first use, and
+  // resume after visibility-returns. mirrors cricket chorus
+  // lifecycle.
+  const _rainCtxRef = { ctx: null, armed: false, master: null };
+  function ping() {
+    if (typeof settings !== "undefined" && settings && settings.mute) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!_rainCtxRef.ctx) {
+        _rainCtxRef.ctx = new AC();
+        _rainCtxRef.master = _rainCtxRef.ctx.createGain();
+        _rainCtxRef.master.gain.value = 0.10;
+        _rainCtxRef.master.connect(_rainCtxRef.ctx.destination);
+      }
+      _rainCtxRef.armed = true;
+      const ctx = _rainCtxRef.ctx;
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = 880;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      o.connect(g).connect(_rainCtxRef.master);
+      const now = ctx.currentTime;
+      g.gain.linearRampToValueAtTime(1.0, now + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+      o.start(now);
+      o.stop(now + 0.5);
+    } catch {}
+  }
+
+  // also resume on visibilitychange so a backgrounded tab revives
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && _rainCtxRef.armed && _rainCtxRef.ctx && _rainCtxRef.ctx.state === "suspended") {
+      _rainCtxRef.ctx.resume().catch(() => {});
+    }
+  });
+
+  // click anywhere on the chain triggers a cascade — the topmost
+  // cup is tip[0]. each tip fires its own ping.
+  chain.addEventListener("click", () => {
+    const cups = cupsHost.querySelectorAll(".rc-cup");
+    let rained = 0;
+    for (let i = 0; i < cups.length; i++) {
+      const c = cups[i];
+      setTimeout(() => {
+        c.classList.add("tipping");
+        ping();
+        setTimeout(() => c.classList.remove("tipping"), 280);
+      }, i * 140);
+      rained++;
+    }
+    if (typeof bumpStat === "function") {
+      bumpStat("rain-stat");
+    } else {
+      const stat = document.getElementById("rain-stat");
+      if (stat) stat.textContent = String((+stat.textContent.replace(/\D/g, "") || 0) + rained);
+    }
+    if (typeof gLog === "function") gLog("rain", "tipped the rain chain", "the dock");
+    try { localStorage.setItem("biosphere02.rain.v1", String(+((localStorage.getItem("biosphere02.rain.v1") || "0")) + 1)); } catch {}
+  });
+})();
+
+/* ---- 5) raked sand garden on the left shore ----
+   six procedural pattern families chosen deterministically per
+   click position. the rake group fades in via opacity on each
+   redraw so each raking feels like a deliberate stroke rather
+   than an instant snap. the same key (clickX, clickY) always
+   rakes the same way, so the pattern feels like "the garden
+   remembers where you stood." */
+(function sandGarden() {
+  const el = document.getElementById("sand-garden");
+  const rakes = document.getElementById("sg-rakes");
+  if (!el || !rakes) return;
+
+  // three rocks in svg coords (cx, cy, rx, ry)
+  const rocks = [
+    { cx: 28, cy: 40, rx: 9,  ry: 5 },
+    { cx: 50, cy: 38, rx: 11, ry: 6 },
+    { cx: 68, cy: 44, rx: 6,  ry: 3.5 },
+  ];
+
+  function findRock(x, y) {
+    // x,y are svg-local (0..90, 0..56)
+    let best = 0, bestD = Infinity;
+    for (let i = 0; i < rocks.length; i++) {
+      const dx = rocks[i].cx - x, dy = rocks[i].cy - y;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    return rocks[best];
+  }
+
+  // 6 preset pattern families, each returns svg markup centered on rock
+  const patterns = [
+    // 0: concentric rings around the rock
+    (r) => {
+      let out = "";
+      const radii = [8, 11, 14, 17, 20];
+      for (const rr of radii) out += `<ellipse class="sg-rake" cx="${r.cx}" cy="${r.cy}" rx="${rr}" ry="${(rr * 0.45).toFixed(1)}"/>`;
+      return out;
+    },
+    // 1: straight parallel lines across the sand
+    (r) => {
+      let out = "";
+      for (let i = 0; i < 8; i++) {
+        const y = 30 + i * 3.6;
+        out += `<line class="sg-rake" x1="2" y1="${y.toFixed(1)}" x2="88" y2="${y.toFixed(1)}"/>`;
+      }
+      return out;
+    },
+    // 2: opposing arcs — one arching over, one arching under
+    (r) => {
+      return (
+        `<path class="sg-rake" d="M 4 ${r.cy + 4} Q ${r.cx} ${r.cy - 16}, ${88 - 4} ${r.cy + 4}"/>` +
+        `<path class="sg-rake" d="M 4 ${r.cy + 6} Q ${r.cx} ${r.cy + 22}, ${88 - 4} ${r.cy + 6}"/>`
+      );
+    },
+    // 3: spiral — 3 arms rotating around the rock
+    (r) => {
+      let out = "";
+      for (let a = 0; a < 3; a++) {
+        const angle = a * (Math.PI * 2 / 3);
+        const x1 = r.cx + Math.cos(angle) * 6;
+        const y1 = r.cy + Math.sin(angle) * 3;
+        const x2 = r.cx + Math.cos(angle + 1.6) * 18;
+        const y2 = r.cy + Math.sin(angle + 1.6) * 8;
+        out += `<line class="sg-rake" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+      }
+      return out;
+    },
+    // 4: single fan — a stacked half-disc from the rock
+    (r) => {
+      let out = "";
+      const N = 7;
+      for (let i = 0; i < N; i++) {
+        const frac = (i + 1) / (N + 1);
+        const rx = 10 + frac * 14;
+        const ry = (rx * 0.45).toFixed(1);
+        const y = (r.cy - 6 + frac * 12).toFixed(1);
+        out += `<ellipse class="sg-rake" cx="${r.cx}" cy="${y}" rx="${rx.toFixed(1)}" ry="${ry}"/>`;
+      }
+      return out;
+    },
+    // 5: braid — two interlocking arcs
+    (r) => {
+      return (
+        `<path class="sg-rake" d="M 2 ${r.cy} Q ${r.cx - 14} ${r.cy - 6}, ${r.cx} ${r.cy} Q ${r.cx + 14} ${r.cy + 6}, 88 ${r.cy}"/>` +
+        `<path class="sg-rake" d="M 2 ${r.cy + 4} Q ${r.cx - 14} ${r.cy + 10}, ${r.cx} ${r.cy + 4} Q ${r.cx + 14} ${r.cy - 2}, 88 ${r.cy + 4}"/>`
+      );
+    },
+  ];
+
+  function rasterizeNow() {
+    // clear the previous rake group and replace innerHTML
+    rakes.innerHTML = "";
+  }
+
+  el.addEventListener("click", (e) => {
+    // convert viewport coords to svg-local (viewBox is 0 0 90 56)
+    const rect = el.getBoundingClientRect();
+    const lx = ((e.clientX - rect.left) / rect.width) * 90;
+    const ly = ((e.clientY - rect.top) / rect.height) * 56;
+    const r = findRock(lx, ly);
+    // choose a pattern family deterministically by click coords
+    const idx = ((Math.floor(lx * 7) + Math.floor(ly * 11)) % patterns.length + patterns.length) % patterns.length;
+    rakes.innerHTML = patterns[idx](r);
+    if (typeof bumpStat === "function") {
+      bumpStat("sand-stat");
+    } else {
+      const stat = document.getElementById("sand-stat");
+      if (stat) stat.textContent = String((+stat.textContent.replace(/\D/g, "") || 0) + 1);
+    }
+    try { localStorage.setItem("biosphere02.sand.v1", String(+((localStorage.getItem("biosphere02.sand.v1") || "0")) + 1)); } catch {}
+  });
+})();
+
+/* ---- 6) glass floats — drift onto the right shore ----
+   same lifecycle as bottles, but stays in place rather than
+   drifting off-screen; one float on the shore at a time (cap of 1)
+   so the gravel doesn't grow cluttered. color is picked by an
+   index counter (deterministic — the nth float of any session is
+   always the same color, so the same jest of palette plays each
+   fresh load). click collects; fades + scales down. */
+(function glassFloats() {
+  const host = document.getElementById("float-shore");
+  if (!host) return;
+
+  // 4-color palette, drawn once at startup
+  const palette = [
+    { body: "#4a6ed8", highlight: "#a4b6f5" }, // cobalt
+    { body: "#1d8a72", highlight: "#94dac4" }, // sea-green
+    { body: "#d49a3e", highlight: "#f3d49a" }, // amber
+    { body: "#c04555", highlight: "#f0a4ad" }, // ruby
+  ];
+  let index = 0;
+  let active = null;
+
+  function floatSVG(c) {
+    return (
+      `<svg viewBox="0 0 22 28" aria-hidden="true" width="22" height="28">` +
+        // the orb (ball)
+        `<circle class="glass-float-orb" cx="11" cy="20" r="9" fill="${c.body}"/>` +
+        // a darker rim to read as glass
+        `<circle cx="11" cy="20" r="9" fill="none" stroke="rgba(0,0,0,0.4)" stroke-width="0.6"/>` +
+        // a soft highlight
+        `<ellipse cx="7" cy="17" rx="2.4" ry="1.4" fill="${c.highlight}" opacity="0.6"/>` +
+        // the twisted rope net above the orb
+        `<g class="glass-float-ropes">` +
+          `<path d="M11 4 L11 12"/>` +
+          `<path d="M7 5 L11 12 M15 5 L11 12"/>` +
+          `<path d="M8.5 2 L11 12 M13.5 2 L11 12"/>` +
+        `</g>` +
+      `</svg>`
+    );
+  }
+
+  function ashoreBottom() {
+    // match the shore band used by the dock / ferns / sundial;
+    // calc-based so the float tracks the tide exactly like the
+    // other shore elements (a fixed vh would strand them in mid-air
+    // when the tide rolls out).
+    const cs = getComputedStyle(document.documentElement);
+    const pondH = parseFloat(cs.getPropertyValue("--pond-h")) || 18;
+    return `calc(38px + ${pondH}vh - 4px)`;
+  }
+
+  function spawn() {
+    if (active) { schedule(); return; }
+    const c = palette[index % palette.length];
+    index++;
+
+    const el = document.createElement("div");
+    el.className = "glass-float";
+    el.innerHTML = floatSVG(c);
+    host.appendChild(el);
+
+    // anchor float to the right cattails area, settle to a left
+    // position afterward. we set initial transform (off to the
+    // right) BEFORE the element is in DOM, then on next tick
+    // transition to the final transform — so the CSS transition
+    // runs across the boundary and the float drifts visibly.
+    const W = window.innerWidth;
+    const startX = W - 80;
+    const endX = W * 0.62; // settle left-ish
+    el.style.bottom = ashoreBottom();
+    el.style.transform = `translate(${startX}px, -10px)`;
+    active = { el, c };
+    // reflow so the transition runs
+    void el.offsetWidth;
+    el.style.transform = `translate(${endX}px, 0px)`;
+
+    el.addEventListener("click", () => collect(el), { once: true });
+
+    schedule();
+  }
+
+  function collect(el) {
+    if (!active || active.el !== el) return;
+    // capture the color BEFORE nulling active — the toast name comes
+    // from the actual float, not always palette[0].
+    const c = active.c;
+    active = null;
+    el.classList.add("collected");
+    el.style.setProperty("--gx", "0px");
+    el.style.setProperty("--gy", "-22px");
+    if (typeof bumpStat === "function") {
+      bumpStat("floats-stat");
+    } else {
+      const stat = document.getElementById("floats-stat");
+      if (stat) stat.textContent = String((+stat.textContent.replace(/\D/g, "") || 0) + 1);
+    }
+    if (typeof toast === "function") toast(`collected a ${cName(c)} glass float`, 2200);
+    try { localStorage.setItem("biosphere02.floats.v1", String(+((localStorage.getItem("biosphere02.floats.v1") || "0")) + 1)); } catch {}
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 820);
+  }
+  function cName(c) {
+    if (c === palette[0]) return "cobalt";
+    if (c === palette[1]) return "sea-green";
+    if (c === palette[2]) return "amber";
+    if (c === palette[3]) return "ruby";
+    return "";
+  }
+
+  function schedule() {
+    const wait = 90_000 + Math.random() * 90_000; // 90–180s
+    setTimeout(spawn, wait);
+  }
+  // first float shortly after boot so the right shore isn't empty for too long
+  setTimeout(spawn, 22_000);
+})();
+
+/* end of devlog #24 block. */

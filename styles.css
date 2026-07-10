@@ -3738,3 +3738,162 @@ body.motion-reduced .sig-row { transition: none; }
 body.motion-reduced .otter { display: none !important; }
 body.motion-reduced .otter-head { animation: none; }
 body.stargazer .otter { opacity: 0.55; }
+
+
+/* ============================================================
+   devlog #24 — jul 11
+   five additions: tide clock, rain chain, sand garden,
+   glass floats, fire salamander (11th field-guide entry).
+   the shore already shifts with var(--pond-h); all five new
+   shore elements reuse that rhythm.
+   ============================================================ */
+
+/* ---- tide clock on the shore (right of the sundial) ----
+   hand rotation comes from --tide-frac (0..1); maps to -90..+90deg
+   so the hand sweeps from low (down) through horizon to high (up).
+   poll is once per second in the companion IIFE; a 1500ms cubic
+   transition on the transform smooths updates so we don't need
+   to read --pond-h every frame. */
+#tide-clock {
+  position: fixed;
+  left: 568px;
+  bottom: calc(38px + var(--pond-h) - 14px);
+  width: 36px; height: 48px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 180ms ease;
+}
+#tide-clock:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(255, 217, 160, 0.5)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.tc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tc-hand {
+  /* rotation comes from --tide-frac (0 = low, 0.5 = mid, 1 = high).
+     the IIFE writes --tide-frac once per second and the transition
+     smooths the gap between samples. */
+  transform-origin: 20px 22px;
+  transform: rotate(calc(-90deg + var(--tide-frac, 0) * 180deg));
+  transition: transform 1500ms cubic-bezier(.4, 0, .3, 1);
+}
+
+/* ---- copper rain chain hanging beneath the dock ----
+   eight small cups cascade top to bottom on click; each gets a
+   .tipping class for ~280ms with a staggered setTimeout (so the
+   cascade is one 1.2s linear ramp down the chain). cups fill with
+   water via .rc-cup-water when body.rain-day is active — which the
+   js sets by polling forecastFor(new Date()).kind === "rain".
+   out of rain days the cups stay dry and warm-copper. */
+#rain-chain {
+  position: fixed;
+  left: calc(50% + 24px);
+  bottom: calc(38px + var(--pond-h) - 56px);
+  width: 28px; height: 86px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 180ms ease;
+}
+#rain-chain:hover { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(168, 134, 74, 0.5)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.rc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.rc-cup {
+  fill: #c89060;
+  stroke: #6a4828;
+  stroke-width: 0.5;
+  transform-origin: center;
+  transition: transform 280ms cubic-bezier(.4, 0, .3, 1);
+}
+.rc-cup-water {
+  opacity: 0;
+  transition: opacity 600ms ease;
+}
+body.rain-day .rc-cup-water { opacity: 0.7; }
+.rc-cup.tipping {
+  transform: scale(0.7) rotate(-12deg);
+  transition: transform 220ms cubic-bezier(.6, 0, .4, 1);
+}
+
+/* ---- raked sand garden on the left shore ----
+   sits in the empty strip between the dandelion and the wishing tree.
+   the procedural rakes redraw the .sg-rakes innerHTML on each click —
+   we fade the group in via opacity rather than animating every stroke.
+   the same 3 rocks live in the svg markup above. */
+#sand-garden {
+  position: fixed;
+  left: 150px;
+  bottom: calc(38px + var(--pond-h) - 8px);
+  width: 90px; height: 56px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  transition: transform 180ms ease, filter 180ms ease;
+}
+#sand-garden:hover { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(216, 200, 154, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4)); }
+.sg-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sg-rake {
+  fill: none;
+  stroke: #7a6a4e;
+  stroke-width: 0.6;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: sg-rake-in 320ms ease-out forwards;
+}
+@keyframes sg-rake-in { to { opacity: 0.7; } }
+
+/* ---- glass floats on the shore (host is JS-populated) ----
+   sits at z-index 3 like the other shore things; each float's
+   transform top/bottom transitions drive the drift-and-bob
+   cycle (set by IIFE on insertion + after a reflow). */
+#float-shore {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.glass-float {
+  position: fixed;
+  pointer-events: auto;
+  cursor: pointer;
+  width: 22px; height: 28px;
+  transform-origin: center;
+  transition: transform 7s cubic-bezier(.3, .1, .4, 1), opacity 800ms ease, filter 200ms ease;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+.glass-float:hover { filter: drop-shadow(0 0 8px rgba(220, 232, 250, 0.7)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45)); }
+.glass-float-orb { fill-opacity: 0.55; }
+.glass-float-ropes { stroke: #6a5030; stroke-width: 0.6; fill: none; }
+.glass-float.collected { opacity: 0; transform: translate(var(--gx), var(--gy)) scale(0.4); }
+body.motion-reduced .glass-float { transition: opacity 800ms ease; }
+@media (prefers-reduced-motion: reduce) { .glass-float { transition: opacity 800ms ease; } }
+
+/* ---- fire salamander (11th field-guide entry, night-only) ----
+   pattern mirrors .moth / .fox: a small div with an inner SVG,
+   z-index 3 above the pond but below desktop windows. walks the
+   shoreline between the cattails and the tidepool at a slow
+   scuttle. hover pauses the walk via animation-play-state so
+   you can actually click it. */
+.salamander {
+  position: fixed;
+  width: 38px; height: 16px;
+  z-index: 3;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0;
+  transition: filter 200ms ease, opacity 700ms ease;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+  will-change: left, top, transform;
+}
+.salamander.walking { opacity: 0.95; }
+.salamander:hover { filter: drop-shadow(0 0 8px rgba(255, 180, 100, 0.85)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); animation-play-state: paused; }
+.salamander.caught { opacity: 0 !important; transform: scale(1.4) !important; }
+.salamander-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.salamander-leg { transform-origin: 50% 0; animation: salamander-leg 0.16s ease-in-out infinite alternate; }
+.salamander-leg.r2 { animation-delay: -0.08s; }
+.salamander-leg.r3 { animation-delay: -0.04s; }
+.salamander-leg.r4 { animation-delay: -0.12s; }
+@keyframes salamander-leg {
+  from { transform: rotate(-14deg); }
+  to   { transform: rotate(14deg); }
+}
+.salamander.caught .salamander-leg { animation: none; }
+@media (prefers-reduced-motion: reduce) { .salamander { display: none !important; } }
+body.motion-reduced .salamander { display: none !important; }
+body.motion-reduced .salamander-leg { animation: none; }
+body.stargazer .salamander { opacity: 0.5; }

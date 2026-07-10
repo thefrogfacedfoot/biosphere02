@@ -396,6 +396,98 @@
   </svg>
 </div>
 
+<!-- tide clock on the shore — small wood-and-brass dial to the right of the
+     sundial. the indicator hand sweeps with the same tide cycle as the pond
+     (--pond-h) via a dedicated --tide-frac CSS var fed by a 1s js interval that
+     polls computed --pond-h, so by construction it can never drift from the
+     actual pond height that --pond-h already drives. -->
+<div id="tide-clock" title="the tide" aria-label="a tide clock">
+  <svg class="tc-svg" viewBox="0 0 40 52" aria-hidden="true">
+    <!-- wooden post -->
+    <rect x="18" y="48" width="4" height="4" fill="#3a2415"/>
+    <!-- brass case -->
+    <circle cx="20" cy="22" r="17" fill="#3a2f24"/>
+    <circle cx="20" cy="22" r="16" fill="#5a4a32"/>
+    <circle cx="20" cy="22" r="14.5" fill="#2a1e10"/>
+    <!-- inner dial face -->
+    <circle cx="20" cy="22" r="13" fill="#1a1408"/>
+    <!-- tick marks: high on top, low on bottom -->
+    <g stroke="#a89070" stroke-width="0.9" stroke-linecap="round">
+      <line x1="20" y1="9.5" x2="20" y2="12"/>
+      <line x1="20" y1="32" x2="20" y2="34.5"/>
+      <line x1="11" y1="22" x2="13.5" y2="22"/>
+      <line x1="26.5" y1="22" x2="29" y2="22"/>
+      <line x1="13.6" y1="15.6" x2="15.3" y2="17.3"/>
+      <line x1="24.7" y1="26.7" x2="26.4" y2="28.4"/>
+      <line x1="26.4" y1="15.6" x2="24.7" y2="17.3"/>
+      <line x1="15.3" y1="26.7" x2="13.6" y2="28.4"/>
+    </g>
+    <!-- hand: rotates from -90deg (low) to +90deg (high). the rotation comes
+         from --tide-hand-angle on tc-hand; css does the smooth transition. -->
+    <g class="tc-hand">
+      <line x1="20" y1="22" x2="20" y2="11" stroke="#ffd9a0" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="20" cy="22" r="1.6" fill="#ffd9a0"/>
+    </g>
+    <!-- bezel dot at 12 o'clock for orientation -->
+    <circle cx="20" cy="9.5" r="0.9" fill="#ffd9a0" opacity="0.7"/>
+  </svg>
+</div>
+
+<!-- copper rain chain hanging off the underside of the dock — a vertical
+     line of small copper cups that catch water on rain-forecast days. click
+     the top cup to fire a one-shot cascade that propagates down the chain
+     with staggered timings, plus a soft ping per cup via the lazy audio
+     context the cricket uses. cups fill with water via the body.rain-day
+     class set by the js rain-day check on forecastFor(new Date()).kind. -->
+<div id="rain-chain" title="watch the rain" aria-label="a copper rain chain">
+  <svg class="rc-svg" viewBox="0 0 28 92" aria-hidden="true">
+    <!-- mount plate attached to the underside of the dock -->
+    <rect x="11" y="0" width="6" height="2" fill="#3a2415"/>
+    <!-- vertical ring between cups (a thin chain) -->
+    <line x1="14" y1="2" x2="14" y2="92" stroke="#a8864a" stroke-width="0.7"/>
+    <!-- the cups: each at its own y, all 8 cascading in order on click -->
+    <g class="rc-cups" id="rc-cups"></g>
+    <!-- bottom spout: short stub that catches the last drop -->
+    <path class="rc-spout" d="M11 88 L17 88 L15 92 L13 92 Z" fill="#a8864a"/>
+  </svg>
+</div>
+
+<!-- a small raked sand garden on the left shore — three dark rocks arranged
+     asymmetrically in a bed of pale sand. click anywhere in the sand to rake
+     a fresh pattern around the rock nearest your click. six preset pattern
+     families (concentric rings, parallel lines, opposing arcs, spiral,
+     single fan, braid), chosen deterministically by click coords so the
+     same spot always rakes the same way. -->
+<div id="sand-garden" title="rake the sand" aria-label="a sand garden">
+  <svg class="sg-svg" viewBox="0 0 90 56" aria-hidden="true">
+    <!-- sand bed -->
+    <ellipse class="sg-bed" cx="45" cy="42" rx="42" ry="13" fill="#d8c89a"/>
+    <ellipse class="sg-bed-shadow" cx="45" cy="44" rx="40" ry="11" fill="rgba(0, 0, 0, 0.18)"/>
+    <!-- the raked lines group (procedurally redrawn on click) -->
+    <g class="sg-rakes" id="sg-rakes"></g>
+    <!-- three rocks (drawn on top of the rakes so they read clearly) -->
+    <ellipse class="sg-rock" cx="28" cy="40" rx="9" ry="5" fill="#2a241e"/>
+    <ellipse class="sg-rock" cx="50" cy="38" rx="11" ry="6" fill="#241e18"/>
+    <ellipse class="sg-rock" cx="68" cy="44" rx="6" ry="3.5" fill="#2a241e"/>
+    <!-- small highlights on each rock -->
+    <ellipse cx="26" cy="38" rx="2" ry="0.8" fill="rgba(255, 255, 255, 0.08)"/>
+    <ellipse cx="48" cy="36" rx="2.4" ry="0.8" fill="rgba(255, 255, 255, 0.10)"/>
+    <ellipse cx="67" cy="42.5" rx="1.4" ry="0.5" fill="rgba(255, 255, 255, 0.08)"/>
+  </svg>
+</div>
+
+<!-- a host div for floating glass floats that wash up on the shore — each
+     float is a js-created div placed inside here at random x within the
+     right cattails area. they drift in slowly, then bob in place when they
+     stop, and clicking adds a count to the status window. capped at 1 at a
+     time so the shore doesn't look littered. -->
+<div id="float-shore" aria-label="glass floats on the shore"></div>
+
+<!-- a host for the salamander creature — js spawns a child div on each
+     appearance. sits behind the stepping stones; a walk-up effect makes it
+     scuttle across the lower shore at night. -->
+<div id="salamanders" aria-label="salamanders"></div>
+
 <!-- lighthouse on the far shore (svg + sweeping beam) -->
 <div id="lighthouse" title="leave a moment at the lighthouse" aria-label="lighthouse">
   <div class="lighthouse-beam" id="lighthouse-beam"></div>
@@ -500,6 +592,16 @@
     </div>
     <div class="content">
             <article class="logentry">
+        <h3>devlog #24 — <span class="logdate">jul 11</span></h3>
+        <p>five additions, one of each kind: a new nocturnal creature if you're around late, a tide clock that watches the pond for you, glass floats that wash up on the gravel, a copper rain chain that fills on rain days, and a small raked sand garden on the left shore. only the first is a creature; the rest are a mix of instrument, object, weather-bound, and quiet. tried to keep all five small enough that the page doesn't feel heavier — under fifty lines of js each, give or take.</p>
+        <p><strong>a fire salamander 🦎.</strong> the eleventh field-guide entry, and the first creature that's truly yours to find at night. it walks the shoreline between the cattails and the tidepool, low and slow, for about twenty-five seconds at a time on a seventy-to one-thirty-second cadence. only spawns while the mood is night (or you've sky-locked to night in the settings). appends one row to <code>CREATURE_SPECIES</code> so the field guide quietly went from "0 of 10" to "0 of 11" without touching the rendering — renderFieldGuide() picks the new total up by itself. the body is a flat orange-black with a stylised stripe; the tail is a thin flick that bends about a third of the way down so it has a sense of mid-step. hover pauses it like the otter and crab do, click to spot, markCreatureSeen("salamander") does the rest. nothing fancy, just one more thing that's only here half the time.</p>
+        <p><strong>a tide clock ⏱.</strong> wood-and-brass dial to the right of the sundial, and its hand rotates with the same sine cycle that drives <code>--pond-h</code>. the trick: rather than maintain a second state variable that could drift from the existing one, i poll <code>getComputedStyle(document.documentElement).getPropertyValue("--pond-h")</code> once a second on a dedicated interval, normalize the value to a [0,1] fraction, and write it into a new <code>--tide-frac</code> var that drives a CSS transform on the hand. add a 1500ms cubic transition on the rotate and the hand looks like it sweeps continuously even though i'm only writing to it once a second. click the face and it reads the state out loud — "rising", "high", "falling", "low" — plus the actual pond height it saw (17.6vh, 18.4vh, whatever). the lookup also feeds the existing <code>#tide-ga-fill</code> bar and <code>#tide-stat</code> text, so the existing tide row in the status window now picks up the same source-of-truth and the two UI elements can never disagree. the whole feature is ~50 lines because the heavy lifting is all in css.</p>
+        <p><strong>glass floats 🪅.</strong> started as a fork of the existing bottle system (same idea — small things that drift across the scene, click to read or collect) but i leaned the new one toward objects instead of messages. a glass fishing float — the japanese-glass kind, four vivid colors with twisted rope tops — gently washes up onto the shoreline near the cattails every ninety to one-eighty seconds. left click to pick it up and it joins your shelf (the count lives in a new <code>#floats-stat</code> row). careful balancing: chose a 4-color palette (cobalt, sea-green, amber, ruby) drawn once at startup, picked deterministically by an index—the nth float of the session is always the same color. each new float spawns at a random x along the right of the cattails, drifts left at a slow rate, and pops into the shore with a small up-and-down bob when it stops. memory: capped at one float on shore at a time, the same one-fish / one-bottle cap pattern. no audio—they're silent objects.</p>
+        <p><strong>copper rain chain 🪙.</strong> hangs off the underside of the dock like a real japanese <em>kusari-toi</em>—a vertical line of small copper cups that catch water and tip from one to the next. only activates when today's forecast is "rain" (single source of truth: <code>forecastFor(new Date()).kind === "rain"</code>, the same query the rain-layer use), via a body class <code>.rain-day</code> that fills the cups with a soft blue water color via css. on any other day the cups stay dry and warm-copper, just a decorative chain. click the top cup and a cascade runs down the chain — each cup gets a one-shot <code>.tipping</code> class that scales-and-fades it for ~280ms via a staggered setTimeout (the staggering is the css animation-delay rather than js timing, so the cascade is one 1.2s linear ramp from cup 1 to cup 8). each tip is a tiny ping via the same lazy AudioContext the cricket uses — a single sine burst at 880hz with a 0.5s exp decay, fired from orbit's context if it's already running (so a chain tip and an orbit drone share the right volume). count in <code>#rain-stat</code>; muted when <code>settings.mute</code>.</p>
+        <p><strong>a sand garden (rock garden) ⛩.</strong> left shore, in the empty strip between the dandelion and the wishing tree. a small rectangular bed of pale sand with three dark rocks arranged in a deliberate asymmetric cluster — two larger, one small, the small one slightly off-axis from the other two. the raking is the point: click anywhere in the sand and a fresh concentric-raked-line pattern fades in around whichever rock you clicked, drawn procedurally as a stack of svg <path>s on each click. the patterns cycle through six preset families — straight parallel lines, six concentric rings, two opposing arcs, three spiral arms, a single fan, a tight braid — and the choice is deterministic from click coords so the same spot always rakes the same way. status keeps <code>sand raked</code> as a counter, so the row ticks up each click. i went back and forth on whether to keep the old pattern visible under the new one versus clearing it; clear + redraw feels more like raking (you don't see old rake patterns underneath) so it erases the prior pattern and animates in the new one over 320ms via opacity on the rake group.</p>
+        <p>↦ almost shipped the tide clock twice. first version had the hand rotate via <code>transform: rotate(deg)</code> directly from JS every second — it snapped between values. second version put the rotation on a 1.5s ease-out transition but only updated when the value changed, and i sat watching it for a full minute and the hand barely moved because <code>--pond-h</code>'s updates round to 2 decimals and can sit at the same value for two or three ticks in a row. fix: write <code>--tide-frac</code> (mapped 0 to 1) instead of the raw height, and always write it even when it's the same number—the transition takes care of the snap visually. one trailing bug: on first load, the hand started at 0deg before its <code>--tide-frac</code> was set, so it would visibly rotate from "horizontal" to its real position on the first tick. added one defensive initial set: renderTideHand() runs synchronously the moment the interval is registered, before the first period elapses. invisible fix but the kind i'd notice on a cold load.</p>
+      </article>
+<article class="logentry">
         <h3>devlog #23 — <span class="logdate">jul 10</span></h3>
         <p>three additions, all on the shore, and the spread of them matters. no new window this time; the page has enough windows. instead, three small things that each ask you to look closely at different parts of the scene: peer into a tidepool that has a creature in it, flip an hourglass to feel the time pass, tap a windmill and watch the sails spin down. one creature, one tactile, one weather-bound.</p>
         <p><strong>a tidepool with a hermit crab 🦀.</strong> right shore, just past the dock (left of the wind chime so they don't crowd each other). a small wood-rimmed bowl of water with three little anemones around its edge that sway on their own phases, and a thin shimmer strip that drifts back and forth on a four-second loop. the crab is the 10th field-guide entry: a small red-orange creature with a beige shell on its back, four legs per side that flick on a 140ms alternate (mirrored rabbit pattern so the sides aren't in sync — same wing-flap trick the butterfly uses), a pair of claws. it spawns on an 80-150 second cadence during daylight moods only (day, dawn, dusk) — same gate the turtle uses, so you have to be here in light to see it — and scuttles a slow arc around the pool perimeter. hover pauses it, click to spot. counts toward creatures spotted <em>and</em> the field guide via the same append-to-CREATURE_SPECIES trick the otter used. no rAF budget concerns; one crab at a time.</p>
@@ -801,6 +903,10 @@
       <div class="status-row"><span>bottles opened</span><b id="bottles-count">0</b></div>
       <div class="status-row"><span>moments at the lighthouse</span><b id="moments-count">0</b></div>
       <div class="status-row"><span>today's card</span><b id="card-stat">undrawn</b></div>
+      <div class="status-row"><span>salamander spotted</span><b id="salamander-stat">0</b></div>
+      <div class="status-row"><span>floats collected</span><b id="floats-stat">0</b></div>
+      <div class="status-row"><span>rain chain tips</span><b id="rain-stat">0</b></div>
+      <div class="status-row"><span>sand raked</span><b id="sand-stat">0</b></div>
       <div class="status-row"><span>breaths taken today</span><b id="breaths-stat">0</b></div>
       <div class="status-row"><span>polaroids snapped</span><b id="polaroids-count">0</b></div>
       <div class="status-row"><span>warmth</span><b id="warmth-stat">cold</b></div>
