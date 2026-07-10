@@ -7340,3 +7340,228 @@ try { if (signalsAll.length === 0) gLog("biosphere", "signals online", "✽ onbo
 })();
 
 /* end of devlog #24 block. */
+
+
+/* ============================================================
+   devlog #25 — jul 12
+   three additions, one of each kind. the moon is the visual
+   companion to the existing almanac moon-phase text (which was
+   prose-only); the driftwood is a curated letter pool, the peeper
+   is the 12th CREATURE_SPECIES entry and the first amphibian
+   keyed to daytime warmth rather than night. all three respect
+   motion-reduced, and the moon hides entirely during body.day.
+   ============================================================ */
+
+/* ---- moon disc (visual moon in the upper sky) ----
+   polls minute-of-day once a minute, writes --moon-x / --moon-y
+   in pixels to host.style. CSS handles the smooth tween. */
+(function moonDisc() {
+  const host = document.getElementById("moon-disc");
+  if (!host) return;
+  const stat = document.getElementById("moon-stat");
+  const SK = "biosphere02.moon.v1";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, n); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  // map minute-of-day to a 0..1 dome fraction across the visible window
+  // 17:00 → 07:00 (next day). outside this window the moon is hidden
+  // entirely via the body.day/etc opacity rules (no js branch needed).
+  function arc() {
+    const now = new Date();
+    let m = now.getHours() * 60 + now.getMinutes();
+    const start = 17 * 60;             // 17:00
+    const end   = 7 * 60 + 24 * 60;    // wraps to 07:00 next day
+    let f;
+    if (m >= start)      f = (m - start) / (end - start);
+    else if (m < 7 * 60) f = (m + 24 * 60 - start) / (end - start);
+    else return null;
+    if (f < 0 || f > 1) return null;
+    // dome: low-and-left at the start, overhead near the middle, low-and-right at end
+    const x = 50 + Math.sin(f * Math.PI) * 32;  // 18..82 along vw
+    const y = 20 - Math.sin(f * Math.PI) * 14;  // 6..20 vh (smaller = higher)
+    return { x, y };
+  }
+
+  function render() {
+    const pos = arc();
+    if (!pos) return; // outside window: css keeps opacity at 0
+    const pxX = (pos.x / 100) * window.innerWidth;
+    const pxY = (pos.y / 100) * window.innerHeight;
+    host.style.setProperty("--moon-x", pxX.toFixed(0) + "px");
+    host.style.setProperty("--moon-y", pxY.toFixed(0) + "px");
+  }
+
+  render();
+  setInterval(render, 60_000);
+  window.addEventListener("resize", render, { passive: true });
+
+  host.addEventListener("click", () => {
+    const n = bumpStat();
+    let ring = host.querySelector(".moon-ring");
+    if (!ring) {
+      ring = document.createElement("div");
+      ring.className = "moon-ring";
+      host.appendChild(ring);
+    }
+    ring.classList.remove("spin");
+    void ring.offsetWidth;
+    ring.classList.add("spin");
+    if (typeof toast === "function" && n === 1) {
+      toast("the moon is a green-cheese affair.");
+    }
+  });
+})();
+
+/* ---- driftwood note on the right shore ----
+   cycles through 12 short letters (≈15-30 chars each) on each click.
+   uses the existing toast() helper + a brief scroll pulse via css. */
+(function driftwoodNote() {
+  const host = document.getElementById("driftwood-note");
+  if (!host) return;
+  const stat = document.getElementById("driftwood-stat");
+  const SK = "biosphere02.driftwood.v1";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, n); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  const NOTES = [
+    "the pond is colder than it looks.",
+    "if you’re reading this, so am i.",
+    "i left my watch here in 2019.",
+    "watch for shooting stars after midnight.",
+    "look — bioluminescent mushrooms under the dock.",
+    "tea on the cabin step is free.",
+    "a fox ran past at 5:14 this morning.",
+    "tonight the aurora is loud.",
+    "you are not lost. you are here on purpose.",
+    "i think the tide is at its highest now.",
+    "the wishing tree has three lanterns today.",
+    "if you found this, write something back."
+  ];
+
+  host.addEventListener("click", () => {
+    const n = bumpStat();
+    const note = NOTES[(n - 1) % NOTES.length];
+    if (typeof toast === "function") toast("“" + note + "”");
+    host.classList.remove("read");
+    const scroll = host.querySelector(".dn-scroll");
+    void host.offsetWidth;
+    host.classList.add("read");
+    if (scroll) scroll.classList.add("read");
+  });
+})();
+
+/* ---- append peeper to CREATURE_SPECIES (12th entry) ----
+   re-renders the field guide if its render fn is exposed. */
+(function appendPeeperToSpecies() {
+  if (typeof CREATURE_SPECIES === "undefined" || !Array.isArray(CREATURE_SPECIES)) return;
+  if (CREATURE_SPECIES.some(s => s.id === "peeper")) return;
+  CREATURE_SPECIES.push({
+    id: "peeper",
+    name: "spring peeper",
+    blurb: "a tiny chorus frog. listens for warmth.",
+    icon: "🐸"
+  });
+  if (typeof renderFieldGuide === "function") renderFieldGuide();
+})();
+
+/* ---- schedule spring peepers (day-active) ----
+   day / dawn / dusk moods only; reduced-motion still spawns (the
+   hop animation is frozen, the frog is still clickable). 70-150s
+   cadence; one peeper on shore at a time. */
+(function schedulePeeper() {
+  const host = document.getElementById("peepers");
+  if (!host) return;
+  const stat = document.getElementById("peeper-stat");
+  const SK = "biosphere02.peeper.spotted";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, n); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  const moodOk = () =>
+    document.body.classList.contains("day")   ||
+    document.body.classList.contains("dawn")  ||
+    document.body.classList.contains("dusk");
+  const motionReduced = () =>
+    document.body.classList.contains("motion-reduced") ||
+    (typeof window !== "undefined" &&
+     window.matchMedia &&
+     window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  let active = null;
+  function despawn(el) {
+    if (!el || active !== el) return;
+    el.style.opacity = "0";
+    el.style.transform = "translateY(-8px) scale(0.7)";
+    setTimeout(() => {
+      el.remove();
+      if (active === el) active = null;
+    }, 320);
+  }
+
+  function spawn() {
+    if (active) return schedule();
+    if (!moodOk()) return schedule();
+    const el = document.createElement("div");
+    el.className = "peeper";
+    const x = 8 + Math.random() * 84;
+    el.style.setProperty("--peeper-x", x.toFixed(1) + "vw");
+    el.innerHTML =
+      '<svg class="peeper-svg" viewBox="0 0 14 11" aria-hidden="true">' +
+        '<ellipse cx="7" cy="8.5" rx="5"   ry="2.7" fill="#7a9a4a"/>' +
+        '<ellipse cx="7" cy="6"   rx="3.6" ry="2.4" fill="#9bba70"/>' +
+        '<circle  cx="5" cy="5.2" r="0.75" fill="#1a1408"/>' +
+        '<circle  cx="9" cy="5.2" r="0.75" fill="#1a1408"/>' +
+        '<path d="M2 10.4 Q7 11.4 12 10.4" fill="none" stroke="#5a7a3a" stroke-width="0.5"/>' +
+      '</svg>';
+    host.appendChild(el);
+    active = el;
+
+    // a few small side-steps along the shore before the lifespan ends.
+    // under reduced-motion we skip the side-steps (the CSS hop animation
+    // is also frozen) so the frog stays in one place and is clickable.
+    let i = 0;
+    const reduced = motionReduced();
+    const hops = reduced ? 0 : (2 + Math.floor(Math.random() * 3));
+    const hop = setInterval(() => {
+      if (i >= hops || active !== el) { clearInterval(hop); return; }
+      const nx = Math.max(2, Math.min(98, x + (Math.random() - 0.5) * 8));
+      el.style.setProperty("--peeper-x", nx.toFixed(1) + "vw");
+      i++;
+    }, 850);
+
+    el.addEventListener("click", () => {
+      if (typeof markCreatureSeen === "function") markCreatureSeen("peeper");
+      bumpStat();
+      despawn(el);
+    });
+
+    // auto-despawn after 18-30s if not spotted
+    setTimeout(() => despawn(el), 18_000 + Math.random() * 12_000);
+    schedule();
+  }
+
+  function schedule() {
+    const ms = 70_000 + Math.random() * 80_000;
+    setTimeout(spawn, ms);
+  }
+
+  // first spawn ~20s after load
+  setTimeout(spawn, 20_000);
+})();

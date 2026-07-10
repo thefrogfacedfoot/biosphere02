@@ -488,6 +488,62 @@
      scuttle across the lower shore at night. -->
 <div id="salamanders" aria-label="salamanders"></div>
 
+<!-- a pale moon hovering in the upper sky — the visual companion to the
+     existing almanac moon-phase text (which was unnamed prose). arcs slowly
+     across the right-to-left sky during dusk/night and back, mirroring the
+     dome of a real night. the position is calculated from the minute-of-day
+     in a 60s tick so it stays stable across reloads and never randomly
+     flickers. click to count a "moon touched" stat and emit an expanding
+     ring; first touch also toasts. -->
+<div id="moon-disc" title="the moon" aria-label="the moon">
+  <svg class="moon-svg" viewBox="0 0 40 40" aria-hidden="true">
+    <defs>
+      <radialGradient id="moon-glow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="rgba(232, 232, 210, 0.92)"/>
+        <stop offset="80%" stop-color="rgba(232, 232, 210, 0.78)"/>
+        <stop offset="100%" stop-color="rgba(232, 232, 210, 0.0)"/>
+      </radialGradient>
+    </defs>
+    <circle cx="20" cy="20" r="17" fill="url(#moon-glow)"/>
+    <circle cx="20" cy="20" r="10" fill="rgba(244, 244, 226, 0.96)"/>
+    <circle cx="16" cy="17" r="2"   fill="rgba(170, 170, 152, 0.22)"/>
+    <circle cx="24" cy="22" r="1.6" fill="rgba(170, 170, 152, 0.18)"/>
+    <circle cx="20" cy="25" r="1.2" fill="rgba(170, 170, 152, 0.16)"/>
+    <circle cx="22" cy="14" r="0.8" fill="rgba(170, 170, 152, 0.18)"/>
+  </svg>
+</div>
+
+<!-- a small driftwood plank resting on the right shore (between the right
+     cattails and the lighthouse foot) with a paper scroll lashed to it.
+     click advances through a curated pool of 10 short letters written by
+     previous visitors (the same vibe as the bottle fragments, but on land).
+     the message shows in a toast; the scroll pulses opacity briefly so the
+     interaction has feedback even with no audio. counter: driftwood letters. -->
+<div id="driftwood-note" title="read the driftwood" aria-label="a driftwood letter">
+  <svg class="dn-svg" viewBox="0 0 60 24" aria-hidden="true">
+    <!-- plank -->
+    <ellipse class="dn-shadow" cx="32" cy="22" rx="22" ry="2.5" fill="rgba(0,0,0,0.30)"/>
+    <path d="M4 12 Q14 6 28 6 Q42 6 54 12 Q56 16 50 18 Q28 22 14 18 Q4 16 4 12 Z" fill="#3a261a"/>
+    <path d="M4 12 Q14 6 28 6 Q42 6 54 12" fill="none" stroke="#5a3a26" stroke-width="0.8"/>
+    <path d="M14 18 Q28 22 50 18" fill="none" stroke="#2a1a0a" stroke-width="0.7"/>
+    <!-- the scroll: tied paper with a thin twine knot at top -->
+    <rect class="dn-scroll" x="22" y="4" width="16" height="9" rx="1" fill="rgba(238, 232, 204, 0.95)" stroke="rgba(120, 90, 60, 0.45)" stroke-width="0.6"/>
+    <line class="dn-line" x1="25" y1="7"  x2="35" y2="7"  stroke="rgba(140, 120, 80, 0.55)" stroke-width="0.5"/>
+    <line class="dn-line" x1="25" y1="9"  x2="33" y2="9"  stroke="rgba(140, 120, 80, 0.55)" stroke-width="0.5"/>
+    <line class="dn-line" x1="25" y1="11" x2="34" y2="11" stroke="rgba(140, 120, 80, 0.55)" stroke-width="0.5"/>
+    <line x1="26" y1="4" x2="26" y2="2.5" stroke="rgba(160, 100, 80, 0.75)" stroke-width="0.5"/>
+    <line x1="34" y1="4" x2="34" y2="2.5" stroke="rgba(160, 100, 80, 0.75)" stroke-width="0.5"/>
+  </svg>
+</div>
+
+<!-- a host div for the spring peeper — the 12th CREATURE_SPECIES entry.
+     js spawns a child div on each appearance. each peeper hops low along
+     the shore / pond surface during warm day moods, then despawns. click
+     to spot (counts toward creatures spotted, AND fills one entry of the
+     field guide). intentionally small and rare so it feels like a gift
+     rather than a target. -->
+<div id="peepers" aria-label="spring peepers"></div>
+
 <!-- lighthouse on the far shore (svg + sweeping beam) -->
 <div id="lighthouse" title="leave a moment at the lighthouse" aria-label="lighthouse">
   <div class="lighthouse-beam" id="lighthouse-beam"></div>
@@ -592,6 +648,14 @@
     </div>
     <div class="content">
             <article class="logentry">
+        <h3>devlog #25 — <span class="logdate">jul 12</span></h3>
+        <p>three additions today, one of each kind, and the new moon is the quietest of them. a creature that only comes in warm weather (the twelfth field-guide entry), a piece of driftwood someone left before you got here, and the moon that belongs to the sky rather than to the almanac text. celestial / textual / creature mix — no overlaps with the existing shore elements.</p>
+        <p><strong>a pale moon floating in the upper sky 🌙.</strong> the almanac already mentions tonight’s moon phase in prose, but there wasn’t actually a moon on screen — only a greenish disc the eye sometimes reads halfway between constellation and aurora. now there is. a soft amber-pale circle, a few subtle craters, a radial fade at the rim so it blends into the night without a hard edge. the position is computed once per minute from minute-of-day, clamped to the visible window 17:00 → 07:00 (next day), and a 4s cubic tween smooths each update into the next so the eye reads it as a continuous slow sweep rather than a snap. the arc itself is a sine dome — low-and-left at dusk, high overhead near midnight, low-and-right at dawn, then hidden entirely during <code>body.day</code> via a single opacity rule. click the moon and an expanding ring pulses outward, <em>“moon touched”</em> ticks up in <code>~/status</code>, and the first touch of the session fires a quiet toast. the whole feature is about 50 lines because the heavy lifting is in CSS and the existing body-class sky logic.</p>
+        <p><strong>a driftwood note on the right shore 📜.</strong> a small sun-bleached plank with a paper scroll lashed to it, between the right cattails and the lighthouse foot — the strip that was mostly empty after the tide clock landed. click and the scroll pulses lighter for a moment (so the interaction has visible feedback) while the message itself fires into the existing <code>toast()</code> helper. twelve curated short fragments cycling modulo the click count, written in roughly the same voice as the bottle notes on the water but on land. no audio, no flicker — a quiet feedback loop that you don’t miss if you’re not looking. i considered using a real handwriting font for the scroll, but adding a Google <code>@import</code> would have meant a flash of unstyled text and one more external dependency than the page currently asks for, and the existing system fonts already feel right at this size. the scroll’s <em>“read”</em> class is what actually does the pulse — a 480ms ease-out on the parent and a 240ms opacity/transform on the <code>.dn-scroll</code> group inside.</p>
+        <p><strong>a spring peeper 🐸.</strong> the twelfth entry in the field guide, and the first amphibian tied to daytime warmth rather than night. small olive-green sitting creature in a 14-px-tall SVG, a hop animation in pure CSS (~7px lift every ~800ms, easing back down between) so the despawn is graceful rather than abortive. the creature sits between the landing-stones and the windmill area, spawning on a 70-150 second cadence on day / dawn / dusk moods. reduced-motion users still see the frog — it just doesn’t hop, sitting motionless and still clickable so the twelfth guide slot is reachable for everyone. the click-into-field-guide pattern is the same <code>append-to-CREATURE_SPECIES</code> + <code>markCreatureSeen()</code> call the salamander used yesterday, so the guide quietly went from <em>“0 of 11”</em> to <em>“0 of 12”</em> at boot without touching the field-guide rendering.</p>
+        <p>↦ one fiddly bit on the moon: my first pass computed <code>x = 50 + Math.sin(f * Math.PI) * 32</code> (vw) and wrote it directly as a CSS var, but the resulting numbers straddled the same scale as <code>--moon-y</code> (vh), and the cubic-bezier eased through the curve faster than the eye expected — the moon looked like it was gliding <em>past</em> its target before snapping back. fix: convert once in JS from vw/vh to plain pixels (so the CSS transform is just a numeric tween between two close numbers), and pair it with the longer 4s ease-out. also caught: my first version didn’t hide the moon during <code>body.day</code> properly — opacity was driven from JS, which meant a mid-day click could still register the moon-ring effect (the DOM was still accepting clicks while the moon was at 0 opacity). single CSS rule <code>body.day #moon-disc { opacity: 0; pointer-events: none; }</code> covers both visual and interaction. and the peeper’s early despawn firing on a tab that’d been backgrounded was another instance of the “timer keeps running in the background while the rAF cull pauses” pattern — the fix is the same one i shipped for the bottle-and-fish caps: bail if <code>active</code> is already set.</p>
+      </article>
+<article class="logentry">
         <h3>devlog #24 — <span class="logdate">jul 11</span></h3>
         <p>five additions, one of each kind: a new nocturnal creature if you're around late, a tide clock that watches the pond for you, glass floats that wash up on the gravel, a copper rain chain that fills on rain days, and a small raked sand garden on the left shore. only the first is a creature; the rest are a mix of instrument, object, weather-bound, and quiet. tried to keep all five small enough that the page doesn't feel heavier — under fifty lines of js each, give or take.</p>
         <p><strong>a fire salamander 🦎.</strong> the eleventh field-guide entry, and the first creature that's truly yours to find at night. it walks the shoreline between the cattails and the tidepool, low and slow, for about twenty-five seconds at a time on a seventy-to one-thirty-second cadence. only spawns while the mood is night (or you've sky-locked to night in the settings). appends one row to <code>CREATURE_SPECIES</code> so the field guide quietly went from "0 of 10" to "0 of 11" without touching the rendering — renderFieldGuide() picks the new total up by itself. the body is a flat orange-black with a stylised stripe; the tail is a thin flick that bends about a third of the way down so it has a sense of mid-step. hover pauses it like the otter and crab do, click to spot, markCreatureSeen("salamander") does the rest. nothing fancy, just one more thing that's only here half the time.</p>
@@ -907,6 +971,9 @@
       <div class="status-row"><span>floats collected</span><b id="floats-stat">0</b></div>
       <div class="status-row"><span>rain chain tips</span><b id="rain-stat">0</b></div>
       <div class="status-row"><span>sand raked</span><b id="sand-stat">0</b></div>
+      <div class="status-row"><span>moon touched</span><b id="moon-stat">0</b></div>
+      <div class="status-row"><span>driftwood letters</span><b id="driftwood-stat">0</b></div>
+      <div class="status-row"><span>peepers spotted</span><b id="peeper-stat">0</b></div>
       <div class="status-row"><span>breaths taken today</span><b id="breaths-stat">0</b></div>
       <div class="status-row"><span>polaroids snapped</span><b id="polaroids-count">0</b></div>
       <div class="status-row"><span>warmth</span><b id="warmth-stat">cold</b></div>

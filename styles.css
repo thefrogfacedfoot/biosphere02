@@ -3897,3 +3897,149 @@ body.motion-reduced .glass-float { transition: opacity 800ms ease; }
 body.motion-reduced .salamander { display: none !important; }
 body.motion-reduced .salamander-leg { animation: none; }
 body.stargazer .salamander { opacity: 0.5; }
+
+
+/* ============================================================
+   devlog #25 — jul 12
+   three additions: a pale moon hovering in the upper sky (the
+   visual companion to the existing almanac moon-phase text),
+   a driftwood note lashed to a sun-bleached plank on the right
+   shore (with a curated letter pool that cycles on click), and
+   a small spring peeper — the 12th CREATURE_SPECIES entry, and
+   the first amphibian tied to daytime warmth rather than night.
+   visual / textual / creature mix, no overlaps with the
+   existing shore elements.
+   ============================================================ */
+
+/* ---- moon disc in the upper sky (right pane of the desktop) ----
+   the moon's bottom-right corner is anchored at top:6vh, left:50vw,
+   and the JS writes --moon-x and --moon-y (pixels, after vw/vh
+   conversion) once per minute. the 4s cubic tween smooths each
+   update into the next so reads as a single continuous arc rather
+   than a snap. body.day zeros opacity + pointer-events so a click
+   on the sunny sky can never trigger the moon. */
+#moon-disc {
+  position: fixed;
+  top: 6vh;
+  left: 50vw;
+  width: 40px;
+  height: 40px;
+  z-index: 2;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(calc(var(--moon-x, 0px) - 20px), var(--moon-y, 0px));
+  transition: transform 4000ms cubic-bezier(.4, 0, .3, 1),
+              opacity 1200ms ease-out;
+  will-change: transform, opacity;
+}
+#moon-disc .moon-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+#moon-disc .moon-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  border: 1px solid rgba(244, 244, 226, 0.78);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+}
+#moon-disc .moon-ring.spin {
+  animation: moon-ring 880ms ease-out;
+}
+@keyframes moon-ring {
+  0%   { opacity: 0.9; transform: translate(-50%, -50%) scale(0.4); }
+  100% { opacity: 0;   transform: translate(-50%, -50%) scale(6.0); }
+}
+body.dusk  #moon-disc,
+body.night #moon-disc,
+body.dawn  #moon-disc { opacity: 0.96; pointer-events: auto; }
+body.stargazer #moon-disc { display: none; }
+body.motion-reduced #moon-disc { transition: opacity 600ms; }
+body.motion-reduced #moon-disc .moon-ring.spin { animation-duration: 0ms; }
+
+/* ---- driftwood note on the right shore ----
+   a small wooden plank with a paper scroll lashed to it, between
+   the right cattails and the lighthouse foot. click cycles through
+   12 short notes (in toast). the scroll has a brief read-pulse
+   via opacity + slight lift so the interaction has feedback even
+   when audio is muted. */
+#driftwood-note {
+  position: fixed;
+  right: 17vw;
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 60px;
+  height: 24px;
+  z-index: 3;
+  cursor: pointer;
+  transition: transform 320ms ease-out;
+}
+#driftwood-note:hover {
+  transform: translateY(-2px) rotate(-1.4deg);
+}
+#driftwood-note .dn-svg { display: block; width: 100%; height: 100%; }
+#driftwood-note .dn-scroll {
+  transition: opacity 240ms ease-out, transform 320ms ease-out;
+  transform-origin: 30px 8.5px;
+}
+#driftwood-note.read .dn-scroll {
+  opacity: 0.72;
+  transform: translateY(-0.6px) rotate(-1deg) scale(1.04);
+}
+#driftwood-note.read { animation: dn-pulse 480ms ease-out; }
+@keyframes dn-pulse {
+  0%   { transform: translateY(0)    rotate(0); }
+  35%  { transform: translateY(-3px) rotate(-2deg); }
+  100% { transform: translateY(0)    rotate(0); }
+}
+body.motion-reduced #driftwood-note,
+body.motion-reduced #driftwood-note .dn-scroll {
+  transition: none;
+  animation: none !important;
+}
+
+/* ---- spring peepers (12th creature) ----
+   the host is the strip across the shore line; each spawn lands
+   at a random --peeper-x along the 0..100vw band. the hop keyframe
+   lifts ~7px and bobs (~800ms cadence); reduced-motion keeps the
+   frog in place so the click is still possible. */
+#peepers {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(38px + var(--pond-h) - 2px);
+  height: 16px;
+  z-index: 3;
+  pointer-events: none;
+}
+.peeper {
+  position: absolute;
+  bottom: 0;
+  left: var(--peeper-x, 50vw);
+  width: 14px;
+  height: 11px;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: peeper-hop 1.6s ease-in-out infinite;
+  transition: transform 320ms ease-out, opacity 320ms ease-out;
+}
+.peeper:hover { animation-play-state: paused; }
+.peeper .peeper-svg { display: block; width: 100%; height: 100%; }
+@keyframes peeper-hop {
+  0%   { transform: translateY(0)    scaleY(1); }
+  25%  { transform: translateY(-7px) scaleY(1.06); }
+  50%  { transform: translateY(-3px) scaleY(0.94); }
+  75%  { transform: translateY(-7px) scaleY(1.06); }
+  100% { transform: translateY(0)    scaleY(1); }
+}
+body.motion-reduced .peeper {
+  animation: none;
+  transform: translateY(-3px);
+}
