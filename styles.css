@@ -2912,7 +2912,10 @@ body.stargazer #ferns { opacity: 0.55; }
 #wishing-tree, #dandelion, #cattails, #dock, #bench,
 #firefly-jar, #wind-vane, #wind-chime, #moonflower, #sundial,
 #swing, #nest, #cairn, #lighthouse, .fox, .snail,
-#rowboat, #ferns, .stepstone {
+#rowboat, #ferns, .stepstone,
+/* devlog #31 — five new shore/sky elements added in #31 share the
+   tide-wobble transition so they shift smoothly with --pond-h. */
+#listening-conch, #pebble-bowl, #bead-strand, #mini-bonsai, #sky-lantern {
   transition: bottom 1100ms ease, left 1100ms ease, right 1100ms ease, top 1100ms ease;
 }
 
@@ -5062,3 +5065,172 @@ body.stargazer .lightning-stat-wrap,
 body.stargazer .pond-mist-stat-wrap,
 body.stargazer .milkyway-stat-wrap,
 body.stargazer .firefly-dance-stat-wrap { opacity: 0.55; }
+
+/* ==== devlog #31 — listening conch, pebble bowl, bead strand, mini bonsai, sky paper lantern ==== */
+
+/* ---- listening conch ----
+   a small spiral shell on the right shore, just left of the resin
+   censer. .listening flips the spire into a continuous 3.2s rotation
+   and brightens the inner gleam on a 1.6s alternate pulse; both stop
+   under body.motion-reduced so the visual feedback collapses to the
+   gleam alone. */
+#listening-conch {
+  position: fixed;
+  right: 290px;
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 36px; height: 28px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 220ms ease, filter 220ms ease;
+}
+#listening-conch:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(168, 224, 230, 0.7)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.lc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#listening-conch.listening .lc-spire { animation: lc-rotate 3.2s linear infinite; transform-origin: 18px 19px; }
+#listening-conch.listening .lc-gleam { fill: rgba(168, 224, 230, 0.85); animation: lc-gleam 1.6s ease-in-out infinite alternate; }
+@keyframes lc-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes lc-gleam { from { opacity: 0.55; } to { opacity: 0.95; } }
+body.motion-reduced #listening-conch.listening .lc-spire { animation: none; }
+body.motion-reduced #listening-conch.listening .lc-gleam { animation: none; }
+body.stargazer #listening-conch { opacity: 0.55; }
+
+/* ---- pebble bowl ----
+   clay-rimmed bowl on the lower shore, between the swing and dock.
+   .pb-fill drives the one-shot 320ms drop-in animation on a fresh
+   pebble. .drifting flips the wrapped svg into the 6.4s drift-away
+   keyframe (translate up-right while fading); pointer-events go off
+   during the animation so the bowl can't be re-clicked mid-flight. */
+#pebble-bowl {
+  position: fixed;
+  left: 568px;
+  bottom: calc(38px + var(--pond-h) - 6px);
+  width: 36px; height: 22px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#pebble-bowl:hover { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(220, 200, 170, 0.6)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.pb-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pb-pebbles ellipse { pointer-events: none; }
+.pb-pebbles ellipse.pb-fill { animation: pb-drop 320ms cubic-bezier(.2,.8,.3,1); }
+@keyframes pb-drop { from { transform: translateY(-14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+#pebble-bowl.drifting { animation: pb-drift 6.4s cubic-bezier(.3,.2,.6,1) forwards; transition: none; pointer-events: none; }
+@keyframes pb-drift {
+  0%   { transform: translate(0,0)         rotate(0deg);  opacity: 1; }
+  60%  { transform: translate(60px, -8px)  rotate(-3deg); opacity: 1; }
+  100% { transform: translate(220px, -28px) rotate(-7deg); opacity: 0; }
+}
+body.motion-reduced #pebble-bowl .pb-pebbles ellipse.pb-fill { animation: none; }
+body.motion-reduced #pebble-bowl.drifting { animation: none; opacity: 0; }
+body.stargazer #pebble-bowl { opacity: 0.55; }
+
+/* ---- frost glass bead strand ----
+   9 iridescent beads hanging on a thin chain just left of the rowboat
+   at the dock end. .bs-pulse is a 540ms scale+opacity keyframe; js
+   staggers it on every outward neighbour via setTimeout so the visual
+   frame budget stays flat regardless of click cadence. */
+#bead-strand {
+  position: fixed;
+  left: calc(50% - 36px);
+  bottom: calc(38px + var(--pond-h) - 48px);
+  width: 36px; height: 64px;
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+.bs-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.bs-beads ellipse { cursor: pointer; pointer-events: auto; transition: filter 200ms ease; transform-box: fill-box; transform-origin: center; }
+.bs-beads ellipse:hover { filter: brightness(1.45); }
+.bs-beads ellipse.bs-pulse { animation: bs-pulse 540ms ease-out; }
+@keyframes bs-pulse {
+  0%   { transform: scale(1.7); opacity: 1;    }
+  100% { transform: scale(1.0); opacity: 0.88; }
+}
+body.motion-reduced .bs-beads ellipse.bs-pulse { animation: none; }
+body.stargazer #bead-strand { opacity: 0.55; }
+
+/* ---- mini bonsai ----
+   terracotta pot just left of the dock area. .mb-frond sits at
+   scale 0.4 + opacity 0 until .unfurled flips in - then a 1.4s cubic
+   keyframe runs once per earned frond. transform-origin at 50% 100%
+   so the canopy grows up-and-outward from the trunk tip. */
+#mini-bonsai {
+  position: fixed;
+  left: calc(50% - 220px);
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 30px; height: 36px;
+  z-index: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+.mb-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.mb-frond { pointer-events: none; opacity: 0; transform: scale(0.4); transform-box: fill-box; transform-origin: 50% 100%; }
+.mb-frond.unfurled { animation: mb-unfurl 1.4s cubic-bezier(.2,.8,.3,1) forwards; }
+@keyframes mb-unfurl { to { opacity: 0.95; transform: scale(1); } }
+body.motion-reduced .mb-frond { animation: none !important; opacity: 0.95 !important; transform: scale(1) !important; }
+body.stargazer #mini-bonsai { opacity: 0.55; }
+
+/* ---- sky paper lantern ----
+   cream-paper lantern on a stake, right shore. .sl-lantern on the
+   lantern body breathes on a 2.4s alternate pulse while waiting. the
+   .released class on a CLONE (set by js, not the source) drives the
+   7s upward-flight keyframe so the original stays mounted for
+   re-release. */
+#sky-lantern {
+  position: fixed;
+  right: 230px;
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 28px; height: 36px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#sky-lantern:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(255, 226, 158, 0.7)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.sl-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sl-svg .sl-lantern { animation: sl-pulse 2.4s ease-in-out infinite alternate; }
+@keyframes sl-pulse { from { opacity: 0.72; } to { opacity: 1.0; } }
+/* scope by class, not #id, because the js cloneNode pathway strips
+   the source id first. if the clone carried .released but no #sky-lantern
+   id, it would never match a #id selector and would silently sit. */
+.sl-flight.released { animation: sl-fly 7s cubic-bezier(.3,.2,.6,1) forwards; pointer-events: none; }
+@keyframes sl-fly {
+  0%   { transform: translate(0,0)          rotate(0deg);  opacity: 1;    }
+  30%  { transform: translate(-22px, -140px) rotate(-4deg);  opacity: 1;    }
+  60%  { transform: translate(18px, -300px)  rotate(3deg);   opacity: 0.92; }
+  100% { transform: translate(-12px, -480px) rotate(-2deg);  opacity: 0;    }
+}
+body.motion-reduced #sky-lantern .sl-svg .sl-lantern { animation: none; }
+body.motion-reduced #sky-lantern.released { animation: none; opacity: 0; }
+body.stargazer #sky-lantern { opacity: 0.55; }
+
+/* ---- devlog #31 stat wraps ----
+   second row (bottom:64px) above the existing 5 devlog-#30 wraps at
+   bottom:80px. same color/typography/font-size/spacing as the row
+   above; just a different bottom offset and a second vw-step
+   ladder so the 10 counters share one band but never overlap. */
+.conch-stat-wrap, .pebble-stat-wrap, .bonsai-stat-wrap, .beads-stat-wrap, .lantern-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+}
+.conch-stat-wrap   { bottom: 64px; left: 5vw;  }
+.pebble-stat-wrap  { bottom: 64px; left: 18vw; }
+.bonsai-stat-wrap  { bottom: 64px; left: 34vw; }
+.beads-stat-wrap   { bottom: 64px; left: 50vw; }
+.lantern-stat-wrap { bottom: 64px; left: 66vw; }
+.conch-stat-wrap #conch-stat,
+.pebble-stat-wrap #pebble-stat,
+.bonsai-stat-wrap #bonsai-stat,
+.beads-stat-wrap #beads-stat,
+.lantern-stat-wrap #lantern-stat { color: var(--moss); margin-left: 4px; }
+body.stargazer .conch-stat-wrap,
+body.stargazer .pebble-stat-wrap,
+body.stargazer .bonsai-stat-wrap,
+body.stargazer .beads-stat-wrap,
+body.stargazer .lantern-stat-wrap { opacity: 0.5; }

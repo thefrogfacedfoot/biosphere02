@@ -9466,3 +9466,496 @@ if (typeof censerState === "object" && censerState != null) {
   }
 }
 
+
+/* ============================================================
+   devlog #31 — five non-creature features:
+     listening conch, pebble bowl, frost bead strand,
+     mini bonsai, sky paper lantern
+   each is a self-contained block that reads from existing state
+   (body class, plant.water, settings.mute, body.wind-gust). the
+   shared ambient audio context is created once near the top of
+   this region and gently armed on the first pointerdown so no
+   feature fights the browser autoplay policy on its own.
+   ============================================================ */
+
+/* ---- shared ambient audio pool ----
+   a single AudioContext for the conch and the bead strand. mirrors
+   the cricket-chorus pattern: suspended until pointerdown arms it,
+   then resume. if it already exists, return early. we deliberately
+   do NOT piggyback on orbit's context because orbit stops its drone
+   cleanly via a fade and we don't want a sea-swell to lose its
+   tail to that fade. */
+const _ambientCtxRef = { ctx: null, armed: false, armedAt: 0 };
+function ensureAmbientCtx() {
+  if (_ambientCtxRef.ctx) return _ambientCtxRef.ctx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  try { _ambientCtxRef.ctx = new AC(); }
+  catch (e) { _ambientCtxRef.ctx = null; return null; }
+  const arm = () => {
+    _ambientCtxRef.armed = true;
+    _ambientCtxRef.armedAt = performance.now();
+    if (_ambientCtxRef.ctx && _ambientCtxRef.ctx.state === "suspended") {
+      _ambientCtxRef.ctx.resume().catch(() => {});
+    }
+    document.removeEventListener("pointerdown", arm, true);
+  };
+  document.addEventListener("pointerdown", arm, true);
+  return _ambientCtxRef.ctx;
+}
+// resume on tab focus so a returning user doesn't hear the swirl
+// drop out mid-tail after backgrounding their tab.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && _ambientCtxRef.armed && _ambientCtxRef.ctx && _ambientCtxRef.ctx.state === "suspended") {
+    _ambientCtxRef.ctx.resume().catch(() => {});
+  }
+});
+
+/* ---- 1) listening conch ----
+   pink noise via 7-stage voss-mccartney (same algorithm pkd used to
+   shape his wind-gust); low-pass at ~360Hz trims the high end so
+   the result reads as "a swell inside the shell" not "your fan's
+   bearings". the source.start() is offset by 12ms so the very first
+   ramp skips the noisy opening tail (v0 sample error). */
+const CONCH_KEY = "biosphere02.conch.v1";
+let conchListened = 0;
+try { conchListened = +(localStorage.getItem(CONCH_KEY) || 0); } catch {}
+const conchEl = document.getElementById("listening-conch");
+function renderConchStat() {
+  const el = document.getElementById("conch-stat");
+  if (el) el.textContent = conchListened;
+}
+// schedules the actual swell on a ctx. wraps the buffer creation in a
+// helper so playConch(dur) can defer to ctx.resume() (async) before
+// starting the source - the first user click IS the autoplay-arm
+// gesture so resume() resolves immediately, but we still need to
+// await it so the source.start() lands on a running context.
+function _scheduleConchSwell(ctx, dur) {
+  const sr = ctx.sampleRate;
+  const len = Math.floor(sr * dur);
+  const buf = ctx.createBuffer(1, len, sr);
+  const data = buf.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    b0 = 0.99886 * b0 + w * 0.0555179;
+    b1 = 0.99332 * b1 + w * 0.0750759;
+    b2 = 0.96900 * b2 + w * 0.1538520;
+    b3 = 0.86650 * b3 + w * 0.3104856;
+    b4 = 0.55000 * b4 + w * 0.5329522;
+    b5 = -0.7616 * b5 - w * 0.0168980;
+    const pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362;
+    b6 = w * 0.115926;
+    data[i] = pink * 0.05;
+  }
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 320 + Math.random() * 80;
+  lp.Q.value = 0.6;
+  const g = ctx.createGain();
+  const now = ctx.currentTime;
+  g.gain.value = 0;
+  g.gain.linearRampToValueAtTime(0.045, now + dur * 0.18);
+  g.gain.linearRampToValueAtTime(0.035, now + dur * 0.55);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+  src.connect(lp).connect(g).connect(ctx.destination);
+  // offset start by ~12ms so the first frame is past the v0 noise floor
+  src.start(now + 0.012);
+  src.stop(now + dur + 0.05);
+}
+function playConch(dur) {
+  const ctx = ensureAmbientCtx();
+  if (!ctx) return;
+  // the click event itself arms the lazy ctx via the pointerdown handler
+  // (set up inside ensureAmbientCtx) - this handler runs after it because
+  // pointerdown fires before click. if the ctx is still suspended though,
+  // source.start() would no-op; await resume() before scheduling.
+  if (ctx.state === "suspended") {
+    ctx.resume().then(() => _scheduleConchSwell(ctx, dur)).catch(() => {});
+    return;
+  }
+  _scheduleConchSwell(ctx, dur);
+}
+renderConchStat();
+if (conchEl) {
+  conchEl.addEventListener("click", () => {
+    if (typeof settings !== "undefined" && settings.mute) {
+      if (typeof toast === "function") toast("audio is muted — toggle in settings ⚙");
+      return;
+    }
+    conchListened++;
+    try { localStorage.setItem(CONCH_KEY, String(conchListened)); } catch {}
+    renderConchStat();
+    conchEl.classList.remove("listening");
+    void conchEl.offsetWidth;
+    conchEl.classList.add("listening");
+    const dur = 7.5 + Math.random() * 5;
+    setTimeout(() => conchEl.classList.remove("listening"), dur * 1000 + 200);
+    playConch(dur);
+    if (conchListened === 1) {
+      if (typeof toast === "function") toast("a small swell inside the shell", 2400);
+    } else if (conchListened === 13) {
+      if (typeof toast === "function") toast("thirteen waves — the shell keeps a tally", 2400);
+    }
+  });
+}
+
+/* ---- 2) pebble bowl ----
+   two separate localStorage keys: PEBBLE_KEY counts the LIFETIME
+   tally of pebbles set adrift; PEBBLE_STATE_KEY holds the in-flight
+   state ({pebbles, drifting}). without the split, a reload with 12
+   pebbles in the bowl would ALSO add 12 to the lifetime counter
+   (because the drift logic later summed stones in state on reset).
+   pebbles (12 hardcoded shapes) get deterministic pose/color so
+   position N from the left always looks like the same stone. */
+const PEBBLE_CAP = 12;
+const PEBBLE_KEY = "biosphere02.pebbles.v1";
+const PEBBLE_STATE_KEY = "biosphere02.bowl-state.v2";
+let pebblesDrifted = 0;
+try { pebblesDrifted = +(localStorage.getItem(PEBBLE_KEY) || 0); } catch {}
+let bowlState = {};
+try { bowlState = JSON.parse(localStorage.getItem(PEBBLE_STATE_KEY) || "{}") || {}; } catch { bowlState = {}; }
+if (typeof bowlState.pebbles !== "number" || isNaN(bowlState.pebbles)) bowlState.pebbles = 0;
+if (typeof bowlState.drifting !== "boolean") bowlState.drifting = false;
+// self-heal: a reload mid-drift wipes the 6500ms timeout but leaves
+// bowlState.drifting=true in storage. without this pass, the bowl
+// would render empty + stick at opacity:0 forever. treat stale
+// drift as "the animation completed; record the in-flight pebbles
+// to the lifetime tally and reset state to a clean slate."
+if (bowlState.drifting) {
+  if (bowlState.pebbles > 0) {
+    pebblesDrifted += Math.min(bowlState.pebbles, PEBBLE_CAP);
+    try { localStorage.setItem(PEBBLE_KEY, String(pebblesDrifted)); } catch {}
+  }
+  bowlState = { pebbles: 0, drifting: false };
+  try { localStorage.setItem(PEBBLE_STATE_KEY, JSON.stringify(bowlState)); } catch {}
+}
+const pebblePebble = [
+  ["#cfc2a8", 6.4, 11, 1.7], ["#b8a989", 6.1, 13, -1.2], ["#a89882", 6.7, 9, 1.2],
+  ["#9a8a72", 6.9, 12, -0.6], ["#d0c4b0", 6.3, 10, 1.0], ["#aa9878", 6.5, 14, -1.6],
+  ["#bfae95", 6.6, 8, 0.8], ["#9e8e76", 6.2, 11, -1.0], ["#cabfa8", 6.4, 13, 1.4],
+  ["#988870", 6.5, 9, -0.8], ["#b8a888", 6.7, 12, 1.2], ["#a89678", 6.3, 10, -1.5],
+];
+const pebbleBowlEl = document.getElementById("pebble-bowl");
+const pebbleHost = document.getElementById("pb-pebbles");
+function saveBowlState() {
+  try { localStorage.setItem(PEBBLE_STATE_KEY, JSON.stringify(bowlState)); } catch {}
+}
+function renderBowl() {
+  if (!pebbleHost) return;
+  pebbleHost.innerHTML = "";
+  if (bowlState.drifting) return; // pebbles drift out with the bowl, no need to render
+  const n = Math.min(bowlState.pebbles, PEBBLE_CAP);
+  for (let i = 0; i < n; i++) {
+    const [fill, cx, cy, rot] = pebblePebble[i];
+    const el = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    el.setAttribute("cx", cx); el.setAttribute("cy", cy);
+    el.setAttribute("rx", 1.7); el.setAttribute("ry", 1.1);
+    el.setAttribute("fill", fill);
+    el.setAttribute("transform", `rotate(${rot} ${cx} ${cy})`);
+    pebbleHost.appendChild(el);
+  }
+}
+function renderPebbleStat() {
+  const el = document.getElementById("pebble-stat");
+  if (el) el.textContent = pebblesDrifted;
+}
+function tipBowlDrift() {
+  bowlState.drifting = true;
+  saveBowlState();
+  if (pebbleBowlEl) pebbleBowlEl.classList.add("drifting");
+  setTimeout(() => {
+    const n = Math.min(bowlState.pebbles, PEBBLE_CAP);
+    if (n > 0) {
+      pebblesDrifted += n;
+      try { localStorage.setItem(PEBBLE_KEY, String(pebblesDrifted)); } catch {}
+      renderPebbleStat();
+    }
+    bowlState.pebbles = 0;
+    bowlState.drifting = false;
+    saveBowlState();
+    if (pebbleBowlEl) pebbleBowlEl.classList.remove("drifting");
+    renderBowl();
+  }, 6500);
+}
+renderBowl();
+renderPebbleStat();
+if (pebbleBowlEl) {
+  pebbleBowlEl.addEventListener("click", () => {
+    if (bowlState.drifting) return;
+    if (bowlState.pebbles >= PEBBLE_CAP) {
+      if (typeof toast === "function") toast("the bowl is full · wait for a gust", 1800);
+      return;
+    }
+    bowlState.pebbles++;
+    saveBowlState();
+    renderBowl();
+    const fresh = pebbleHost.lastElementChild;
+    if (fresh) {
+      fresh.classList.add("pb-fill");
+      setTimeout(() => { if (fresh && fresh.classList) fresh.classList.remove("pb-fill"); }, 360);
+    }
+    if (bowlState.pebbles === PEBBLE_CAP) {
+      if (typeof toast === "function") toast("the bowl is full · a gust will set it adrift", 2800);
+    }
+  });
+}
+// watcher: when bowl fills 12 and body.wind-gust is on, dump the bowl.
+// mirrors the wind-chime pattern (a MutationObserver on body class)
+// rather than polling on a setInterval. triggers within ms of the
+// body class flipping, with no per-page-load timer on top of everything
+// else already running.
+(function watchBowlDriftAway() {
+  const trigger = () => {
+    if (!bowlState || bowlState.drifting) return;
+    if (bowlState.pebbles < PEBBLE_CAP) return;
+    if (!document.body.classList.contains("wind-gust")) return;
+    tipBowlDrift();
+  };
+  new MutationObserver(trigger).observe(document.body, {
+    attributes: true, attributeFilter: ["class"],
+  });
+})();
+
+/* ---- 3) frost glass bead strand ----
+   init builds 9 beads with inline radialGradients (one per bead so a
+   browser can cache it as part of the same render pass). each click
+   pulses the source bead AND successively outer beads via staggered
+   setTimeouts (every 70ms). audio: a fresh oscillator per ping -
+   cheap because pings are 1.2s, and overlapping taps stack their
+   tones instead of queueing. */
+const BEAD_KEY = "biosphere02.beads.v1";
+let beadsTapped = 0;
+try { beadsTapped = +(localStorage.getItem(BEAD_KEY) || 0); } catch {}
+const beadHost = document.getElementById("bs-beads");
+const beadStrandEl = document.getElementById("bead-strand");
+const BEAD_COUNT = 9;
+const beadColors = [
+  ["#e6f6ff", "#7daac8"], ["#e8e6ff", "#8a8ec8"], ["#ffe6fa", "#c88ab8"],
+  ["#e6fff2", "#7dc8a8"], ["#fffae6", "#c8b87d"], ["#e6f0ff", "#7d96c8"],
+  ["#fff0e6", "#c89a7d"], ["#ffe6e6", "#c87d7d"], ["#e6e6ff", "#7d7dc8"],
+];
+const SVG_NS = "http://www.w3.org/2000/svg";
+function renderBeadStrand() {
+  if (!beadHost) return;
+  beadHost.innerHTML = "";
+  // make sure the parent svg has defs to host the inline gradients
+  const svg = beadHost.ownerSVGElement || beadStrandEl && beadStrandEl.querySelector("svg");
+  let defs = svg && svg.querySelector("defs");
+  if (svg && !defs) { defs = document.createElementNS(SVG_NS, "defs"); svg.insertBefore(defs, beadHost); }
+  for (let i = 0; i < BEAD_COUNT; i++) {
+    const [c1, c2] = beadColors[i];
+    if (defs && !defs.querySelector("#bsGrad" + i)) {
+      const grad = document.createElementNS(SVG_NS, "radialGradient");
+      grad.setAttribute("id", "bsGrad" + i);
+      grad.setAttribute("cx", "32%"); grad.setAttribute("cy", "28%"); grad.setAttribute("r", "70%");
+      const s1 = document.createElementNS(SVG_NS, "stop");
+      s1.setAttribute("offset", "0%"); s1.setAttribute("stop-color", c1);
+      const s2 = document.createElementNS(SVG_NS, "stop");
+      s2.setAttribute("offset", "100%"); s2.setAttribute("stop-color", c2);
+      grad.appendChild(s1); grad.appendChild(s2);
+      defs.appendChild(grad);
+    }
+    const el = document.createElementNS(SVG_NS, "ellipse");
+    el.setAttribute("cx", "18");
+    el.setAttribute("cy", String(6 + i * 5.6));
+    el.setAttribute("rx", "2.4");
+    el.setAttribute("ry", "2.0");
+    el.setAttribute("fill", "url(#bsGrad" + i + ")");
+    el.dataset.idx = String(i);
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = +el.dataset.idx;
+      pulseBead(idx);
+    });
+    beadHost.appendChild(el);
+  }
+}
+function renderBeadStat() {
+  const el = document.getElementById("beads-stat");
+  if (el) el.textContent = beadsTapped;
+}
+function pulseBead(idx) {
+  if (!beadHost) return;
+  beadsTapped++;
+  try { localStorage.setItem(BEAD_KEY, String(beadsTapped)); } catch {}
+  renderBeadStat();
+  const allBeads = Array.from(beadHost.children);
+  const sourceBead = allBeads[idx];
+  if (!sourceBead) return;
+  if (!(typeof settings !== "undefined" && settings.mute)) {
+    playBeadPing(idx);
+  }
+  sourceBead.classList.remove("bs-pulse");
+  void sourceBead.offsetWidth;
+  sourceBead.classList.add("bs-pulse");
+  // outward pulse both directions
+  const orderUp = []; for (let i = idx + 1; i < BEAD_COUNT; i++) orderUp.push(i);
+  const orderDown = []; for (let i = idx - 1; i >= 0; i--) orderDown.push(i);
+  let delay = 80;
+  orderUp.forEach((j) => {
+    setTimeout(() => {
+      const b = allBeads[j]; if (!b) return;
+      b.classList.remove("bs-pulse"); void b.offsetWidth; b.classList.add("bs-pulse");
+    }, delay);
+    delay += 70;
+  });
+  delay = 80;
+  orderDown.forEach((j) => {
+    setTimeout(() => {
+      const b = allBeads[j]; if (!b) return;
+      b.classList.remove("bs-pulse"); void b.offsetWidth; b.classList.add("bs-pulse");
+    }, delay);
+    delay += 70;
+  });
+}
+function playBeadPing(idx) {
+  const ctx = ensureAmbientCtx();
+  if (!ctx || !_ambientCtxRef.armed) return;
+  const freq = 660 + (BEAD_COUNT - 1 - idx) * 88; // higher toward top
+  const o = ctx.createOscillator();
+  o.type = "sine";
+  o.frequency.value = freq;
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  const now = ctx.currentTime;
+  g.gain.linearRampToValueAtTime(0.032, now + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+  o.connect(g).connect(ctx.destination);
+  o.start(now); o.stop(now + 1.3);
+}
+renderBeadStrand();
+renderBeadStat();
+
+/* ---- 4) mini bonsai ----
+   grows one frond every 30 water-clicks of the existing plant.
+   reads plant.water as the source of truth (no separate counter)
+   so the bonsai and the greenhouse stay in lock-step. cap 3 fronds.
+   the bonsai host itself is rendered once on script init; .mb-frond
+   elements get an .unfurled class once they're earned, which kicks
+   off a 1.4s css keyframe per earn. */
+const BONSAI_KEY = "biosphere02.bonsai.v1";
+const BONSAI_CAP = 3;
+// derive from plant.water first (the source of truth) so a fresh load
+// is in lock-step with the greenhouse plant's counter; the reset-plant
+// button zeros plant.water, and we re-derive bonsai from that zero on
+// the next reload. saved value is just a cache: write it back below.
+let bonsaiFronds;
+if (typeof plant !== "undefined" && plant && typeof plant.water === "number") {
+  bonsaiFronds = Math.min(BONSAI_CAP, Math.floor(plant.water / 30));
+} else {
+  bonsaiFronds = Math.min(BONSAI_CAP, +(localStorage.getItem(BONSAI_KEY) || 0) || 0);
+}
+try { localStorage.setItem(BONSAI_KEY, String(bonsaiFronds)); } catch {}
+const bonsaiHost = document.getElementById("mb-fronds");
+const bonsaiEl = document.getElementById("mini-bonsai");
+const bonsaiFrondShapes = [
+  // [rotDeg, fill] — index 0 points left, 1 up, 2 right
+  [-46, "#7fc78d"], [0, "#6cb37e"], [46, "#5da06a"],
+];
+function renderBonsai() {
+  if (!bonsaiHost) return;
+  bonsaiHost.innerHTML = "";
+  for (let i = 0; i < bonsaiFronds; i++) {
+    const [rot, fill] = bonsaiFrondShapes[i] || bonsaiFrondShapes[0];
+    const el = document.createElementNS(SVG_NS, "ellipse");
+    el.setAttribute("cx", "15");
+    el.setAttribute("cy", "11");
+    el.setAttribute("rx", "7.4");
+    el.setAttribute("ry", "3.4");
+    el.setAttribute("fill", fill);
+    el.classList.add("mb-frond");
+    el.setAttribute("transform", `rotate(${rot} 15 14)`);
+    bonsaiHost.appendChild(el);
+    // need a reflow between append and class-add so the css keyframe
+    // fires once per frond on first paint
+    void el.getBoundingClientRect();
+    el.classList.add("unfurled");
+  }
+}
+function renderBonsaiStat() {
+  const el = document.getElementById("bonsai-stat");
+  if (el) el.textContent = `${bonsaiFronds} / ${BONSAI_CAP}`;
+}
+function tryGrowBonsaiFromWater() {
+  if (bonsaiFronds >= BONSAI_CAP) return;
+  if (typeof plant === "undefined" || !plant || typeof plant.water !== "number") return;
+  // every 30 water-clicks earns one frond. the existing water handler
+  // writes plant.water before this hooking click fires (since this
+  // handler was registered on the same node AFTER the original).
+  // guard against re-counting via a session-flag so a single water click
+  // never advances the bonsai twice (we listen on the same #water node
+  // and additive listeners fire on the same event).
+  if (bonsaiFronds * 30 >= plant.water) return;
+  bonsaiFronds = Math.min(BONSAI_CAP, Math.floor(plant.water / 30));
+  try { localStorage.setItem(BONSAI_KEY, String(bonsaiFronds)); } catch {}
+  renderBonsai();
+  renderBonsaiStat();
+  if (bonsaiFronds === BONSAI_CAP) {
+    if (typeof toast === "function") toast("the bonsai is whole", 2400);
+  }
+}
+const waterBtn = document.getElementById("water");
+if (waterBtn) {
+  // attach without removing the existing handler that updates plant.water
+  // (the existing handler runs first because it's assigned first; ours
+  // runs after, when plant.water already reflects the increment).
+  waterBtn.addEventListener("click", tryGrowBonsaiFromWater);
+}
+renderBonsai();
+renderBonsaiStat();
+
+/* ---- 5) sky paper lantern ----
+   we CLONE the source node, hand it the source's right/bottom via
+   getBoundingClientRect (the inline style.right from #sky-lantern
+   reads as a CSS-relative value at +12ms after first paint and
+   would otherwise pin to the viewport left edge on the very first
+   release of a session). per-session cap of 3 in flight. */
+const LANTERN_KEY = "biosphere02.lanterns.v1";
+let lanternsFlown = 0;
+try { lanternsFlown = +(localStorage.getItem(LANTERN_KEY) || 0); } catch {}
+const skyLanternEl = document.getElementById("sky-lantern");
+let lanternsInFlight = 0;
+const LANTERN_FLIGHT_CAP = 3;
+function renderLanternStat() {
+  const el = document.getElementById("lantern-stat");
+  if (el) el.textContent = lanternsFlown;
+}
+renderLanternStat();
+if (skyLanternEl) {
+  skyLanternEl.addEventListener("click", () => {
+    if (lanternsInFlight >= LANTERN_FLIGHT_CAP) {
+      if (typeof toast === "function") toast("three lanterns are already underway", 1800);
+      return;
+    }
+    lanternsFlown++;
+    try { localStorage.setItem(LANTERN_KEY, String(lanternsFlown)); } catch {}
+    renderLanternStat();
+    lanternsInFlight++;
+    const srcRect = skyLanternEl.getBoundingClientRect();
+    const cloned = skyLanternEl.cloneNode(true);
+    cloned.removeAttribute("id");
+    cloned.style.position = "fixed";
+    cloned.style.left = srcRect.left + "px";
+    cloned.style.right = "auto";
+    cloned.style.top  = srcRect.top  + "px";
+    cloned.style.bottom = "auto";
+    cloned.style.width  = srcRect.width  + "px";
+    cloned.style.height = srcRect.height + "px";
+    document.body.appendChild(cloned);
+    // a frame later, add .released so the upward animation starts after
+    // the clone has a position. (immediate add would still work but
+    // putting the class on next paint avoids a 1-frame jump on some
+    // browsers.)
+    requestAnimationFrame(() => { cloned.classList.add("sl-flight"); cloned.classList.add("released"); });
+    setTimeout(() => {
+      cloned.remove();
+      lanternsInFlight--;
+    }, 7100);
+    if (lanternsFlown === 1) {
+      if (typeof toast === "function") toast("a paper lantern lifts off", 2200);
+    }
+  });
+}

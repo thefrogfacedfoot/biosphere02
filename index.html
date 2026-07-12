@@ -874,6 +874,92 @@
   </svg>
 </div>
 
+<!-- devlog #31 — listening conch (a small spiral shell on the right shore,
+     left of the resin censer). click to listen — pink-noise sea swell
+     plays via the shared ambient audio context (lazy, arms on first
+     pointerdown). the spire slowly rotates while listening; the inner
+     gleam illuminates. counter: listened. -->
+<div id="listening-conch" title="listen" aria-label="a listening conch">
+  <svg class="lc-svg" viewBox="0 0 36 28" aria-hidden="true">
+    <ellipse class="lc-shadow" cx="18" cy="25" rx="14" ry="2" fill="rgba(0,0,0,0.30)"/>
+    <path d="M5 22 Q5 8 18 6 Q30 8 30 22 Q30 26 18 26 Q5 26 5 22 Z" fill="#e8dcc0"/>
+    <path d="M9 21 Q9 11 18 9 Q26 11 26 21 Q26 24 18 24 Q9 24 9 21 Z" fill="#d4c49a"/>
+    <path class="lc-spire" d="M14 20 Q17 13 21 17 Q20 19 18 19 Q15 19 14 20 Z" fill="#a0825a"/>
+    <ellipse class="lc-gleam" cx="20" cy="17" rx="2.4" ry="1.2" fill="rgba(168, 224, 230, 0)" transform="rotate(35 20 17)"/>
+  </svg>
+</div>
+
+<!-- devlog #31 — pebble bowl (a small clay bowl on the lower shore, in
+     the gap between the swing and the dock area). each click drops a
+     polished pebble (svg ellipse appended into #pb-pebbles). cap 12. when
+     full, the next body.wind-gust scoops the bowl: the wrapped svg
+     drifts out across the pond in a 6.4s one-shot animation, leaving a
+     single ripple at the in-shore point. the bowl respawns empty and
+     the cumulative adrift counter ticks up by the number of pebbles.
+     counter: pebbles adrift. -->
+<div id="pebble-bowl" title="drop a pebble" aria-label="a pebble bowl">
+  <svg class="pb-svg" viewBox="0 0 36 22" aria-hidden="true">
+    <ellipse class="pb-shadow" cx="18" cy="20" rx="15" ry="2" fill="rgba(0,0,0,0.32)"/>
+    <path d="M3 8 Q3 20 18 20 Q33 20 33 8 L31 6 L5 6 Z" fill="#3a2f24"/>
+    <path d="M5 8 Q5 18 18 18 Q31 18 31 8 L29 6.5 L7 6.5 Z" fill="#5a4632"/>
+    <ellipse cx="18" cy="7" rx="13" ry="1.6" fill="#1a1408"/>
+    <g class="pb-pebbles" id="pb-pebbles"></g>
+  </svg>
+</div>
+
+<!-- devlog #31 — frost glass bead strand (a vertical line of 9 iridescent
+     glass beads hanging on a thin chain from the dock end, just left of
+     the rowboat). click a bead and a soft outward pulse sweeps the
+     strand in both directions via staggered setTimeouts; a 1.2s sine
+     ping plays at the bead's pitch (higher toward the free end).
+     shares the ambient audio context with the conch. counter: beads. -->
+<div id="bead-strand" title="tap a bead" aria-label="frost glass beads">
+  <svg class="bs-svg" viewBox="0 0 36 64" aria-hidden="true">
+    <!-- thin chain attached visually near the dock post -->
+    <line x1="18" y1="0" x2="18" y2="56" stroke="rgba(220, 230, 240, 0.35)" stroke-width="0.5"/>
+    <g class="bs-beads" id="bs-beads"></g>
+    <!-- free-end tassel -->
+    <line x1="18" y1="56" x2="18" y2="64" stroke="rgba(220, 230, 240, 0.55)" stroke-width="0.6"/>
+  </svg>
+</div>
+
+<!-- devlog #31 — mini bonsai (a terracotta pot on the lower shore, just
+     left of the dock area). different reward mechanic from the
+     greenhouse plant: bonsai fronds unlock on water clicks via a
+     shared counter — every 30 waterings of the existing plant buys
+     one new frond, capped at 3. (so a user who waters the bonsai
+     indoor-plant doesn't have to wait on calendar days; the in-app
+     state machine moves the bonsai.) fronds unfurl via a one-shot
+     css keyframe with their own transform-origin so each grows from
+     its anchored end of the trunk. counter: bonsai fronds. -->
+<div id="mini-bonsai" title="a small bonsai" aria-label="a mini bonsai">
+  <svg class="mb-svg" viewBox="0 0 30 36" aria-hidden="true">
+    <ellipse class="mb-shadow" cx="15" cy="34" rx="11" ry="1.5" fill="rgba(0,0,0,0.32)"/>
+    <path d="M7 22 L23 22 L21 32 L9 32 Z" fill="#a8542a"/>
+    <path d="M7 22 L23 22 L22 24 L8 24 Z" fill="#7a3a18"/>
+    <ellipse cx="15" cy="22" rx="8" ry="7" fill="#5a2a14"/>
+    <line x1="15" y1="22" x2="15" y2="14" stroke="#3a2415" stroke-width="1.6"/>
+    <g class="mb-fronds" id="mb-fronds"></g>
+  </svg>
+</div>
+
+<!-- devlog #31 — sky paper lantern (a small cream-paper lantern on a
+     stake on the right shore, between the resin censer and the wind
+     chime area). click inflates it briefly and releases it. we clone
+     the node and run a 7s one-shot translate+rotate+opacity animation
+     on the clone; the original stays on the stake. per-session cap
+     of 3 in flight so a lingering tab doesn't litter the upper sky
+     with stale ghosts. counter: lanterns flown. -->
+<div id="sky-lantern" title="release a lantern" aria-label="a sky paper lantern">
+  <svg class="sl-svg" viewBox="0 0 28 36" aria-hidden="true">
+    <ellipse class="sl-shadow" cx="14" cy="34" rx="8" ry="1.4" fill="rgba(0,0,0,0.32)"/>
+    <line x1="14" y1="34" x2="14" y2="20" stroke="#3a2a1a" stroke-width="1.0"/>
+    <ellipse class="sl-lantern" cx="14" cy="14" rx="9" ry="10" fill="rgba(255, 226, 158, 0.55)" stroke="rgba(180, 130, 100, 0.65)" stroke-width="0.8"/>
+    <line x1="5" y1="14" x2="23" y2="14" stroke="rgba(180, 130, 100, 0.55)" stroke-width="0.5"/>
+    <line x1="14" y1="4" x2="14" y2="24" stroke="rgba(180, 130, 100, 0.40)" stroke-width="0.5"/>
+  </svg>
+</div>
+
 <!-- host div for the luna moth (16th field-guide entry). spawned only when
      the resin censer is in its "smoldering" stage AND the sky is in night
      mood. small pale-grey moth drawn from the smoke of the censer, ventures
@@ -899,6 +985,30 @@
 <div class="runestone-stat-wrap" aria-hidden="true">
   <span>moss scraped</span>
   <span id="runestone-stat">0</span>
+</div>
+
+<!-- devlog #31 — stat wrap rows for the 5 new features. sits on a
+     second row (bottom:64px) above the 5 devlog-#30 wraps so the 10
+     counters share the same horizontal grid but never overlap. -->
+<div class="conch-stat-wrap" aria-hidden="true">
+  <span>listened</span>
+  <span id="conch-stat">0</span>
+</div>
+<div class="pebble-stat-wrap" aria-hidden="true">
+  <span>pebbles adrift</span>
+  <span id="pebble-stat">0</span>
+</div>
+<div class="bonsai-stat-wrap" aria-hidden="true">
+  <span>bonsai</span>
+  <span id="bonsai-stat">0 / 3</span>
+</div>
+<div class="beads-stat-wrap" aria-hidden="true">
+  <span>beads</span>
+  <span id="beads-stat">0</span>
+</div>
+<div class="lantern-stat-wrap" aria-hidden="true">
+  <span>lanterns flown</span>
+  <span id="lantern-stat">0</span>
 </div>
 
 <!-- devlog #29 — dawn pond mist (3 stacked sheets above the pond) -->
@@ -966,6 +1076,16 @@
     </div>
     <div class="content">
             <article class="logentry">
+        <h3>devlog #31 — <span class="logdate">jul 18</span></h3>
+        <p>five non-creature additions. tried to spread each one across a different system so they don't read as "five more shore things." one's ambient audio (sea), one collects and eventually releases on its own (pebble bowl), one tilts off the same sound-shared pool the conch uses (bead strand), one ties into an existing interaction rather than its own calendar-day mechanism (bonsai -> water), and one's a one-shot release animation with a per-session cap (sky lantern). four new stat counters and a shared ambient audio context shared between conch and beads. nothing here is a creature on purpose — sixteen creatures is plenty.</p>
+        <p><strong>listening conch 🐚.</strong> a small spiral shell on the right shore, just left of the resin censer. click and a synthesized 8-13s pink-noise swell plays, with a soft low-pass at 320-400Hz so it reads as "a little piece of ocean held in the shell" rather than "your fan's bearings." audio is its own lazy context (mirrors <code>_cricketCtxRef</code>) so it arms on the first pointerdown anywhere on the page — the cricket and the chimes both already use that pattern, but a third pool means three contexts that won't fight each other for the user's arming click. the spire rotates for the duration of the swell, and the iridescent gleam inside brightens on each cycle. counter in <code>~/stats</code>. ↦ the fiddly bit was the bell-vs-noise envelope. i had a triangle-bell first (matching the tide flute harmonic), but a 12s flat envelope reads as "industrial noise." the swell dips in over 18%, plateaus at 35% for ~38%, then exponential decay to 0.0001 — the dips make it feel like a wave passing inside the shell rather than a tone being held. also: the first playback sometimes has a click at sample-3 of the pink noise because voss-mccartney hasn't accumulated enough frame history. fix wired in: start the source 0.012s "late" so the very first ramp skips the noisy opening tail. invisible to the eye, silent to the ear.</p>
+        <p><strong>pebble bowl 🪨.</strong> a small clay bowl on the lower shore, in the gap between the swing and the dock. the rewarding mechanic is two-stage. clicks add a polished pebble (12 svg ellipses, twelve position-and-color tuples, deterministic order, so the same "nth pebble" always looks like the same pebble). when the bowl hits 12 — the cap — the next <code>body.wind-gust</code> scoops everything out. a 700ms interval polls <code>bowldState.pebbles</code> and the body class, so the boat-up animation fires within seconds of the wind class actually appearing rather than waiting for the gust to end or for any dedicated trigger. the wrapped svg drift is a single 6.4s keyframe (translate up-right, opacity to 0) and then <code>pebblesDrifted</code> ticks up by whatever count was in the bowl at the moment of release. state persists across reloads: another reload mid-drift sees a full bowl + a "drifting" flag and bails early on click handlers; the bowl respawns empty after the keyframe finishes. cap: 12. counter: pebbles adrift (cumulative across sessions). ↦ first version would have read the same pebblesDrifted number as the bowl's current state, so a reload with 12 in the bowl would <em>also</em> count 12 as "adrift" on reload — invisible, but invisible doesn't mean it doesn't accumulate. separate <code>PEBBLE_KEY</code> for the lifetime tally, separate <code>PEBBLE_STATE_KEY</code> for the in-flight count - two locals for two distinct facts.</p>
+        <p><strong>frost glass bead strand 🧵.</strong> a vertical string of 9 iridescent beads hanging from the dock end, just left of the rowboat. click a bead, a pulse-wave radiates outward in both directions (staggered setTimeout every 70ms) and a 1.2s sine ping plays at that bead's pitch. i deliberately did NOT make it a vertical rain-chain — that's the existing chain feature's lane — and a strand-with-reflecting-wave reads visually different: there's no falling drop, just beads brightening and dimming. the visual feedback for the pulse is one <code>.bs-pulse</code> class with a 540ms scale+opacity keyframe; the audio is one fresh oscillator per click so multiple short taps overlap rather than queue. counter: beads (each click ticks 1, no per-bead tracking). the 9 beads are made on init by appending 9 ellipses to the bead group, each with its own radialGradient (defined inline by id) so pearl-c1 through bead-9 has a unique tint. ↦ i tried two ideas i dropped: (a) a faint "trail" of brightness from the most-tapped bead (last-tap memory) - too much for a 64px svg, just made the whole thing look hazy; (b) a left-to-right "current wind" sway on body.wind-gust - but the strand is hanging vertically below a fixed stake, so the sway reads more like a broken thing than a wind-tied thing. settled on a clean two-way pulse which respects the strand as an instrument, not a weathervane.</p>
+        <p><strong>mini bonsai 🪴.</strong> a small terracotta pot sitting in the lower shore, just left of the dock area. the rewarding mechanic is the existing water interaction — every 30 waterings of the greenhouse plant, the bonsai grows one new frond, capped at three. this is different from the nest and the fern patch, both of which reward calendar days visited. the bonsai rewards <em>active engagement with the biosphere</em>. same source-of-truth <code>plant.water</code> as the greenhouse, just modulo 30. a thin shared hook watches each water click (the existing #water button, not a fork of the existing handler — the original watering logic runs untouched). on first paint, every frond the user has earned runs through a 1.4s <code>mb-unfurl</code> keyframe so the bonsai doesn't pop in - it grows each time the user crosses the 30-click threshold while it's still under the cap. counter: bonsai fronds out of 3. ↦ the dropped idea i still like as a future feature: a weather-bound variant where the bonsai fronds tint redder on stormy days and greener on clear days. didn't ship it because the colors are already saturated and the variant would've required reading <code>forecastFor(new Date())</code> on every paint — the gain was small and the cost was a new dependency between three feature modules. left a comment in the frond renderer for it.</p>
+        <p><strong>sky paper lantern 🎈.</strong> a small cream-paper lantern on a stake on the right shore, between the resin censer and the wind chime area. click and a clone of the lantern node flies upward through the lower sky over 7s, with a small sway via a cubic-bezier keyframe. the original stays on the stake - the lantern is a stake-mounted fixture, not a free-floating element. each clone auto-removes after its animation, and there's a per-session cap of 3 in flight - if you spam-click during a long release, the 4th click toasts "three lanterns are already underway" rather than stacking the rest of the sky with ghosts. counter: lanterns flown (cumulative across sessions). the wish tree's lanterns are stationary, the resin censer's flame is a thing that sits and breathes, the jellies are a creature, so this is the first "release into the air and let it go" feature. ↦ the bug i almost shipped: the clone took <code>skyLanternEl.style.right</code> at append time, but right after init was me seeing a 0px-positioned lantern pinned to the viewport left edge because the inherited CSS variable hadn't resolved on the inline style. right values are clamped through the source element's <code>getBoundingClientRect()</code> instead - the clone writes <code>style.right</code> from the source's actual rect right value, which always beats the not-yet-resolved CSS. invisible fix for a class of "first-release of the session looked misplaced" report.</p>
+        <p>↦ one quiet structural note across all five: they all read the body class wather than ask for it. conch reads <code>body.motion-reduced</code> for its keyframe-cap, pebble bowl reads <code>body.wind-gust</code> for its drift trigger, beads read <code>body.season-winter</code> through gate (not yet wired but left a hook), bonsai reads <code>plant.water</code> as source of truth, sky lantern reads <code>document.body.classList.contains</code> for nothing — it just runs. each of them is a self-contained block that took no edits to any existing js. the state for each lives in its own localStorage key with a v2ish prefix to disambiguate from any previous experimental saves. the shared lazy audio context is its own block at the top of the conch section and reused by the beads.</p>
+      </article>
+      <article class="logentry">
         <h3>devlog #30 — <span class="logdate">jul 17</span></h3>
         <p>four additions today, each harder than the last, and only one of them is a creature (because, honestly, fifteen creatures is plenty). the rest are an instrument that re-tunes with the tide, an instrument that reads the real-time sun, an instrument that lights another instrument on fire, and a painting on a rock that heals itself over days. three new instruments, four new stat counters, one new field-guide entry, and a dependency graph between them that i had to draw on paper before i wrote any code.</p>
         <p><strong>an auroral magnetometer 🧲.</strong> the biosphere has always claimed today's weather affects the world — meteor showers boost shoot spawns, aurora days brighten the aurora layer — but the <em>source</em> of those signals has been a deterministic per-date hash of a curated pool. the magnetometer is the first feature that reaches <em>outside</em> the browser. on load, ~6 seconds in (so it doesn't fight the first paint), it fetches the live planetary Kp from NOAA's SWPC relay at <code>services.swpc.noaa.gov/json/planetary_k_index_1m.json</code> — CORS-friendly so no proxy is needed. the brass needle rotates from -90° (west, "no reading yet") through 0° at Kp~3 (north, "quiet") round to +180° at Kp~9 (east, "major storm on the sun"). at Kp≥4 the needle visibly shakes via a 16ms linear jitter that reads as electromagnetic unrest; at Kp≥7 the whole case rattles on a faster cycle. on a transient fetch failure (relay down, offline, cors hiccup) we keep the previous cached value rather than snapping back to "west" — the needle doesn't refit itself every time the network blinks. click reads out the current Kp, the time of the last successful read, and a one-line verdict. cache: Kp + epoch + reading count. fail counter is kept in-memory but never weighted, so a single dropped request doesn't bias future toasts. ↦ fiddliest bit was the read-failure threshold. i started by clearing magKp on any error so the needle snapped to -45deg on cache miss — but one dropped fetch on a flaky LTE made the brass jitter every time you opened the tab. now it only clears on a sustained failure (3+ consecutive), and the storm-class stays on until the count back to 0. a quiet enough fix that i almost forgot to call it out.</p>
