@@ -119,7 +119,14 @@ function updateFireflies(t) {
     if (f.y > window.innerHeight) { f.y = window.innerHeight; f.vy = -Math.abs(f.vy); }
     const blink = 0.55 + Math.sin(t * 0.003 + f.blinkPhase) * 0.4;
     f.el.style.transform = `translate(${f.x}px, ${f.y}px)`;
-    f.el.style.opacity = String(Math.max(0.1, blink));
+    // devlog #29 — during the lightning-bug dance the per-frame inline
+    // opacity write would override the body.firefly-dance .firefly
+    // CSS animation. drop the inline write for the dance window so
+    // .firefly animation wins for 2.4s; transform keeps updating
+    // so the fireflies still drift in lockstep.
+    if (!document.body.classList.contains("firefly-dance")) {
+      f.el.style.opacity = String(Math.max(0.1, blink));
+    }
   }
 }
 makeFireflies();
@@ -873,7 +880,12 @@ placeNamedStar();
 // shrinks; re-place at date rollover so a tab left open past midnight rolls
 // to the next day's star.
 window.addEventListener("resize", placeNamedStar);
-setInterval(() => {
+// self-idempotent: any caller can re-enter and the interval handle resets
+// rather than stacking (matches the shooter-chain pattern from devlog #14 —
+// _shooterTimer is module-local for the same reason we don't pollute window).
+let _cbWanderIv = null;
+if (_cbWanderIv) clearInterval(_cbWanderIv);
+_cbWanderIv = setInterval(() => {
   if (_namedStarDate && _namedStarDate !== new Date().toDateString()) placeNamedStar();
 }, 5 * 60 * 1000);
 // click always reads from _namedStarCurrent so it stays fresh after re-place
@@ -1528,6 +1540,33 @@ startOrbit = function () {
 // rewrite applyTimeOfDay to respect sky-lock
 const _origApplyTOD = applyTimeOfDay;
 applyTimeOfDay = function () {
+  // a tiny hook to sync the milkyway-on body class with the
+  // current mood — folded in so the band flips in the same rAF
+  // as the sky tone rather than up to ~60s later via the polling
+  // fallback. reduced-motion still suppresses milkyway-on, matching
+  // the original gate.
+  const _syncMilky = () => {
+    // TDZ guard: devlog-29 declares MILKY_KEY / milkyShown near the
+    // bottom of this file (~line 8802), but applyTimeOfDay() also
+    // fires inline at line ~704 during page load — before that
+    // line has been reached. Bail silently on early calls; the next
+    // applyTimeOfay call (60s later via setInterval) picks the
+    // sync up normally, once the script has finished evaluating.
+    if (typeof MILKY_KEY === "undefined") return;
+    const b = document.body.classList;
+    const nighty = b.contains("night");
+    const on = nighty && !b.contains("motion-reduced");
+    if (on && !b.contains("milkyway-on")) {
+      b.add("milkyway-on");
+      _milkyActive = true;
+      milkyShown++;
+      try { localStorage.setItem(MILKY_KEY, String(milkyShown)); } catch {}
+      renderMilkyStat();
+    } else if (!on && b.contains("milkyway-on")) {
+      b.remove("milkyway-on");
+      _milkyActive = false;
+    }
+  };
   if (settings.sky && settings.sky !== "auto") {
     document.body.classList.remove("dawn", "day", "dusk", "night");
     document.body.classList.add(settings.sky);
@@ -1536,9 +1575,11 @@ applyTimeOfDay = function () {
       const labels = { dawn: "first light · 11°c", day: "open sky · 18°c", dusk: "amber hour · 15°c", night: "clear · 14°c" };
       skyEl.textContent = labels[settings.sky] + " · locked";
     }
+    _syncMilky();
     return;
   }
   _origApplyTOD();
+  _syncMilky();
 };
 
 // gate shooter spawning on the combined motion check (replaces earlier logic).
@@ -7565,3 +7606,1265 @@ try { if (signalsAll.length === 0) gLog("biosphere", "signals online", "✽ onbo
   // first spawn ~20s after load
   setTimeout(spawn, 20_000);
 })();
+
+/* ============================================================
+   devlog #26 — five additions: glow beetle (13th CREATURE_SPECIES
+   entry), a distant comet, drifting feathers on wind-gust, a dock
+   bell that rings, and the autumn leaf pile. each block is
+   self-contained and reads existing globals (isMotionReduced,
+   settings, body class, toast, markCreatureSeen, gLog).
+   ============================================================ */
+
+/* ---- append glow beetle to CREATURE_SPECIES (13th entry) ---- */
+(function appendBeetleToSpecies() {
+  if (typeof CREATURE_SPECIES === "undefined" || !Array.isArray(CREATURE_SPECIES)) return;
+  if (CREATURE_SPECIES.some(s => s.id === "beetle")) return;
+  CREATURE_SPECIES.push({
+    id: "beetle",
+    name: "glow beetle",
+    blurb: "a small green-emitting ground beetle. the dark that follows ferns.",
+    icon: "🪲"
+  });
+  if (typeof renderFieldGuide === "function") renderFieldGuide();
+})();
+
+/* ---- schedule glow beetles (night-only, 75-140s cadence) ---- */
+(function scheduleBeetle() {
+  const host = document.getElementById("beetles");
+  if (!host) return;
+  const stat = document.getElementById("beetle-stat");
+  const SK = "biosphere02.beetle.spotted";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, n); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  const moodOk = () =>
+    document.body.classList.contains("night") ||
+    document.body.classList.contains("dusk");
+  const motionReduced = () =>
+    document.body.classList.contains("motion-reduced") ||
+    (typeof window !== "undefined" && window.matchMedia &&
+     window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  let active = null;
+  function despawn(el) {
+    if (!el || active !== el) return;
+    el.classList.remove("walking");
+    setTimeout(() => { el.remove(); if (active === el) active = null; }, 380);
+  }
+  function spawn() {
+    if (active) return schedule();
+    if (!moodOk()) return schedule();
+    const el = document.createElement("div");
+    el.className = "beetle";
+    const startX = -30;
+    const endX = window.innerWidth + 30;
+    const y = window.innerHeight - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pond-h")) || 18) - 22;
+    const dur = 22_000 + Math.random() * 8_000;
+    el.style.left = startX + "px";
+    el.style.top = y + "px";
+    el.innerHTML =
+      '<svg class="beetle-svg" viewBox="0 0 16 10" aria-hidden="true">' +
+        '<ellipse cx="8" cy="6" rx="5" ry="3" fill="#3a5a3a"/>' +
+        '<ellipse cx="8" cy="5" rx="3" ry="1.6" fill="#5a7a5a"/>' +
+        '<circle class="beetle-glow" cx="11" cy="6" r="1.0" fill="rgba(140, 220, 160, 0.95)"/>' +
+        '<circle class="beetle-glow" cx="5"  cy="6" r="0.8" fill="rgba(140, 220, 160, 0.85)"/>' +
+        '<line x1="3" y1="7" x2="2" y2="9" stroke="#2a3a2a" stroke-width="0.6"/>' +
+        '<line x1="13" y1="7" x2="14" y2="9" stroke="#2a3a2a" stroke-width="0.6"/>' +
+        '<line x1="6" y1="9" x2="5" y2="10" stroke="#2a3a2a" stroke-width="0.6"/>' +
+        '<line x1="10" y1="9" x2="11" y2="10" stroke="#2a3a2a" stroke-width="0.6"/>' +
+      '</svg>';
+    host.appendChild(el);
+    if (!motionReduced()) el.classList.add("walking");
+
+    let lastTrail = performance.now();
+    const trailInt = setInterval(() => {
+      if (active !== el) { clearInterval(trailInt); return; }
+      const now = performance.now();
+      if (now - lastTrail < 700) return;
+      lastTrail = now;
+      const r = el.getBoundingClientRect();
+      const t = document.createElement("div");
+      t.className = "beetle-trail";
+      t.style.left = (r.left + 4) + "px";
+      t.style.top  = (r.top + r.height / 2) + "px";
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 2800);
+    }, 600);
+
+    const startT = performance.now();
+    function frame(now) {
+      if (active !== el) return;
+      const t = (now - startT) / dur;
+      if (t >= 1) { despawn(el); return; }
+      el.style.left = (startX + (endX - startX) * t) + "px";
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+    el.addEventListener("click", () => {
+      if (typeof markCreatureSeen === "function") markCreatureSeen("beetle");
+      bumpStat();
+      el.classList.add("caught");
+      clearInterval(trailInt);
+      despawn(el);
+    });
+
+    setTimeout(() => { clearInterval(trailInt); despawn(el); }, dur + 200);
+    schedule();
+  }
+  function schedule() { setTimeout(spawn, 75_000 + Math.random() * 65_000); }
+  setTimeout(spawn, 25_000);
+})();
+
+/* ---- distant comet (slow bright streak in the upper sky) ---- */
+(function scheduleComet() {
+  const host = document.getElementById("comet-host");
+  if (!host) return;
+  const stat = document.getElementById("comet-stat");
+  const SK = "biosphere02.comet.seen";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, n); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  let active = null;
+  let firstEver = (num() === 0);
+
+  function despawn(comet) {
+    if (!comet || active !== comet) return;
+    comet.remove();
+    if (active === comet) active = null;
+  }
+
+  function spawn() {
+    if (active) return schedule();
+    const mood = document.body.classList;
+    const skyOk = mood.contains("dusk") || mood.contains("night");
+    if (!skyOk) return schedule();
+    const comet = document.createElement("div");
+    comet.className = "comet";
+    const fromRight = Math.random() < 0.5;
+    const w = window.innerWidth, h = window.innerHeight;
+    const startX = fromRight ? w + 30 : -30;
+    const startY = h * (0.08 + Math.random() * 0.18);
+    const vx = (fromRight ? -1 : 1) * (0.10 + Math.random() * 0.08);
+    const vy = 0.04 + Math.random() * 0.05;
+    comet.style.left = startX + "px";
+    comet.style.top  = startY + "px";
+    comet.style.opacity = "1";
+    host.appendChild(comet);
+    active = comet;
+    const born = performance.now();
+    const life = 22_000 + Math.random() * 8_000;
+    let raf;
+    function frame(now) {
+      if (active !== comet) return;
+      const elapsed = now - born;
+      const t = elapsed / 1000;
+      const x = startX + vx * t * 100;
+      const y = startY + vy * t * 100;
+      comet.style.left = x + "px";
+      comet.style.top  = y + "px";
+      const rem = life - elapsed;
+      comet.style.opacity = rem < 2400 ? Math.max(0, rem / 2400) : 1;
+      if (elapsed < life && x > -40 && x < w + 40 && y < h * 0.55) {
+        raf = requestAnimationFrame(frame);
+      } else {
+        cancelAnimationFrame(raf);
+        despawn(comet);
+      }
+    }
+    let _fisheye = false;
+    function frame(now) {
+      if (active !== comet) return;
+      const elapsed = now - born;
+      const t = elapsed / 1000;
+      const x = startX + vx * t * 100;
+      const y = startY + vy * t * 100;
+      comet.style.left = x + "px";
+      comet.style.top  = y + "px";
+      const rem = life - elapsed;
+      comet.style.opacity = rem < 2400 ? Math.max(0, rem / 2400) : 1;
+      if (!_fisheye && t > 0.4) { _fisheye = true; if (firstEver) { firstEver = false; if (typeof toast === "function") toast("a comet in the upper sky · rare and quiet"); } }
+      if (elapsed < life &&
+          x > -40 && x < w + 40 && y < h * 0.55) {
+        raf = requestAnimationFrame(frame);
+      } else {
+        cancelAnimationFrame(raf);
+        despawn(comet);
+      }
+    }
+    raf = requestAnimationFrame(frame);
+    comet.addEventListener("click", () => {
+      const n = bumpStat();
+      if (firstEver) {
+        firstEver = false;
+        if (typeof toast === "function") toast("you saw your first comet · it won't be your last");
+      } else if (typeof gLog === "function" && n % 5 === 0) {
+        gLog("comet", "comet seen", "the sky");
+      }
+      cancelAnimationFrame(raf);
+      despawn(comet);
+    });
+    schedule();
+  }
+  function schedule() { setTimeout(spawn, 480_000 + Math.random() * 420_000); }
+  setTimeout(spawn, 60_000);
+})();
+
+/* ---- drifting feathers (during body.wind-gust) ---- */
+(function scheduleFeathers() {
+  const host = document.getElementById("feathers");
+  if (!host) return;
+  const stat = document.getElementById("feathers-stat");
+  const SK = "biosphere02.feathers.released";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, n); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  function releaseFeathers() {
+    if (document.body.classList.contains("motion-reduced")) return;
+    const count = 4 + Math.floor(Math.random() * 4);
+    const W = window.innerWidth;
+    for (let i = 0; i < count; i++) {
+      const f = document.createElement("div");
+      f.className = "feather";
+      f.style.left = (Math.random() * W).toFixed(0) + "px";
+      f.style.top = "-12px";
+      f.style.setProperty("--fdx", ((Math.random() - 0.5) * 160).toFixed(0) + "px");
+      f.style.setProperty("--fdy", (window.innerHeight + 40).toFixed(0) + "px");
+      f.style.setProperty("--fr", ((Math.random() - 0.5) * 720).toFixed(0) + "deg");
+      const dur = 4500 + Math.random() * 3500;
+      f.style.animationDuration = dur.toFixed(0) + "ms";
+      f.style.animationDelay = (Math.random() * 600).toFixed(0) + "ms";
+      host.appendChild(f);
+      setTimeout(() => f.remove(), dur + 1200);
+    }
+    bumpStat();
+  }
+
+  let lastGust = false;
+  setInterval(() => {
+    const gust = document.body.classList.contains("wind-gust");
+    if (gust && !lastGust) releaseFeathers();
+    lastGust = gust;
+  }, 500);
+})();
+
+/* ---- dock bell (click to ring + chime) ---- */
+(function scheduleDockBell() {
+  const el = document.getElementById("dock-bell");
+  if (!el) return;
+  const stat = document.getElementById("dock-bell-stat");
+  const SK = "biosphere02.dock-bell.rings";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, n); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  let ctx = null;
+  function ensureCtx() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!ctx) ctx = new AC();
+    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    return ctx;
+  }
+
+  el.addEventListener("click", () => {
+    if (!settings || !settings.mute) {
+      const c = ensureCtx();
+      if (c) {
+        const o = c.createOscillator();
+        const g = c.createGain();
+        o.type = "sine";
+        o.frequency.value = 880 + Math.random() * 120;
+        g.gain.value = 0;
+        o.connect(g).connect(c.destination);
+        const t = c.currentTime;
+        g.gain.linearRampToValueAtTime(0.18, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+        o.start(t);
+        o.stop(t + 1.5);
+      }
+    }
+    const clapper = el.querySelector(".db-clapper");
+    if (clapper && !(document.body.classList.contains("motion-reduced") ||
+        (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches))) {
+      clapper.style.animation = "none";
+      void el.offsetWidth;
+      clapper.style.animation = "";
+    }
+    el.classList.remove("rung");
+    void el.offsetWidth;
+    el.classList.add("rung");
+    bumpStat();
+    if (num() === 1 && typeof toast === "function") toast("the bell has a small voice · ring it again");
+  });
+})();
+
+/* ---- autumn leaf pile (autumn-only, scatter on click) ---- */
+(function scheduleLeafPile() {
+  const el = document.getElementById("leaf-pile");
+  if (!el) return;
+  const stat = document.getElementById("leaf-stat");
+  const SK = "biosphere02.leaf-pile.scattered";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, n); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  el.addEventListener("click", () => {
+    const n = num();
+    const leaves = el.querySelectorAll(".leaf-leaf");
+    if (leaves.length >= 1) {
+      leaves[0].style.setProperty("--ltx", ((n * 7) % 28 + 8).toFixed(0) + "px");
+      leaves[0].style.setProperty("--lty", "-38px");
+    }
+    if (leaves.length >= 2) {
+      leaves[1].style.setProperty("--ltx", (-((n * 13) % 24) - 8).toFixed(0) + "px");
+      leaves[1].style.setProperty("--lty", "-30px");
+    }
+    if (leaves.length >= 3) {
+      leaves[2].style.setProperty("--ltx", ((n * 5) % 18 - 8).toFixed(0) + "px");
+      leaves[2].style.setProperty("--lty", "-44px");
+    }
+    el.classList.remove("scattered");
+    void el.offsetWidth;
+    el.classList.add("scattered");
+    setTimeout(() => el.classList.remove("scattered"), 2200);
+    bumpStat();
+    if (typeof gLog === "function" && num() % 5 === 0) gLog("leaves", "leaf pile scattered", "the shore");
+  });
+})();
+
+
+/* ============================================================
+   devlog #27 — three lake-side additions:
+   1) bioluminescent jellyfish rising from the pond at night
+   2) a moth drawn to the lighthouse lantern at dusk/night
+   3) a sketched map on a clipboard by the bench (click to flip)
+   ============================================================ */
+
+/* ---- 1) jellyfish in the pond ----
+   night-only (body.night or sky-locked to night/dusk); capped at 3
+   to keep the pond readable. each jelly spawns near the pond floor
+   and rises ~220px over ~7.5s via CSS transition (no per-frame js),
+   dropping a small fading teal glow trail every ~700ms. */
+const JELLY_KEY = "biosphere02.jellies.spotted";
+const jellyHost = document.getElementById("jellies");
+const jellyStat = document.getElementById("jellies-stat");
+const jellyCount = () => { try { return parseInt(localStorage.getItem(JELLY_KEY) || "0", 10) || 0; } catch { return 0; } };
+const bumpJellyStat = () => {
+  const n = jellyCount() + 1;
+  try { localStorage.setItem(JELLY_KEY, String(n)); } catch {}
+  if (jellyStat) jellyStat.textContent = n;
+  return n;
+};
+if (jellyStat) jellyStat.textContent = jellyCount();
+
+let activeJellies = 0;
+let _jellyTrailStamp = 0;
+
+function makeJellySVG() {
+  return '<svg class="jelly-svg" viewBox="0 0 14 18" aria-hidden="true">' +
+    // outer bell (the lit dome)
+    '<path class="jelly-bell" d="M7 1.2 Q1.7 0.7 1.4 6.8 Q2.6 11.8 7 11.2 Q11.4 11.8 12.6 6.8 Q12.3 0.7 7 1.2 Z"/>' +
+    // inner pulsing core
+    '<ellipse class="jelly-inner jelly-glow" cx="7" cy="6" rx="2.8" ry="2.2"/>' +
+    // three short trailing tentacles
+    '<path class="jelly-tentacle" d="M4 11 Q3 13.2 4 16"/>' +
+    '<path class="jelly-tentacle" d="M7 11 Q7 14.2 7 17"/>' +
+    '<path class="jelly-tentacle" d="M10 11 Q11 13.2 10 16"/>' +
+  '</svg>';
+}
+
+function spawnJelly() {
+  if (!jellyHost) return scheduleJelly();
+  if (isMotionReduced()) return scheduleJelly();
+  // gate on night or dusk so they only show when the pond would actually glow
+  const dark = document.body.classList.contains("night") ||
+               document.body.classList.contains("dusk");
+  if (!dark) return scheduleJelly();
+  if (activeJellies >= 3) return scheduleJelly();
+
+  const W = window.innerWidth;
+  const xPx = 24 + Math.random() * (W - 48);
+  const el = document.createElement("div");
+  el.className = "jelly";
+  el.style.setProperty("--jelly-x", xPx.toFixed(0) + "px");
+  el.style.setProperty("--jelly-y", "4px");
+  el.title = "a jelly — click to spot";
+  el.innerHTML = makeJellySVG();
+  jellyHost.appendChild(el);
+  activeJellies++;
+
+  // start the rise on the next frame so the opacity transition kicks in
+  requestAnimationFrame(() => {
+    el.style.setProperty("--jelly-y", "100%");
+    el.classList.add("rising");
+  });
+
+  // drop a fading trail dot every ~700ms — like fireflies do
+  const trailInt = setInterval(() => {
+    if (!document.body.contains(el) || isMotionReduced()) {
+      clearInterval(trailInt);
+      return;
+    }
+    const now = performance.now();
+    if (now - _jellyTrailStamp < 700) return;
+    _jellyTrailStamp = now;
+    const rect = el.getBoundingClientRect();
+    const t = document.createElement("div");
+    t.className = "jelly-trail";
+    t.style.left = (rect.left + rect.width / 2 - 1) + "px";
+    t.style.top  = (rect.top  + rect.height / 2 - 1) + "px";
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2700);
+  }, 600);
+
+  el.addEventListener("click", () => {
+    const n = bumpJellyStat();
+    el.classList.add("caught");
+    clearInterval(trailInt);
+    setTimeout(() => { el.remove(); activeJellies--; }, 280);
+    if (n === 1 && typeof toast === "function") toast("a jelly in the pond 🪼 · tiny and lit");
+    else if (n % 5 === 0 && typeof gLog === "function") gLog("jelly", "spotted a jelly", "the pond");
+  });
+
+  // auto-despawn after the 7.5s rise finishes; guard the active count
+  setTimeout(() => {
+    if (!document.body.contains(el)) return;
+    el.classList.remove("rising");
+    setTimeout(() => { if (document.body.contains(el)) { el.remove(); activeJellies--; } }, 600);
+  }, 7800);
+
+  scheduleJelly();
+}
+function scheduleJelly() {
+  setTimeout(spawnJelly, 22_000 + Math.random() * 30_000);
+}
+// one shortly after load so the pond doesn't sit still for half a minute
+setTimeout(spawnJelly, 12_000);
+
+/* ---- 2) lantern moth ----
+   a second moth, distinct from the hearth moth (which lives in the
+   bottom-left near the cabin). this one visits the lighthouse lamp at
+   dusk / night on an 80–160s cadence, fluttering via pure CSS so
+   there's no per-frame JS. click to spot — separate counter. */
+const LANTERN_MOTH_KEY = "biosphere02.lantern-moth.spotted";
+const lanternMothEl = document.getElementById("lantern-moth");
+const lanternMothStat = document.getElementById("lantern-moth-stat");
+const lanternMothCount = () => { try { return parseInt(localStorage.getItem(LANTERN_MOTH_KEY) || "0", 10) || 0; } catch { return 0; } };
+const bumpLanternMothStat = () => {
+  const n = lanternMothCount() + 1;
+  try { localStorage.setItem(LANTERN_MOTH_KEY, String(n)); } catch {}
+  if (lanternMothStat) lanternMothStat.textContent = n;
+  return n;
+};
+if (lanternMothStat) lanternMothStat.textContent = lanternMothCount();
+
+let _lanternMothActive = false;
+function scheduleLanternMoth() {
+  const wait = 80_000 + Math.random() * 80_000; // 80-160s
+  setTimeout(() => {
+    if (!lanternMothEl) return;
+    if (isMotionReduced()) return scheduleLanternMoth();
+    const darkOrLit = document.body.classList.contains("night") ||
+                      document.body.classList.contains("dusk");
+    if (!darkOrLit) return scheduleLanternMoth();
+    if (_lanternMothActive) return scheduleLanternMoth();
+    _lanternMothActive = true;
+    // hard self-clear safety net: if the .fluttering window ends via a sky-lock
+    // class flip rather than the natural 22s timer, this still re-arms the spawn
+    // chain roughly when the next visiting window would have come anyway.
+    setTimeout(() => { if (_lanternMothActive) _lanternMothActive = false; }, 25_000);
+    lanternMothEl.classList.add("fluttering");
+    // one good evening's visit, then it leaves and reschedules
+    setTimeout(() => {
+      lanternMothEl.classList.remove("fluttering");
+      setTimeout(() => { _lanternMothActive = false; }, 700);
+      scheduleLanternMoth();
+    }, 22_000);
+  }, wait);
+}
+setTimeout(scheduleLanternMoth, 30_000);
+if (lanternMothEl) {
+  lanternMothEl.addEventListener("click", () => {
+    if (!_lanternMothActive) return;
+    const n = bumpLanternMothStat();
+    lanternMothEl.classList.add("caught");
+    setTimeout(() => {
+      lanternMothEl.classList.remove("fluttering", "caught");
+      _lanternMothActive = false;
+    }, 320);
+    if (n === 1 && typeof toast === "function") toast("a moth at the lantern 🦋");
+    else if (n % 5 === 0 && typeof gLog === "function") gLog("moth", "a moth at the lantern", "the lighthouse");
+  });
+}
+
+/* ---- 3) sketched map on a clipboard ----
+   six hand-drawn coordinate sketches cycle through on each click.
+   each sketch has ~7 markers + 2 path strokes + 2 labels, drawn
+   procedurally but deterministically from the index so the same
+   map always shows the same coordinates. the .cb-paper-lines group
+   stays put; the .cb-sketch group is wiped and redrawn each click.
+   the .showed class fades everything in, the .fresh class plays a
+   quick stroke-dasharray animation so each path draws itself in. one
+   label per map drifts very slowly on a long CSS ease-in-out so the
+   map feels like something drawn by hand and still on the board. */
+const CLIP_KEY = "biosphere02.clipboard-maps.drawn";
+const clipboardEl = document.getElementById("clipboard");
+const clipboardStat = document.getElementById("clipboard-stat");
+const clipboardSketchEl = document.getElementById("cb-sketch");
+const clipboardTitleEl = document.querySelector("#clipboard .cb-title");
+const clipboardCount = () => { try { return parseInt(localStorage.getItem(CLIP_KEY) || "0", 10) || 0; } catch { return 0; } };
+const bumpClipboardStat = () => {
+  const n = clipboardCount() + 1;
+  try { localStorage.setItem(CLIP_KEY, String(n)); } catch {}
+  if (clipboardStat) clipboardStat.textContent = n;
+  return n;
+};
+if (clipboardStat) clipboardStat.textContent = clipboardCount();
+
+const MAP_VIEWS = 6;
+const MAP_LABELS = [
+  ["the bend",   "old oak",   "deep pool"],
+  ["the outflow","shale mouth","heron nest"],
+  ["stumps row", "green rock","deep end"],
+  ["shallows",   "west bank", "weir line"],
+  ["east cove",  "beech + ash","tide edge"],
+  ["hidden inlet","three pines","spring rise"],
+];
+
+function makeMapSketch(idx) {
+  // paper rect is x:9..47, y:14..56 in viewBox units — place marks inside
+  const seed = idx * 137 + 17;
+  const rand = (i) => Math.abs(((Math.sin(seed * 13.7 + i * 91) + 1) * 0.5));
+  const markers = [];
+  for (let i = 0; i < 7; i++) {
+    const px = 13 + rand(i) * 30;
+    const py = 17 + rand(i + 7) * 26;
+    markers.push([px, py]);
+  }
+  let html = "";
+  // two path strokes connect some markers (the waterways)
+  const m = markers;
+  html += '<path class="cb-stroke" d="M' + m[0][0].toFixed(1) + ' ' + m[0][1].toFixed(1) +
+    ' Q' + m[1][0].toFixed(1) + ' ' + m[1][1].toFixed(1) + ' ' + m[2][0].toFixed(1) + ' ' + m[2][1].toFixed(1) +
+    ' T' + m[3][0].toFixed(1) + ' ' + m[3][1].toFixed(1) + '"/>';
+  html += '<path class="cb-stroke" d="M' + m[3][0].toFixed(1) + ' ' + m[3][1].toFixed(1) +
+    ' Q' + m[4][0].toFixed(1) + ' ' + m[4][1].toFixed(1) + ' ' + m[5][0].toFixed(1) + ' ' + m[5][1].toFixed(1) + '"/>';
+  // markers (small red dots)
+  for (let i = 0; i < markers.length; i++) {
+    const [mx, my] = markers[i];
+    html += '<circle cx="' + mx.toFixed(1) + '" cy="' + my.toFixed(1) + '" r="1.0"/>';
+  }
+  // place the wandering label and a fixed label on two different markers
+  const labels = MAP_LABELS[idx % MAP_LABELS.length];
+  const wanderI = idx % markers.length;
+  const fixedI = (idx + 3) % markers.length;
+  html += '<text class="cb-label" x="' + markers[wanderI][0].toFixed(1) + '" y="' + (markers[wanderI][1] - 2.6).toFixed(1) + '">' + labels[0] + '</text>';
+  html += '<text class="cb-label" x="' + markers[fixedI][0].toFixed(1) + '" y="' + (markers[fixedI][1] - 2.6).toFixed(1) + '">' + labels[1] + '</text>';
+  return html;
+}
+
+function renderClipboardMap(idx) {
+  if (!clipboardEl || !clipboardSketchEl) return;
+  clipboardSketchEl.innerHTML = makeMapSketch(idx);
+  if (clipboardTitleEl) clipboardTitleEl.textContent = "map no. " + (idx + 1);
+  // re-trigger the pencil-scratch animation: remove → force reflow → add fresh+showed
+  clipboardEl.classList.remove("fresh", "showed");
+  void clipboardEl.offsetWidth;
+  clipboardEl.classList.add("fresh", "showed");
+  // nudge the wandering label once on render so its position varies over time
+  const wanderingLabel = clipboardEl.querySelector(".cb-label");
+  if (wanderingLabel) {
+    const dx = ((Math.random() - 0.5) * 1.6).toFixed(2);
+    const dy = ((Math.random() - 0.5) * 1.0).toFixed(2);
+    wanderingLabel.style.transform = "translate(" + dx + "px, " + dy + "px)";
+  }
+}
+
+if (clipboardEl) {
+  clipboardEl.addEventListener("click", () => {
+    const n = bumpClipboardStat();
+    const idx = (n - 1) % MAP_VIEWS;
+    renderClipboardMap(idx);
+    if (n === 1 && typeof toast === "function") toast("a sketched map · the lines drift on their own");
+    else if (n % 4 === 0 && typeof gLog === "function") gLog("map", "drew a map", "the clipboard");
+  });
+}
+// show the first map on load so the page has something on the clipboard from the start
+if (clipboardSketchEl) renderClipboardMap(0);
+
+// slow drift on the wandering label timer — purely cosmetic, every ~26s
+setInterval(() => {
+  if (isMotionReduced()) return;
+  if (!clipboardEl) return;
+  const labels = clipboardEl.querySelectorAll(".cb-label");
+  if (!labels.length) return;
+  // drift only the first ("wandering") label — the other is meant to stay put
+  const wl = labels[0];
+  const dx = ((Math.random() - 0.5) * 2.0).toFixed(2);
+  const dy = ((Math.random() - 0.5) * 1.4).toFixed(2);
+  wl.style.transform = "translate(" + dx + "px, " + dy + "px)";
+}, 26_000);
+/* ============================================================
+   devlog #28 — three lake-side additions (per user request):
+     1) a water strider skating the pond surface on six dimple ripples
+        (14th CREATURE_SPECIES entry — day/dawn/dusk moods only,
+        70-160s cadence, ~22s per crossing)
+     2) a great blue heron standing statue-still at the shore with
+        an S-shaped neck that periodically dips (15th field-guide entry
+        — day/dusk only, 90-200s cadence, click sends it flying off)
+     3) cattail fluff bursting off the existing cattail heads during
+        body.wind-gust on summer / autumn (ambient weather, with its
+        own fluff-released counter — not a creature)
+   ============================================================ */
+
+/* ---- 1) water strider — 14th CREATURE_SPECIES entry ----
+   six-legged pond-surface insect. body drifts across the pond on a
+   pure-css rAF path; six dimple ripples (one per leg tip) pulse on a 540ms
+   cycle, staggered so they ripple in turn rather than all at once — same
+   tiny wave pattern real striders leave on a still surface. one active
+   at a time, the same single-spawn cap the otter / crabs use. */
+(function scheduleWaterStrider() {
+  if (typeof CREATURE_SPECIES === "undefined" || !Array.isArray(CREATURE_SPECIES)) return;
+  if (!CREATURE_SPECIES.some(s => s.id === "water-strider")) {
+    CREATURE_SPECIES.push({
+      id: "water-strider",
+      name: "water strider",
+      blurb: "a six-legged pond insect — each leg a faint dimple on the surface.",
+      icon: "🦟"
+    });
+    if (typeof renderFieldGuide === "function") renderFieldGuide();
+  }
+
+  const host = document.getElementById("water-striders");
+  if (!host) return;
+  const stat = document.getElementById("strider-stat");
+  const SK = "biosphere02.striders.spotted";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, String(n)); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  let active = null;
+
+  function despawn(el) {
+    if (!el || active !== el) return;
+    el.classList.remove("skating");
+    // grace period for the fade-out before hard-removing the node, so a
+    // strider crossed-off-screen doesn't pop-disappear mid-transition
+    setTimeout(() => {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      if (active === el) active = null;
+    }, 520);
+  }
+
+  function spawn() {
+    if (active) return schedule();
+    if (typeof isMotionReduced === "function" && isMotionReduced()) return schedule();
+    // daytime pool only — at night the pond reads as deeper / colder and a
+    // strider would feel out of place at the same time the jellyfish turn on
+    const mood = document.body.classList;
+    if (!(mood.contains("day") || mood.contains("dawn") || mood.contains("dusk"))) return schedule();
+
+    const pond = document.getElementById("pond");
+    if (!pond) return schedule();
+    const pondRect = pond.getBoundingClientRect();
+    if (pondRect.width < 80) return schedule();
+
+    const startX = -32;
+    const endX = pondRect.width + 32;
+    // sit just under the surface so the legs visibly touch the water band
+    const y = pondRect.top + 8 + Math.random() * Math.max(8, pondRect.height - 22);
+
+    const el = document.createElement("div");
+    el.className = "water-strider";
+    el.style.left = startX + "px";
+    el.style.top = y + "px";
+    el.style.width = "36px";
+    el.style.height = "22px";
+
+    el.innerHTML =
+      '<svg class="water-strider-svg" viewBox="0 0 36 22" aria-hidden="true">' +
+        '<g class="ws-body-anim">' +
+          // slim oval body on the water band
+          '<ellipse class="ws-torso" cx="18" cy="11" rx="6.4" ry="1.6" fill="#1f1408"/>' +
+          '<ellipse cx="22.6" cy="10.5" rx="1.8" ry="1.05" fill="#1f1408"/>' +
+          // six thin legs paired outward, mirroring real strider leg-posture
+          '<line x1="16" y1="11.4" x2="6"  y2="14" stroke="#1f1408" stroke-width="0.6" stroke-linecap="round"/>' +
+          '<line x1="14" y1="11.4" x2="3"  y2="10" stroke="#1f1408" stroke-width="0.6" stroke-linecap="round"/>' +
+          '<line x1="12" y1="11.4" x2="2"  y2="6"  stroke="#1f1408" stroke-width="0.6" stroke-linecap="round"/>' +
+          '<line x1="20" y1="11.4" x2="30" y2="14" stroke="#1f1408" stroke-width="0.6" stroke-linecap="round"/>' +
+          '<line x1="22" y1="11.4" x2="33" y2="10" stroke="#1f1408" stroke-width="0.6" stroke-linecap="round"/>' +
+          '<line x1="24" y1="11.4" x2="34" y2="6"  stroke="#1f1408" stroke-width="0.6" stroke-linecap="round"/>' +
+        '</g>' +
+      '</svg>';
+    host.appendChild(el);
+
+    // append the 6 dimple ripples AFTER the svg so they sit on top of the
+    // legs (visually they read as fresh ripples at each leg tip). dimples
+    // are children of the strider so they translate together with it.
+    const dimplePts = [
+      [6, 14], [3, 10], [2, 6], [30, 14], [33, 10], [34, 6]
+    ];
+    for (const [dx, dy] of dimplePts) {
+      const d = document.createElement("span");
+      d.className = "ws-dimple";
+      // 6px ring centered on (dx, dy) — i subtract half-size from left/top
+      d.style.left = (dx - 3) + "px";
+      d.style.top  = (dy - 3) + "px";
+      el.appendChild(d);
+    }
+    const dimples = el.querySelectorAll(".ws-dimple");
+
+    active = el;
+    // force a reflow before adding the .skating class so the opacity
+    // transition has somewhere to start from (otherwise the strider pops
+    // visible instead of fading in)
+    requestAnimationFrame(() => el.classList.add("skating"));
+
+    // pulse the dimples one after another. 540ms between = small wave
+    // pattern looks like the strider is planting each leg in turn as it
+    // leans its weight forward across the surface.
+    let dimI = 0;
+    const dimInt = setInterval(() => {
+      if (active !== el) { clearInterval(dimInt); return; }
+      const d = dimples[dimI % dimples.length];
+      d.classList.remove("live");
+      void d.offsetWidth; // restart the keyframe
+      d.classList.add("live");
+      dimI++;
+    }, 540);
+
+    // cross the pond in 19-26s on a smoothstep ease so the strider
+    // accelerates out of frame A (where it spawned off-edge) and decelerates
+    // into frame B (off the other side).
+    const startT = performance.now();
+    const dur = 19000 + Math.random() * 7000;
+    function frame(now) {
+      if (active !== el) return;
+      const t = (now - startT) / dur;
+      if (t >= 1) { clearInterval(dimInt); despawn(el); return; }
+      const e = t * t * (3 - 2 * t);
+      el.style.left = (startX + (endX - startX) * e) + "px";
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+    el.addEventListener("click", () => {
+      if (typeof markCreatureSeen === "function") markCreatureSeen("water-strider");
+      const n = bumpStat();
+      el.classList.add("caught");
+      clearInterval(dimInt);
+      despawn(el);
+      if (n === 1 && typeof toast === "function") toast("a water strider · six dimples on the surface");
+      else if (n % 5 === 0 && typeof gLog === "function") gLog("strider", "water strider seen", "the pond");
+    });
+
+    // safety net: hard-despawn after the dur even if rAF stalls (background
+    // tab pauses rAF, so without this the strider would strand forever)
+    setTimeout(() => { clearInterval(dimInt); despawn(el); }, dur + 220);
+    schedule();
+  }
+
+  function schedule() {
+    setTimeout(spawn, 70000 + Math.random() * 90000); // 70-160s between appearances
+  }
+  setTimeout(spawn, 14000); // first one shows 14s after load so the pond reads as alive
+})();
+
+/* ---- 2) great blue heron — 15th CREATURE_SPECIES entry ----
+   a tall wading bird with an S-curved neck that stands statue-still for
+   ~28-36s on a 90-200s cadence. day/dusk moods only (herons are crepuscular
+   in real life so dusk is welcome). the periodic neck-dip is pure css
+   over a 16s cycle so the silhouette looks like it's actively fishing
+   without spending a single cycle of js. click spots AND sends it flying
+   off — both happen at once (no extra "thanks for clicking" reset). */
+(function scheduleHeron() {
+  if (typeof CREATURE_SPECIES === "undefined" || !Array.isArray(CREATURE_SPECIES)) return;
+  if (!CREATURE_SPECIES.some(s => s.id === "heron")) {
+    CREATURE_SPECIES.push({
+      id: "heron",
+      name: "great blue heron",
+      blurb: "tall wader with an S-shaped neck · statues for minutes, then dips.",
+      icon: "🦢"
+    });
+    if (typeof renderFieldGuide === "function") renderFieldGuide();
+  }
+
+  const host = document.getElementById("herons");
+  if (!host) return;
+  const stat = document.getElementById("heron-stat");
+  const SK = "biosphere02.herons.spotted";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, String(n)); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  let active = null;
+
+  function despawn(el) {
+    if (!el || active !== el) return;
+    el.classList.remove("standing");
+    setTimeout(() => {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      if (active === el) active = null;
+    }, 800);
+  }
+
+  function flyOff(el) {
+    el.classList.add("flying-off");
+    setTimeout(() => despawn(el), 1200);
+  }
+
+  function spawn() {
+    if (active) return schedule();
+    if (typeof isMotionReduced === "function" && isMotionReduced()) return schedule();
+    const mood = document.body.classList;
+    if (!(mood.contains("day") || mood.contains("dusk"))) return schedule();
+
+    const w = window.innerWidth;
+    // bias right-center so the heron doesn't crowd the dandelion / lantern
+    // strip on the left. irl herons prefer the open shallows — the cleared
+    // sky area maps cleanly to the right of the pond.
+    const sideRight = Math.random() < 0.65;
+    const x = sideRight
+      ? Math.round(w * 0.74 + Math.random() * (w * 0.16))
+      : Math.round(w * 0.06 + Math.random() * (w * 0.14));
+
+    const el = document.createElement("div");
+    el.className = "heron";
+    el.style.left = x + "px";
+    // base sits at the water line — baseBottom = pond-top, so the legs
+    // visibly penetrate the shallows and the body sits just above the
+    // shoreline like a real wading pose
+    el.style.bottom = "calc(38px + var(--pond-h) - 8px)";
+    el.style.width = "44px";
+    el.style.height = "62px";
+
+    el.innerHTML =
+      '<svg class="heron-svg" viewBox="0 0 44 62" aria-hidden="true">' +
+        // two long thin legs reaching down through the water surface
+        '<line x1="20" y1="33" x2="18" y2="62" stroke="#3a2e22" stroke-width="1" stroke-linecap="round"/>' +
+        '<line x1="24" y1="33" x2="26" y2="62" stroke="#3a2e22" stroke-width="1" stroke-linecap="round"/>' +
+        // body + folded-wing silhouette (the wings flex on the .heron-wings
+        // animation, a tiny "idle breath")
+        '<g class="heron-body-anim">' +
+          '<ellipse cx="22" cy="30" rx="9.6" ry="4.2" fill="#7086a0"/>' +
+          '<path class="heron-wings" d="M14 28 Q22 23 30 28 Q22 32 14 28 Z" fill="#5a6e88"/>' +
+          // tail trailing back over the legs
+          '<path d="M13 32 Q9 33 7 30 Q11 35 16 33 Z" fill="#4f6078"/>' +
+        '</g>' +
+        // S-shaped neck with a periodic slow dip. origin sits at the base
+        // of the neck so the dip rotates the whole serpentine as one piece.
+        '<g class="heron-neck">' +
+          '<path d="M22 28 Q19 24 24 19 Q29 14 22 8" fill="none" stroke="#7086a0" stroke-width="2.4" stroke-linecap="round"/>' +
+          '<path d="M22 28 Q19 24 24 19 Q29 14 22 8" fill="none" stroke="#94a8be" stroke-width="0.8" stroke-linecap="round" opacity="0.4"/>' +
+          '<ellipse cx="22" cy="7.2" rx="2.4" ry="1.5" fill="#5a6e88"/>' +
+          // long pointed beak — extends rightward toward the water on dip
+          '<line x1="24" y1="7.2" x2="32" y2="6.8" stroke="#e8a060" stroke-width="1" stroke-linecap="round"/>' +
+          '<circle cx="22.6" cy="6.6" r="0.55" fill="#fff5e0"/>' +
+          // a small cranial plume, mostly cosmetic
+          '<path d="M21 5.6 Q19.6 3 22 2.4" stroke="#3a4858" stroke-width="0.7" fill="none" stroke-linecap="round"/>' +
+        '</g>' +
+      '</svg>';
+
+    host.appendChild(el);
+    active = el;
+    requestAnimationFrame(() => el.classList.add("standing"));
+
+    el.addEventListener("click", () => {
+      const n = num();
+      if (typeof markCreatureSeen === "function") markCreatureSeen("heron");
+      bumpStat();
+      flyOff(el);
+      if (n === 1 && typeof toast === "function") toast("a great blue heron 🦢 · it took off");
+      else if (n % 5 === 0 && typeof gLog === "function") gLog("heron", "heron seen", "the shore");
+    });
+
+    // natural departure after 28-36s even if you didn't catch it — herons
+    // don't stay in one spot forever, and leaving on its own keeps the
+    // pond-with-heron reading from getting stale
+    setTimeout(() => {
+      if (active !== el) return;
+      flyOff(el);
+    }, 28000 + Math.random() * 8000);
+
+    schedule();
+  }
+
+  function schedule() {
+    setTimeout(spawn, 90000 + Math.random() * 110000); // 90-200s between appearances
+  }
+  setTimeout(spawn, 26000); // first one 26s after load
+})();
+
+/* ---- 3) cattail fluff burst — ambient weather ----
+   wind makes the cattails sway, but it never made them shed. now: on
+   each wind-gust (during season-summer / season-autumn, when the
+   spires are actually ripe), a small puff of 1-3 white flecks drifts
+   off the cattail heads and floats upward + outward on the breeze, a
+   softer cousin of the dandelion seeds. has its own fluff-released
+   counter so you can see them accumulate; not a creature, so it
+   doesn't add to the guide. */
+(function scheduleCattailFluff() {
+  const host = document.getElementById("cattail-fluff");
+  if (!host) return;
+  const stat = document.getElementById("cat-fluff-stat");
+  const SK = "biosphere02.cattail-fluff.released";
+  const num = () => { try { return parseInt(localStorage.getItem(SK) || "0", 10) || 0; } catch { return 0; } };
+  const bumpStat = () => {
+    const n = num() + 1;
+    try { localStorage.setItem(SK, String(n)); } catch {}
+    if (stat) stat.textContent = n;
+    return n;
+  };
+  if (stat) stat.textContent = num();
+
+  function release() {
+    if (typeof isMotionReduced === "function" && isMotionReduced()) return;
+    const b = document.body.classList;
+    if (!b.contains("wind-gust")) return;
+    // season gate: cattails don't actually shed in spring (it'd be pollen,
+    // visually different) or in winter (they're dormant). summer + autumn
+    // are when the fluffy seed-heads release.
+    if (!(b.contains("season-summer") || b.contains("season-autumn"))) return;
+    const heads = document.querySelectorAll(".cattail-bunch .head");
+    if (!heads.length) return;
+    const count = 1 + Math.floor(Math.random() * 3); // 1-3 per burst
+    const used = new Set();
+    for (let i = 0; i < count; i++) {
+      const idx = Math.floor(Math.random() * heads.length);
+      if (used.has(idx)) continue;
+      used.add(idx);
+      const r = heads[idx].getBoundingClientRect();
+      const fl = document.createElement("div");
+      fl.className = "cat-fluff";
+      fl.style.left = (r.left + r.width / 2 - 3) + "px";
+      fl.style.top  = (r.top - 6) + "px";
+      // drift up + slight sideways; bias rightward to feel like a soft
+      // breeze matched to the existing vane-arrow (wind-gust rotates it
+      // clockwise so prevailing direction reads as leftward on the vane
+      // — the fluff going right reads as fluff going with the wind).
+      const dx = 30 + Math.random() * 80;
+      const dy = -(70 + Math.random() * 110);
+      const rot = (Math.random() - 0.5) * 360;
+      fl.style.setProperty("--cfdx", dx.toFixed(0) + "px");
+      fl.style.setProperty("--cfdy", dy.toFixed(0) + "px");
+      fl.style.setProperty("--cfr", rot.toFixed(0) + "deg");
+      fl.style.animationDuration = (4500 + Math.random() * 1400).toFixed(0) + "ms";
+      fl.style.animationDelay = (Math.random() * 200).toFixed(0) + "ms";
+      host.appendChild(fl);
+      setTimeout(() => fl.remove(), 6300);
+      bumpStat();
+    }
+  }
+
+  // poll the body class for wind-gust transitions. fire a burst right at
+  // the start of each gust (so the cattails visibly-shed the moment the
+  // wind picks up), then once more mid-gust so the air looks alive over
+  // the gust's ~10s lifetime.
+  let lastGust = false;
+  let midGustFired = false;
+  setInterval(() => {
+    const gust = document.body.classList.contains("wind-gust");
+    if (gust && !lastGust) {
+      release();
+      lastGust = true;
+      midGustFired = false;
+      setTimeout(() => {
+        if (document.body.classList.contains("wind-gust") && !midGustFired) {
+          midGustFired = true;
+          release();
+        }
+      }, 5000);
+    }
+    if (!gust) lastGust = false;
+  }, 400);
+})();
+/* ============================================================
+   devlog #29 — five sky/weather additions:
+   1) moon halo on waxing/waning gibbous nights — fragile and faint
+   2) distant lightning flash + low rumble (~12-25 min cadence,
+      independent of any forecast kind so today's weather
+      can't break the rhythm)
+   3) dawn pond mist — three layered translucent sheets rising
+      off the surface during body.dawn
+   4) milky way band drifting across the upper-sky at deep
+      night (NOT dusk) on a 240s lazy loop
+   5) lightning-bug dance — fourteen fireflies pulse in
+      unison over 2.4s on still warm summer nights
+
+   each block is self-contained and reads existing globals
+   (body classes, fireflies array, isMotionReduced, settings,
+   toast, gLog, markCreatureSeen). host divs live in
+   /tmp/devlog-29.html and styles in /tmp/devlog-29.css.
+   ============================================================ */
+
+/* ---- shared: phase fraction + moon-visible mood helper ---- */
+function _moonPhaseFraction() {
+  // synodic constants MUST stay byte-identical to setMoon() at the
+  // top of this file (phase 0 = 2000-01-06 18:14 UTC, lp = synodic
+  // month in seconds). if setMoon moves, the halo gate drifts from
+  // the almanac text and the gibbous-night ring shows on the
+  // wrong nights.
+  const lp = 2551442.8; // synodic period in seconds — keep in sync with setMoon()
+  const known = new Date("2000-01-06T18:14:00Z").getTime() / 1000;
+  const now = Date.now() / 1000;
+  return ((now - known) % lp) / lp; // 0..1
+}
+function _moonVisibleMood() {
+  const b = document.body.classList;
+  return b.contains("dusk") || b.contains("night");
+}
+
+/* ---- 1) moon halo ----
+   visible on nights where the moon is at least gibbous-thick; a
+   soft cyan-white ring grows around the #moon-disc via body.moon-
+   halo-on. runs a 1-min poll so the ring tracks sky-lock changes
+   and follows the moon's appearance window (17:00→07:00) on its
+   own. clicking the moon bumps the halo-seen counter. */
+const MOON_HALO_KEY = "biosphere02.moon-halo.seen";
+const moonHaloStatEl = document.getElementById("moon-halo-stat");
+let moonHaloSeen = (() => { try { return +localStorage.getItem(MOON_HALO_KEY) || 0; } catch { return 0; } })();
+function renderMoonHaloStat() { if (moonHaloStatEl) moonHaloStatEl.textContent = moonHaloSeen; }
+renderMoonHaloStat();
+
+function updateMoonHalo() {
+  const phase = _moonPhaseFraction();
+  // gibbous band ≈ phase 0.62-0.88 (waxing gibbous → full) and
+  // 0.12-0.38 (waning gibbous → last quarter). thresholds chosen
+  // so the halo only shows on visibly-thick nights, never on a
+  // thin crescent.
+  const gibbous = (phase >= 0.62 && phase <= 0.92) || (phase >= 0.06 && phase <= 0.36);
+  document.body.classList.toggle("moon-halo-on", _moonVisibleMood() && gibbous);
+}
+updateMoonHalo();
+setInterval(updateMoonHalo, 60_000);
+
+const _moonDiscEl = document.getElementById("moon-disc");
+if (_moonDiscEl) {
+  _moonDiscEl.addEventListener("click", () => {
+    moonHaloSeen++;
+    try { localStorage.setItem(MOON_HALO_KEY, String(moonHaloSeen)); } catch {}
+    renderMoonHaloStat();
+    if (moonHaloSeen === 1 && typeof toast === "function") {
+      toast("you noticed the moon's halo · it shows on gibbous nights 🌕");
+    }
+  });
+}
+
+/* ---- 2) distant lightning ----
+   12-25 min random cadence, mood-gated (dusk/night only). each
+   "storm" fires once — bolt svg + screen tint + 0.04-2.0s low
+   sawtooth rumble that pitches from ~85Hz down to ~40Hz over
+   its envelope, so it reads as distant. lazy AudioContext stays
+   suspended until the user's first pointerdown. respects
+   settings.mute (skips audio) — visual still flashes, by
+   design, so lightning reads from a muted tab too. */
+const LIGHTNING_KEY = "biosphere02.lightning.flashes";
+const lightningHostEl = document.getElementById("lightning-host");
+const lightningTintsEl = document.getElementById("lightning-tints");
+const lightningStatEl = document.getElementById("lightning-stat");
+let lightningFlashes = (() => { try { return +localStorage.getItem(LIGHTNING_KEY) || 0; } catch { return 0; } })();
+function renderLightningStat() { if (lightningStatEl) lightningStatEl.textContent = lightningFlashes; }
+renderLightningStat();
+
+let _lightningCtx = null;
+function _ensureLightningCtx() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!_lightningCtx) _lightningCtx = new AC();
+  if (_lightningCtx.state === "suspended") _lightningCtx.resume().catch(() => {});
+  return _lightningCtx;
+}
+
+function fireLightning() {
+  const b = document.body.classList;
+  const moodOk = b.contains("dusk") || b.contains("night");
+  if (!moodOk) return scheduleLightning();
+  if (typeof isMotionReduced === "function" && isMotionReduced()) return scheduleLightning();
+
+  if (lightningHostEl) {
+    const bolt = document.createElement("div");
+    bolt.className = "lightning-bolt";
+    const W = window.innerWidth;
+    const x = W * (0.20 + Math.random() * 0.60);
+    const h = window.innerHeight * (0.08 + Math.random() * 0.18);
+    bolt.style.left = x.toFixed(0) + "px";
+    bolt.style.top  = h.toFixed(0) + "px";
+    bolt.innerHTML =
+      '<svg viewBox="0 0 30 90" aria-hidden="true">' +
+      '<path d="M16 0 L4 32 L12 32 L7 90 L26 50 L17 50 L23 0 Z" fill="rgba(220, 232, 255, 0.85)"/>' +
+      '<path d="M16 0 L4 32 L12 32 L7 90 L26 50 L17 50 L23 0 Z" fill="rgba(180, 220, 255, 0.5)" filter="blur(2.5px)"/>' +
+      '</svg>';
+    lightningHostEl.appendChild(bolt);
+    setTimeout(() => bolt.remove(), 720);
+  }
+  if (lightningTintsEl) {
+    const tint = document.createElement("div");
+    tint.className = "lightning-tint";
+    lightningTintsEl.appendChild(tint);
+    setTimeout(() => tint.remove(), 500);
+  }
+  const ctx = _ensureLightningCtx();
+  if (ctx && !(typeof settings !== "undefined" && settings.mute)) {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sawtooth";
+    o.frequency.value = 80 + Math.random() * 30;
+    g.gain.value = 0;
+    o.connect(g).connect(ctx.destination);
+    const now = ctx.currentTime;
+    g.gain.linearRampToValueAtTime(0.18, now + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 2.0);
+    o.frequency.exponentialRampToValueAtTime(40, now + 2.0);
+    o.start(now);
+    o.stop(now + 2.1);
+  }
+  lightningFlashes++;
+  try { localStorage.setItem(LIGHTNING_KEY, String(lightningFlashes)); } catch {}
+  renderLightningStat();
+  scheduleLightning();
+}
+function scheduleLightning() {
+  const wait = 12 * 60_000 + Math.random() * 13 * 60_000; // 12-25 min
+  setTimeout(fireLightning, wait);
+}
+setTimeout(fireLightning, 90_000); // first flash ~90s after load
+
+/* ---- 3) dawn pond mist ----
+   three stacked translucent sheets rising from the pond region
+   via #pond-mist host already in styles (z-index 2 over pond).
+   pure CSS-driven visibility (body.dawn fades opacity in over
+   1.8s and out as dawn → day). counts one "aura" per dawn
+   transition via a 60s class poll (no MutationObserver — the
+   poll is simpler and cheaper for a single transition). */
+const MIST_KEY = "biosphere02.mist.auras";
+const pondMistStatEl = document.getElementById("pond-mist-stat");
+let mistAuras = (() => { try { return +localStorage.getItem(MIST_KEY) || 0; } catch { return 0; } })();
+function renderMistStat() { if (pondMistStatEl) pondMistStatEl.textContent = mistAuras; }
+renderMistStat();
+
+let _lastMoodForMist = "";
+function pollMoodForMist() {
+  const b = document.body.classList;
+  let mood = "day";
+  if (b.contains("dawn"))      mood = "dawn";
+  else if (b.contains("dusk")) mood = "dusk";
+  else if (b.contains("night")) mood = "night";
+  if (_lastMoodForMist === "dawn" && mood !== "dawn") {
+    mistAuras++;
+    try { localStorage.setItem(MIST_KEY, String(mistAuras)); } catch {}
+    renderMistStat();
+  }
+  _lastMoodForMist = mood;
+}
+pollMoodForMist();
+setInterval(pollMoodForMist, 60_000);
+
+/* ---- 4) milky way band ----
+   a faint diagonal star-band that lives at z-index 1 (between
+   stars/aurora and windows). fades in on body.night, fades out
+   as soon as the mood moves off night (so a dusk→night→dawn
+   transition fans the band smoothly in and out). counter
+   ticks once per night visit so the row shows "milky way
+   nights" lived through. a 240s linear drift translates the
+   band slowly across the upper sky so it doesn't read static. */
+const MILKY_KEY = "biosphere02.milkyway.shown";
+const milkyStatEl = document.getElementById("milkyway-stat");
+let milkyShown = (() => { try { return +localStorage.getItem(MILKY_KEY) || 0; } catch { return 0; } })();
+function renderMilkyStat() { if (milkyStatEl) milkyStatEl.textContent = milkyShown; }
+renderMilkyStat();
+
+let _milkyActive = false;
+function updateMilky() {
+  const b = document.body.classList;
+  const visible = b.contains("night") && !b.contains("motion-reduced");
+  if (visible && !_milkyActive) {
+    b.add("milkyway-on");
+    _milkyActive = true;
+    milkyShown++;
+    try { localStorage.setItem(MILKY_KEY, String(milkyShown)); } catch {}
+    renderMilkyStat();
+  } else if (!visible && _milkyActive) {
+    b.remove("milkyway-on");
+    _milkyActive = false;
+  }
+}
+updateMilky();
+setInterval(updateMilky, 60_000);
+
+/* ---- 5) lightning-bug dance ----
+   on still warm summer nights (body.night AND body.season-summer
+   AND no wind-gust AND no motion-reduced) every ~30-90 min, the
+   14 fireflies briefly pulse in unison over 2.4s — like a real
+   simultaneous flash rather than 14 detuned blinks. counter
+   ticks per dance. the JS in updateFireflies already gates its
+   per-frame opacity write so the CSS animation takes the wheel
+   during the dance (see firefly opacity gate above). */
+const FD_KEY = "biosphere02.firefly-dance.flashes";
+const fdStatEl = document.getElementById("firefly-dance-stat");
+let fdFlashes = (() => { try { return +localStorage.getItem(FD_KEY) || 0; } catch { return 0; } })();
+function renderFdStat() { if (fdStatEl) fdStatEl.textContent = fdFlashes; }
+renderFdStat();
+
+function maybeFireflyDance() {
+  const b = document.body.classList;
+  const nighty = b.contains("night");
+  const summery = b.contains("season-summer");
+  const calm = !b.contains("wind-gust");
+  if (!nighty || !summery || !calm) {
+    setTimeout(maybeFireflyDance, 30_000 + Math.random() * 12_000);
+    return;
+  }
+  if (typeof isMotionReduced === "function" && isMotionReduced()) {
+    setTimeout(maybeFireflyDance, 60_000);
+    return;
+  }
+  b.add("firefly-dance");
+  fdFlashes++;
+  try { localStorage.setItem(FD_KEY, String(fdFlashes)); } catch {}
+  renderFdStat();
+  setTimeout(() => {
+    b.remove("firefly-dance");
+  }, 2400);
+  const cad = 30 * 60_000 + Math.random() * 60 * 60_000; // 30-90 min
+  setTimeout(maybeFireflyDance, cad);
+}
+setTimeout(maybeFireflyDance, 12 * 60_000); // first attempt after ~12 min

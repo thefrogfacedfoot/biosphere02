@@ -505,6 +505,9 @@
       </radialGradient>
     </defs>
     <circle cx="20" cy="20" r="17" fill="url(#moon-glow)"/>
+    <!-- devlog #29 — moon halo circles, gated via body.moon-halo-on -->
+    <circle class="moon-halo"       cx="20" cy="20" r="22"/>
+    <circle class="moon-halo-inner" cx="20" cy="20" r="19.5"/>
     <circle cx="20" cy="20" r="10" fill="rgba(244, 244, 226, 0.96)"/>
     <circle cx="16" cy="17" r="2"   fill="rgba(170, 170, 152, 0.22)"/>
     <circle cx="24" cy="22" r="1.6" fill="rgba(170, 170, 152, 0.18)"/>
@@ -544,7 +547,125 @@
      rather than a target. -->
 <div id="peepers" aria-label="spring peepers"></div>
 
+<!-- a host div for the glow beetle — the 13th CREATURE_SPECIES entry.
+     js spawns a child div on each appearance; the beetle crawls out from
+     under the fern floor at night, leaves a faint two-line green glow
+     trail behind it. smaller and rarer than the salamander. -->
+<div id="beetles" aria-label="glow beetles"></div>
+
+<!-- a single distant comet that arcs across the upper sky on a slow
+     ~8-15 min cadence at dusk/night. distinct from shooters: slower,
+     longer tail, no catch (click only counts + extends a remark). -->
+<div id="comet-host" aria-hidden="true"></div>
+
+<!-- drift-feather host — feather sprites are added here by js each time
+     a wind-gust rolls through; no static markup. -->
+<div id="feathers" aria-hidden="true"></div>
+
+<!-- a small cream-white bell hung off the dock-end post. click to ring
+     (pendulum swing + faint audio sine if a context is armed); counter
+     "dock bells" in ~/status. -->
+<div id="dock-bell" title="ring the dock bell" aria-label="a small bell on the dock">
+  <svg class="db-svg" viewBox="0 0 22 32" aria-hidden="true">
+    <line x1="11" y1="0" x2="11" y2="6" stroke="#3a2a1a" stroke-width="1"/>
+    <path d="M5 6 Q5 4 7 4 L15 4 Q17 4 17 6 L19 22 Q19 24 17 24 L5 24 Q3 24 3 22 Z" fill="#e8dcc0" stroke="#3a2a1a" stroke-width="0.7"/>
+    <circle class="db-clapper" cx="11" cy="14" r="1.6" fill="#4a3a2a"/>
+    <circle cx="6.4" cy="21" r="0.6" fill="rgba(255, 217, 160, 0.5)"/>
+    <circle cx="11" cy="22" r="0.6" fill="rgba(255, 217, 160, 0.55)"/>
+    <circle cx="15.6" cy="21" r="0.6" fill="rgba(255, 217, 160, 0.5)"/>
+  </svg>
+</div>
+
+<!-- a small autumn leaf pile at the right of the bench — three leaves
+     where the wind catches them, fading slightly when scattered.
+     body.season-autumn only (other seasons the pile reads as pine
+     needles and stays inert). click to scatter — leaves drift back
+     over ~22s. -->
+<div id="leaf-pile" title="scatter the leaves" aria-label="a small pile of leaves">
+  <svg class="lp-svg" viewBox="0 0 36 14" aria-hidden="true">
+    <ellipse class="lp-shadow" cx="18" cy="12" rx="14" ry="2" fill="rgba(0,0,0,0.32)"/>
+    <path class="leaf-leaf" d="M6 10 Q4 6 9 4 Q14 6 12 11 Z" fill="#c46a2a"/>
+    <path class="leaf-leaf" d="M14 11 Q12 6 18 5 Q23 7 22 12 Z" fill="#d9883a"/>
+    <path class="leaf-leaf" d="M22 11 Q24 6 30 7 Q32 11 28 12 Z" fill="#a85a18"/>
+    <path class="leaf-vein" d="M9 7 L11 10" stroke="#7a3a14" stroke-width="0.5" fill="none"/>
+    <path class="leaf-vein" d="M18 7 L20 11" stroke="#7a3a14" stroke-width="0.5" fill="none"/>
+    <path class="leaf-vein" d="M26 8 L28 11" stroke="#7a3a14" stroke-width="0.5" fill="none"/>
+  </svg>
+</div>
+
+<!-- a host div for the bioluminescent jellies — small glowing domes that
+     rise from the pond at night on a slow cadence, capped at 3 at a time.
+     click to bump the jellies counter. -->
+<div id="jellies" aria-label="bioluminescent jellies"></div>
+<div class="jellies-stat-wrap" aria-hidden="true">
+  <span class="stat-label">jellies</span>
+  <span class="jellies-stat" id="jellies-stat">0</span>
+</div>
+
+<!-- lantern moth — a separate moth from the hearth moth that visits
+     the lighthouse beam at dusk and night. hovers near the lamp via
+     pure-css wander; click to spot. -->
+<div id="lantern-moth" class="moth-l" title="a moth — click to spot" aria-label="a moth drawn to a lantern">
+  <svg class="moth-l-svg" viewBox="0 0 18 15" aria-hidden="true">
+    <ellipse class="moth-l-wing left"  cx="6"  cy="8" rx="7" ry="5.6" fill="#cab3a0" opacity="0.92"/>
+    <ellipse class="moth-l-wing right" cx="12" cy="8" rx="7" ry="5.6" fill="#cab3a0" opacity="0.92"/>
+    <ellipse cx="9" cy="8" rx="1.0" ry="4.2" fill="#3a2818"/>
+    <circle  cx="9" cy="4" r="0.9" fill="#3a2818"/>
+    <line x1="8.4" y1="3" x2="7"  y2="1.2" stroke="#3a2818" stroke-width="0.4"/>
+    <line x1="9.6" y1="3" x2="11" y2="1.2" stroke="#3a2818" stroke-width="0.4"/>
+  </svg>
+  <span class="stat-label" id="lantern-moth-stat-wrap">lantern moths <span id="lantern-moth-stat">0</span></span>
+</div>
+
+<!-- a small wooden clipboard by the pond — click to flip through six
+     hand-drawn coordinate sketches. each map stays open and one label
+     drifts slowly to feel alive. counter: maps drawn. -->
+<div id="clipboard" title="browse the maps" aria-label="a clipboard of sketched maps">
+  <svg class="cb-svg" viewBox="0 0 56 70" aria-hidden="true">
+    <rect x="4" y="6" width="48" height="60" rx="2" fill="#5a3f28" stroke="#2a1808" stroke-width="0.8"/>
+    <rect x="6" y="8" width="44" height="56" rx="1" fill="#3a2415"/>
+    <rect x="20" y="2" width="16" height="8" rx="1" fill="#7d6a5a" stroke="#2a1808" stroke-width="0.6"/>
+    <rect x="25" y="0" width="6"  height="3" rx="1" fill="#cab3a0" stroke="#2a1808" stroke-width="0.4"/>
+    <rect x="9" y="14" width="38" height="42" rx="1" fill="rgba(238, 232, 204, 0.95)" stroke="rgba(120, 90, 60, 0.4)" stroke-width="0.5"/>
+    <g class="cb-paper-lines">
+      <line x1="13" y1="20" x2="43" y2="20" stroke="rgba(140,120,80,0.30)" stroke-width="0.3"/>
+      <line x1="13" y1="48" x2="43" y2="48" stroke="rgba(140,120,80,0.30)" stroke-width="0.3"/>
+    </g>
+    <g class="cb-sketch" id="cb-sketch"></g>
+    <text class="cb-title" x="28" y="62" text-anchor="middle" font-size="3.2" font-family="Georgia, serif" fill="rgba(60, 40, 20, 0.6)" font-style="italic">map no. 1</text>
+  </svg>
+  <span class="stat-label" id="clipboard-stat-wrap">maps <span id="clipboard-stat">0</span></span>
+</div>
+
 <!-- lighthouse on the far shore (svg + sweeping beam) -->
+<!-- a host for the water strider — the 14th CREATURE_SPECIES entry.
+     each spawn is a small surface insect that skims the pond on six
+     tiny dimple ripples. day/dawn/dusk moods only. -->
+<div id="water-striders" aria-label="water striders"></div>
+<div class="strider-stat-wrap" aria-hidden="true">
+  <span>striders</span>
+  <span id="strider-stat">0</span>
+</div>
+
+<!-- a host for the great blue heron — the 15th CREATURE_SPECIES entry.
+     rare statue-still wader with an S-shaped neck that periodically dips
+     (pure css). day/dusk moods only, click sends it flying off. -->
+<div id="herons" aria-label="herons"></div>
+<div class="heron-stat-wrap" aria-hidden="true">
+  <span>herons</span>
+  <span id="heron-stat">0</span>
+</div>
+
+<!-- a host for ambient cattail fluff — small white flecks drift from the
+     existing cattail heads during wind-gust on summer / autumn seasons.
+     not a creature, just a quiet weather-bound tie-in to the shed
+     cattails swaying nearby. -->
+<div id="cattail-fluff" aria-hidden="true"></div>
+<div class="cat-fluff-stat-wrap" aria-hidden="true">
+  <span>fluff</span>
+  <span id="cat-fluff-stat">0</span>
+</div>
+
 <div id="lighthouse" title="leave a moment at the lighthouse" aria-label="lighthouse">
   <div class="lighthouse-beam" id="lighthouse-beam"></div>
   <svg class="lighthouse-svg" viewBox="0 0 50 110" aria-hidden="true">
@@ -618,6 +739,43 @@
 </div>
 
 <!-- main desktop area -->
+
+
+<!-- devlog #29 — dawn pond mist (3 stacked sheets above the pond) -->
+<div id="pond-mist" aria-hidden="true">
+  <div class="pm-layer l1"></div>
+  <div class="pm-layer l2"></div>
+  <div class="pm-layer l3"></div>
+</div>
+
+<!-- devlog #29 — milky way band drifts across upper sky on deep nights -->
+<div id="milkyway" aria-hidden="true">
+  <div class="milky-band"></div>
+  <div class="milky-stars"></div>
+</div>
+
+<!-- devlog #29 — stat wrap rows distributed across the bottom band -->
+<div class="moon-halo-stat-wrap" aria-hidden="true">
+  <span>moon halos</span>
+  <span id="moon-halo-stat">0</span>
+</div>
+<div class="lightning-stat-wrap" aria-hidden="true">
+  <span>flashes</span>
+  <span id="lightning-stat">0</span>
+</div>
+<div class="pond-mist-stat-wrap" aria-hidden="true">
+  <span>mist auras</span>
+  <span id="pond-mist-stat">0</span>
+</div>
+<div class="milkyway-stat-wrap" aria-hidden="true">
+  <span>milky nights</span>
+  <span id="milkyway-stat">0</span>
+</div>
+<div class="firefly-dance-stat-wrap" aria-hidden="true">
+  <span>dances</span>
+  <span id="firefly-dance-stat">0</span>
+</div>
+
 <main id="desktop">
 
   <!-- WINDOW: about -->
