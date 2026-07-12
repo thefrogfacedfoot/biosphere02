@@ -1,3 +1,224 @@
+
+/* ==== devlog #30 — moss runestone, auroral magnetometer, tide flutes, resin censer ==== */
+
+/* ---- moss runestone ---- */
+/* a flat river rock on the left shore, between the moonflower (left:284)
+   ends at 314 and the cairn (left:360). the visible moss cap is the painting
+   layer; the revealed bioluminescent stone beneath it is what strokes
+   uncover. pointer events fire on .mr-stone so the layer receives the drag. */
+#moss-runestone {
+  position: fixed;
+  left: 316px;
+  bottom: calc(38px + var(--pond-h) - 8px);
+  width: 42px; height: 28px;
+  z-index: 3;
+  cursor: crosshair;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  user-select: none;
+  transition: transform 200ms ease;
+}
+#moss-runestone:hover { transform: translateY(-2px); }
+.mr-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.mr-moss { transition: opacity 1100ms ease; pointer-events: none; }
+.mr-moss.dot { transition: opacity 1800ms ease; }
+.mr-scratch-host path {
+  stroke: rgba(160, 220, 255, 0.92);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  fill: none;
+  filter: drop-shadow(0 0 2px rgba(180, 230, 255, 0.85));
+  transition: opacity 1100ms ease;
+}
+.mr-hint {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 9px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: rgba(160, 220, 255, 0.9);
+  pointer-events: none;
+  opacity: 0;
+  letter-spacing: 0.4px;
+  transition: opacity 240ms ease;
+  text-shadow: 0 0 4px rgba(180, 230, 255, 0.6);
+}
+#moss-runestone:hover .mr-hint,
+#moss-runestone.active .mr-hint { opacity: 0.7; }
+#moss-runestone.regrowing .mr-moss { opacity: 0.92; }
+#moss-runestone.regrowing .mr-scratch-host path { opacity: 0.18; }
+body.motion-reduced #moss-runestone .mr-moss,
+body.motion-reduced #moss-runestone .mr-scratch-host path { transition: none; }
+body.stargazer #moss-runestone { opacity: 0.55; }
+
+/* ---- auroral magnetometer ---- */
+/* small brass instrument with needle on a wooden post. position goes
+   between the cairn (414) and the swing (448) on the left shore. */
+#magnetometer {
+  position: fixed;
+  left: 418px;
+  bottom: calc(38px + var(--pond-h) - 6px);
+  width: 28px; height: 70px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease;
+}
+#magnetometer:hover { transform: translateY(-2px); }
+.mag-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.mag-needle {
+  transform-origin: 14px 34px;
+  transition: transform 1100ms cubic-bezier(.4, .0, .3, 1);
+}
+#magnetometer.storm .mag-needle { animation: mag-shake 0.16s linear infinite; }
+#magnetometer.rave { animation: mag-rattle 0.10s linear infinite; }
+@keyframes mag-shake {
+  0%   { transform: translate(0,0) rotate(var(--mag-rot, -45deg)); }
+  50%  { transform: translate(0.5px,-0.5px) rotate(calc(var(--mag-rot, -45deg) + 4deg)); }
+  100% { transform: translate(-0.5px,0.5px) rotate(calc(var(--mag-rot, -45deg) - 4deg)); }
+}
+@keyframes mag-rattle {
+  0%   { transform: translate(0,0); }
+  33%  { transform: translate(1px,-1px); }
+  66%  { transform: translate(-1px,1px); }
+  100% { transform: translate(0,0); }
+}
+body.motion-reduced #magnetometer.storm .mag-needle,
+body.motion-reduced #magnetometer.rave { animation: none; }
+body.stargazer #magnetometer { opacity: 0.55; }
+
+/* ---- tide flutes: bamboo pan-pipe cluster on the water surface ---- */
+/* sits just left of the dock, hovering on the water at the current tide
+   level. tied to --pond-h with the same easing shore elements use. */
+#tide-flutes {
+  position: fixed;
+  left: calc(50% - 240px);
+  bottom: calc(38px + var(--pond-h) - 36px);
+  width: 96px; height: 34px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+  transition: bottom 1100ms ease;
+  transform-origin: 50% 100%;
+  animation: tf-bob 4.4s ease-in-out infinite;
+}
+@keyframes tf-bob {
+  0%,100% { transform: rotate(-2.6deg) translateY(0); }
+  50%     { transform: rotate(-2.1deg) translateY(-1.6px); }
+}
+.tf-svg { width: 100%; height: 100%; display: block; overflow: visible; pointer-events: none; }
+.tf-tube { cursor: pointer; pointer-events: auto; transition: filter 200ms ease, transform 160ms ease; transform-origin: 50% 100%; }
+.tf-tube:hover { filter: brightness(1.18); }
+.tf-tube.played { animation: tf-played 380ms cubic-bezier(.2, .8, .3, 1); }
+@keyframes tf-played {
+  0%   { transform: scaleY(0.96); }
+  35%  { transform: scaleY(1.06) translateY(-1px); }
+  100% { transform: scaleY(1.00) translateY(0); }
+}
+body.motion-reduced #tide-flutes { animation: none; }
+body.stargazer #tide-flutes { opacity: 0.55; }
+
+/* ---- resin censer ---- */
+/* a clay dish on the right shore. 4 states: idle (no flame), ignited
+   (small amber flame), smoldering (no flame, lots of smoke), ash
+   (smoke clears, resin darkened). the smoke layer is appended as
+   <circle> children by js to .rc-smoke. */
+#resin-censer {
+  position: fixed;
+  right: 175px;
+  bottom: calc(38px + var(--pond-h) - 6px);
+  width: 36px; height: 50px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  transition: transform 180ms ease;
+}
+#resin-censer:hover { transform: translateY(-2px); }
+.rc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.rc-flame, .rc-flame-hover { transition: opacity 400ms ease, fill 600ms ease; opacity: 0; }
+#resin-censer.ignited .rc-flame-hover { opacity: 0.45; }
+#resin-censer.ignited .rc-flame { opacity: 1; fill: rgba(255, 200, 110, 0.95); }
+#resin-censer.smoldering .rc-flame-hover,
+#resin-censer.smoldering .rc-flame { opacity: 0; }
+#resin-censer.ash .rc-resin { fill: #2a1808; }
+#resin-censer.ash .rc-wick { stroke: #4a3020; }
+.rc-smoke circle {
+  fill: rgba(200, 210, 220, 0.5);
+  filter: blur(2px);
+  animation: rc-smoke-rise 6.4s cubic-bezier(.3, .2, .6, 1) forwards;
+}
+@keyframes rc-smoke-rise {
+  0%   { transform: translate(0,0) scale(0.6); opacity: 0; }
+  12%  { opacity: 0.7; }
+  100% { transform: translate(var(--smoke-dx, 0px), -56px) scale(2.6); opacity: 0; }
+}
+body.wind-gust .rc-smoke circle { animation-duration: 4.2s; }
+body.wind-gust .rc-smoke {
+  transform: translate(8px,-3px) rotate(8deg);
+  transform-origin: 50% 100%;
+  transition: transform 1.2s ease;
+}
+body:not(.wind-gust) .rc-smoke {
+  transform: translate(0,0) rotate(0deg);
+  transition: transform 1.4s ease;
+}
+body.motion-reduced .rc-smoke circle { animation: none !important; display: none; }
+body.motion-reduced .rc-smoke { transform: none !important; }
+body.motion-reduced #resin-censer .rc-flame,
+body.motion-reduced #resin-censer .rc-flame-hover { transition: none; }
+body.stargazer #resin-censer { opacity: 0.55; }
+
+/* ---- luna moth (16th creature species) ---- */
+/* pale-grey moth drawn from the smoke of the resin censer when the censer
+   is smoldering and the sky is in night mood. mid-sized. */
+.luna-moth {
+  position: fixed;
+  width: 32px; height: 26px;
+  z-index: 5;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 700ms ease, filter 200ms ease;
+  filter: drop-shadow(0 0 6px rgba(220, 230, 245, 0.55));
+  will-change: left, top;
+}
+.luna-moth.flying { opacity: 0.95; }
+.luna-moth:hover { filter: drop-shadow(0 0 10px rgba(220, 230, 245, 0.95)); }
+.luna-moth.caught { opacity: 0 !important; transform: scale(1.4); }
+.luna-moth-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.luna-moth-svg .lm-wing { transform-origin: 16px 13px; animation: lm-flap 0.20s ease-in-out infinite alternate; }
+.luna-moth-svg .lm-wing.r { animation-delay: -0.10s; }
+@keyframes lm-flap { from { transform: scaleX(1.0); } to { transform: scaleX(0.55); } }
+@media (prefers-reduced-motion: reduce) { .luna-moth { display: none !important; } .luna-moth-svg .lm-wing { animation: none; } }
+body.motion-reduced .luna-moth { display: none !important; }
+body.motion-reduced .luna-moth-svg .lm-wing { animation: none; }
+body.stargazer .luna-moth { opacity: 0.5; }
+
+/* ---- devlog #30 stat wraps in the bottom band ---- */
+.magnet-stat-wrap, .flutes-stat-wrap, .censer-stat-wrap, .runestone-stat-wrap, .luna-moth-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+}
+.magnet-stat-wrap     { bottom: 80px; left: 9vw; }
+.flutes-stat-wrap     { bottom: 80px; left: 22vw; }
+.censer-stat-wrap     { bottom: 80px; left: 38vw; }
+.runestone-stat-wrap  { bottom: 80px; left: 54vw; }
+.luna-moth-stat-wrap  { bottom: 80px; left: 70vw; }
+.magnet-stat-wrap #magnet-stat,
+.flutes-stat-wrap #flutes-stat,
+.censer-stat-wrap #censer-stat,
+.runestone-stat-wrap #runestone-stat,
+.luna-moth-stat-wrap #luna-moth-stat { color: var(--moss); margin-left: 4px; }
+body.stargazer .magnet-stat-wrap,
+body.stargazer .flutes-stat-wrap,
+body.stargazer .censer-stat-wrap,
+body.stargazer .runestone-stat-wrap,
+body.stargazer .luna-moth-stat-wrap { opacity: 0.5; }
+
 /* ------- biosphere/02 ------- */
 
 :root {

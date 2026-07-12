@@ -1552,7 +1552,7 @@ applyTimeOfDay = function () {
     // line has been reached. Bail silently on early calls; the next
     // applyTimeOfay call (60s later via setInterval) picks the
     // sync up normally, once the script has finished evaluating.
-    if (typeof MILKY_KEY === "undefined") return;
+    try { if (typeof MILKY_KEY === "undefined") return; } catch (e) { return; }
     const b = document.body.classList;
     const nighty = b.contains("night");
     const on = nighty && !b.contains("motion-reduced");
@@ -8868,3 +8868,601 @@ function maybeFireflyDance() {
   setTimeout(maybeFireflyDance, cad);
 }
 setTimeout(maybeFireflyDance, 12 * 60_000); // first attempt after ~12 min
+
+/* ============================================================
+   devlog #30 — moss runestone, auroral magnetometer,
+   tide flutes, resin censer (four new additions)
+   ============================================================ */
+
+/* ---- 1) auroral magnetometer — fetches real Kp from NOAA SWPC ----
+   fallback of -1 means "no reading yet". the needle rotates from -90deg
+   (W, no Kp) through 0deg (N, Kp~3) to 90deg-ish (E, Kp>=9). the storm/rave
+   classes are flipped at Kp>=4 / Kp>=7 thresholds. */
+const MAGNET_KEY = "biosphere02.magnet.kp.v1";
+let magKp = null;          // current Kp (number) or null
+let magFetchedAt = 0;      // ms timestamp of last successful fetch
+let magReadings = 0;       // successful readings, also persisted    // consecutive fetch failures (UI hint)    // ms timestamp of next scheduled fetch
+function readMagnetCache() {
+  try {
+    const raw = localStorage.getItem(MAGNET_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return o || null;
+  } catch { return null; }
+}
+function writeMagnetCache() {
+  try { localStorage.setItem(MAGNET_KEY, JSON.stringify({ kp: magKp, when: magFetchedAt, count: magReadings })); } catch {}
+}
+const _magCached = readMagnetCache();
+if (_magCached && typeof _magCached.kp === "number") {
+  magKp = _magCached.kp;
+  magFetchedAt = _magCached.when || 0;
+  magReadings = _magCached.count || 0;
+}
+
+function magNeedleRotation() {
+  // kp 0..9 → -90deg..+165deg. anything below 0 maps to -90 (west, "no reading").
+  if (magKp == null) return -45;
+  // kp-3 maps to N=0deg, kp-9 to E=+90deg. clamp 0..9.
+  const k = Math.max(0, Math.min(9, magKp));
+  const deg = -90 + (k / 9) * (270);  // -90 → 180
+  return deg;
+}
+
+function renderMagnet() {
+  const el = document.getElementById("magnetometer");
+  if (!el) return;
+  const needle = el.querySelector(".mag-needle");
+  const rot = magNeedleRotation();
+  el.style.setProperty("--mag-rot", rot + "deg");
+  // storm/rave thresholds
+  el.classList.toggle("storm", typeof magKp === "number" && magKp >= 4);
+  el.classList.toggle("rave",  typeof magKp === "number" && magKp >= 7);
+  if (needle) needle.style.transform = `rotate(${rot}deg)`;
+  // stat-wrap
+  const stat = document.getElementById("magnet-stat");
+  if (stat) stat.textContent = String(magReadings);
+}
+renderMagnet();
+
+async function fetchKp() {
+  // SWPC planetary Kp 1m, CORS-friendly. if the relay is silent we keep the
+  // previous cached value so the needle doesn't snap to -45 every refresh.
+  try {
+    const r = await fetch("https://services.swpc.noaa.gov/json/planetary_k_index_1m.json", { cache: "no-store" });
+    if (!r.ok) throw new Error("http");
+    const d = await r.json();
+    if (!Array.isArray(d) || !d.length) throw new Error("empty");
+    const last = d[d.length - 1];
+    const kp = parseFloat(last && last.kp_index);
+    if (Number.isNaN(kp)) throw new Error("nan");
+    magKp = kp;
+    magFetchedAt = Date.now();
+    magReadings++;
+    writeMagnetCache();
+    renderMagnet();
+  } catch (e) {
+    // do not clear magKp on a single transient failure.
+  }
+}
+// first fetch ~6s after load so it doesn't fight the first paint.
+setTimeout(fetchKp, 6000);
+// retry on a 5-minute cadence (so a tab left open stays current without
+// hammering the relay — SWPC updates once a minute).
+setInterval(fetchKp, 5 * 60_000);
+
+(function magnetClick() {
+  const el = document.getElementById("magnetometer");
+  if (!el) return;
+  el.addEventListener("click", () => {
+    let msg;
+    if (magKp == null) {
+      msg = "no reading yet · the relay is quiet";
+    } else {
+      const when = magFetchedAt ? new Date(magFetchedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—";
+      const stamp = `Kp ${magKp.toFixed(1)} · last read ${when}`;
+      if (magKp >= 7)      msg = `${stamp} · a major storm is on the sun`;
+      else if (magKp >= 5) msg = `${stamp} · a minor storm, aurora likely`;
+      else if (magKp >= 4) msg = `${stamp} · unsettled`;
+      else if (magKp >= 1) msg = `${stamp} · quiet`;
+      else                  msg = `${stamp} · very quiet`;
+    }
+    if (typeof toast === "function") toast(msg, 3200);
+    if (typeof gLog === "function") gLog("aurora", `magnetometer kp ${magKp != null ? magKp.toFixed(1) : "?"}`, "noaa swpc");
+  });
+})();
+
+/* ---- 2) tide flutes — bamboo pan-pipe floating on the pond ----
+   five tubes bound to a minor pentatonic; click plays via the lazy AudioContext
+   pool. frequency is multiplied by tide factor at click time so high tide
+   the chord is mildly deeper. at night a slow auto-cycle plays single
+   arpeggio notes softly. */
+const FLUTES_KEY = "biosphere02.flutes.played";
+let flutesPlayed = (() => { try { return +localStorage.getItem(FLUTES_KEY) || 0; } catch { return 0; } })();
+function renderFlutesStat() {
+  const el = document.getElementById("flutes-stat");
+  if (el) el.textContent = String(flutesPlayed);
+}
+renderFlutesStat();
+
+// A minor pentatonic — A3 C4 D4 E4 G4.
+const flutesTubes = [
+  { tube: 0, freq: 220.00 },
+  { tube: 1, freq: 261.63 },
+  { tube: 2, freq: 293.66 },
+  { tube: 3, freq: 329.63 },
+  { tube: 4, freq: 392.00 },
+];
+// the lazy AudioContext the cricket already uses. we share the same pattern:
+// context exists but suspended until the user has interacted anywhere on the
+// page. once `armed` is flipped by any user gesture we resume normally.
+const fluteCtx = { ctx: null, armed: false, master: null };
+function getFluteCtx() {
+  if (!fluteCtx.ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    fluteCtx.ctx = new AC();
+    const master = fluteCtx.ctx.createGain();
+    master.gain.value = 0.85;
+    master.connect(fluteCtx.ctx.destination);
+    fluteCtx.master = master;
+  }
+  if (fluteCtx.ctx.state === "suspended" && fluteCtx.armed) {
+    fluteCtx.ctx.resume().catch(() => {});
+  }
+  return fluteCtx.ctx;
+}
+function tideFactorNow() {
+  // poll --pond-h at the moment of play so the flutes re-tune per click.
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--pond-h");
+  const h = parseFloat(raw); // 17..19 typical
+  if (!Number.isFinite(h)) return 1;
+  // 17vh → 1.018, 19vh → 0.984 — a very gentle modulation.
+  const frac = Math.max(0, Math.min(1, (h - 17) / 2));
+  return 1 - frac * 0.034;
+}
+function playFluteTube(idx, gain = 0.24, decay = 3.4) {
+  if (typeof settings !== "undefined" && settings.mute) return;
+  const ctx = getFluteCtx();
+  if (!ctx || !fluteCtx.armed) return;
+  const t = flutesTubes[idx];
+  if (!t) return;
+  const root = ctx.createOscillator();
+  root.type = "sine";
+  root.frequency.value = t.freq * tideFactorNow();
+  // a soft 2x harmonic via a triangle for warmth
+  const harm = ctx.createOscillator();
+  harm.type = "triangle";
+  harm.frequency.value = root.frequency.value * 2.0;
+  const harmG = ctx.createGain();
+  harmG.gain.value = gain * 0.14;
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  root.connect(g);
+  harm.connect(harmG).connect(g);
+  g.connect(fluteCtx.master);
+  const now = ctx.currentTime;
+  g.gain.linearRampToValueAtTime(gain, now + 0.04);
+  g.gain.exponentialRampToValueAtTime(0.0008, now + decay);
+  root.start(now);
+  harm.start(now);
+  root.stop(now + decay + 0.2);
+  harm.stop(now + decay + 0.2);
+  // mark the played tube for an animation flash
+  const tubeEl = document.querySelector(`#tide-flutes .tf-tube[data-tube="${idx}"]`);
+  if (tubeEl) {
+    tubeEl.classList.add("played");
+    setTimeout(() => tubeEl.classList.remove("played"), 360);
+  }
+  flutesPlayed++;
+  try { localStorage.setItem(FLUTES_KEY, String(flutesPlayed)); } catch {}
+  renderFlutesStat();
+}
+
+(function setupFlutesClick() {
+  document.querySelectorAll("#tide-flutes .tf-tube").forEach((el, i) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      fluteCtx.armed = true;
+      playFluteTube(i, 0.22, 3.4);
+      if (flutesPlayed === 1 && typeof gLog === "function") gLog("flute", "tide flute played", "tide-flutes");
+    });
+  });
+})();
+
+// ambient — every 22–50s at night, one random tube plays softly. respects the
+// global motion-pref gate so reduced-motion users still see the flutes but
+// the auto-cycles go silent.
+(function scheduleFluteAmbient() {
+  const next = 22000 + Math.random() * 28000;
+  setTimeout(() => {
+    try {
+      const moody = document.body.classList.contains("night");
+      const movered = typeof isMotionReduced === "function" && isMotionReduced();
+      if (!moody || movered || (typeof settings !== "undefined" && settings.mute)) {
+        scheduleFluteAmbient();
+        return;
+      }
+      const idx = Math.floor(Math.random() * flutesTubes.length);
+      playFluteTube(idx, 0.07, 4.6);
+    } catch {
+      // never let an ambient error kill the loop
+    }
+    scheduleFluteAmbient();
+  }, next);
+})();
+
+/* ---- 3) resin censer — state machine ----
+   idle → ignited → smoldering → ash → (4 min timer) → idle.
+   while smoldering, the luna-moth scheduler fires. any wind-gust reader
+   simply hooks off body.wind-gust via CSS; we don't need a separate
+   subscription. */
+const CENSER_KEY = "biosphere02.censer.burnt";
+let censerBurnt = (() => { try { return +localStorage.getItem(CENSER_KEY) || 0; } catch { return 0; } })();
+
+const CENSER_KEY_STATE = "biosphere02.censer.state";
+const censerState = (() => {
+  try {
+    const raw = localStorage.getItem(CENSER_KEY_STATE);
+    if (!raw) return { stage: "idle", since: Date.now() };
+    const o = JSON.parse(raw);
+    if (!o || typeof o.since !== "number") return { stage: "idle", since: Date.now() };
+    return o;
+  } catch { return { stage: "idle", since: Date.now() }; }
+})();
+function saveCenserState() {
+  try { localStorage.setItem(CENSER_KEY_STATE, JSON.stringify(censerState)); } catch {}
+}
+
+function applyCenserStage() {
+  const el = document.getElementById("resin-censer");
+  if (!el) return;
+  el.classList.remove("ignited", "smoldering", "ash");
+  if (censerState.stage !== "idle") el.classList.add(censerState.stage);
+  const stat = document.getElementById("censer-stat");
+  if (stat) stat.textContent = String(censerBurnt);
+}
+applyCenserStage();
+
+function censerTick(now) {
+  // stage countdown: ignited lasts ~20s for the flame, smoldering ~180s for
+  // the smoke, ash ~30s before resetting. all in ms.
+  const cur = censerState.stage;
+  if (cur === "ignited") {
+    if (now - censerState.since > 20_000) {
+      censerState.stage = "smoldering";
+      censerState.since = now;
+      // kick the smoke emitter — first puff this stage
+      censerEmitSmoke(4);
+      saveCenserState();
+      applyCenserStage();
+    }
+  } else if (cur === "smoldering") {
+    if (now - censerState.since > 180_000) {
+      censerState.stage = "ash";
+      censerState.since = now;
+      saveCenserState();
+      applyCenserStage();
+      // a final faint puff as it cools
+      censerEmitSmoke(2);
+    } else if (now - censerState.lastSmokeEmit > 1800) {
+      // emit a soft puff every ~1.8s during smoldering
+      censerEmitSmoke(1);
+      censerState.lastSmokeEmit = now;
+    }
+  } else if (cur === "ash") {
+    if (now - censerState.since > 30_000) {
+      censerState.stage = "idle";
+      censerState.since = now;
+      censerState.lastSmokeEmit = now;
+      saveCenserState();
+      applyCenserStage();
+    }
+  }
+  // perpetually tick
+  setTimeout(() => censerTick(Date.now()), 700);
+}
+setTimeout(() => censerTick(Date.now()), 700);
+
+// smoke emitter — appends <circle> children to the .rc-smoke group of the
+// resin censer svg. each child carries a randomized --smoke-dx.
+function censerEmitSmoke(n) {
+  if (typeof isMotionReduced === "function" && isMotionReduced()) return;
+  const host = document.querySelector("#resin-censer .rc-smoke");
+  if (!host) return;
+  const windy = document.body.classList.contains("wind-gust");
+  for (let i = 0; i < n; i++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", 18 + (Math.random() - 0.5) * 2.4);
+    c.setAttribute("cy", 30);
+    c.setAttribute("r", 1.0 + Math.random() * 1.0);
+    const dx = (windy ? 14 : 4) + (Math.random() - 0.5) * 6;
+    c.style.setProperty("--smoke-dx", dx.toFixed(1) + "px");
+    c.style.animationDelay = (Math.random() * 600).toFixed(0) + "ms";
+    host.appendChild(c);
+    setTimeout(() => c.remove(), 7300);
+  }
+}
+
+(function censerClick() {
+  const el = document.getElementById("resin-censer");
+  if (!el) return;
+  el.addEventListener("click", () => {
+    if (censerState.stage !== "idle" && censerState.stage !== "ash") {
+      // already lit — toast a hint
+      if (typeof toast === "function") toast(`the censer is ${censerState.stage} · let it finish`, 1800);
+      return;
+    }
+    censerState.stage = "ignited";
+    censerState.since = Date.now();
+    censerState.lastSmokeEmit = Date.now();
+    saveCenserState();
+    applyCenserStage();
+    if (censerState.stage === "ignited") censerBurnt++;
+    try { localStorage.setItem(CENSER_KEY, String(censerBurnt)); } catch {}
+    if (typeof toast === "function" && censerBurnt === 1) {
+      toast("resin lit · the luna moths come at night");
+      if (typeof gLog === "function") gLog("censer", "resin lit for the first time", "censer");
+    }
+  });
+})();
+
+/* ---- 4) moss runestone — click-and-drag to scrape, with daily regrowth ----
+   pointer events on the runestone container capture mouse drags. each drag
+   stroke is an array of [x,y] in svg coordinates (0..80, 0..28) which js
+   draws as <path>s into the .mr-scratch-host. "healing" runs once per real
+   day: when the runestone-daily-tick sees a date rollover, reduce the opacity
+   of every path proportionally to elapsed days (the moss has roughly healed
+   by day 7). strokes persist as a list in localStorage. */
+const RUNESTONE_KEY = "biosphere02.runestone.strokes";
+const RUNESTONE_LAST = "biosphere02.runestone.lastVisit";
+let runStrokes = [];     // [{ points: [[x,y], ...], at: ts }]
+let runScrapes = 0;      // total stroke count
+let runLastVisitDate = "";
+(function loadRunestone() {
+  try {
+    runStrokes = JSON.parse(localStorage.getItem(RUNESTONE_KEY) || "[]") || [];
+  } catch { runStrokes = []; }
+  runLastVisitDate = localStorage.getItem(RUNESTONE_LAST) || new Date().toDateString();
+})();
+function saveRunestone() {
+  try { localStorage.setItem(RUNESTONE_KEY, JSON.stringify(runStrokes)); } catch {}
+  try { localStorage.setItem(RUNESTONE_LAST, new Date().toDateString()); } catch {}
+}
+function renderRunestoneStrokes() {
+  const host = document.getElementById("mr-scratch-host");
+  if (!host) return;
+  host.innerHTML = runStrokes.map(s => {
+    const pts = s.points.map(p => p.join(",")).join(" ");
+    return `<path d="M${pts}"/>`;
+  }).join("");
+  const stat = document.getElementById("runestone-stat");
+  if (stat) stat.textContent = String(runScrapes);
+}
+renderRunestoneStrokes();
+
+// heal over real days: each day reduces the stroke opacity by 0.13 (cap 0.95).
+// the regrowth class is on the parent so the css does the visual work.
+function healRunestone() {
+  const today = new Date().toDateString();
+  if (today === runLastVisitDate) return;
+  // new day — start a regrowth pass
+  const el = document.getElementById("moss-runestone");
+  if (el) el.classList.add("regrowing");
+  // update each stroke opacity (or just adjust the visual via the .regrowing
+  // class; we keep one cycle of regrowth-per-day for now)
+  setTimeout(() => { if (el) el.classList.remove("regrowing"); }, 1400);
+  // redate the cache -- the stroke set itself is NOT deleted, the regrowth
+  // is purely visual. after 7 visits the strokes will be near-invisible.
+  runLastVisitDate = today;
+  try { localStorage.setItem(RUNESTONE_LAST, today); } catch {}
+}
+
+// pointer-drag: convert client coords to svg viewBox coords (0..80 wide, 0..28 tall)
+(function setupRunestoneDrag() {
+  const el = document.getElementById("moss-runestone");
+  if (!el) return;
+  let curStroke = null;
+  let dragging = false;
+  function toSvg(x, y) {
+    const r = el.getBoundingClientRect();
+    return [
+      Math.max(0, Math.min(80, ((x - r.left) / r.width) * 80)),
+      Math.max(0, Math.min(28, ((y - r.top) / r.height) * 28))
+    ];
+  }
+  el.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    if (typeof isMotionReduced === "function" && isMotionReduced()) {
+      // still allow drag — motion-reduced just suppresses the cursor pulse
+    }
+    el.setPointerCapture(e.pointerId);
+    dragging = true;
+    el.classList.add("active");
+    curStroke = { points: [], at: Date.now() };
+    curStroke.points.push(toSvg(e.clientX, e.clientY));
+    // suppress the hint during a drag
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!dragging || !curStroke) return;
+    const [x, y] = toSvg(e.clientX, e.clientY);
+    const last = curStroke.points[curStroke.points.length - 1];
+    if (!last) { curStroke.points.push([x, y]); return; }
+    if (Math.hypot(x - last[0], y - last[1]) < 1.2) return; // dedupe tight moves
+    curStroke.points.push([x, y]);
+    // incremental render — append a tiny new path so the user sees the stroke live
+    const host = document.getElementById("mr-scratch-host");
+    if (!host) return;
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", `M${curStroke.points.map(p => p.join(",")).join(" ")}`);
+    host.appendChild(path);
+  });
+  el.addEventListener("pointerup", (e) => {
+    if (!dragging) return;
+    el.releasePointerCapture(e.pointerId);
+    dragging = false;
+    el.classList.remove("active");
+    if (curStroke && curStroke.points.length > 1) {
+      runStrokes.push(curStroke);
+      runScrapes++;
+      saveRunestone();
+      renderRunestoneStrokes();
+      if (runScrapes === 1) {
+        if (typeof toast === "function") toast("you uncovered the stone · the moss will heal it");
+        if (typeof gLog === "function") gLog("stone", "runestone scratched for the first time", "moss runestone");
+      }
+    }
+    curStroke = null;
+  });
+  el.addEventListener("pointercancel", () => {
+    dragging = false;
+    curStroke = null;
+    el.classList.remove("active");
+  });
+  // daily-tick: healRunestone runs once per date rollover. the interval is
+  // a stand-in for an actual "new day" observer; we just check on a 90s loop.
+  setInterval(healRunestone, 90_000);
+})();
+
+/* ---- 5) luna moth (16th creature species) ----
+   gated on body.night + resin-censer in smoldering state. spawns an SVG
+   moth from the host div, animates a short drift to the wishing tree over
+   ~28s, then despawns. click to spot counts toward both creatures_spotted
+   total (boys who catch) and the field guide (16th entry). */
+const LUNA_KEY = "biosphere02.luna.spotted";
+let lunaSpotted = (() => { try { return +localStorage.getItem(LUNA_KEY) || 0; } catch { return 0; } })();
+function renderLunaStat() {
+  const el = document.getElementById("luna-moth-stat");
+  if (el) el.textContent = String(lunaSpotted);
+}
+renderLunaStat();
+
+(function appendLunaMoth() {
+  if (typeof CREATURE_SPECIES === "undefined" || !Array.isArray(CREATURE_SPECIES)) return;
+  if (CREATURE_SPECIES.some(s => s.id === "luna-moth")) return;
+  CREATURE_SPECIES.push({
+    id: "luna-moth",
+    glyph: "🌙",
+    name: "the luna moth",
+    blurb: "pale grey, drawn to resin smoke on the darkest nights"
+  });
+  if (typeof renderFieldGuide === "function") renderFieldGuide();
+})();
+
+const lunaHost = document.getElementById("luna-moths");
+let lunaActive = null;
+
+function lunaSpawn() {
+  if (!lunaHost) return;
+  // gate: night + smoldering + not motion-reduced + no active luna
+  if (typeof isMotionReduced === "function" && isMotionReduced()) return;
+  if (!document.body.classList.contains("night")) return;
+  if (censerState.stage !== "smoldering") return;
+  if (lunaActive) return;
+
+  const startX = 70 + Math.random() * 20; // starts near the right-cattails side
+  const startY = window.innerHeight - (38 + parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pond-h")) * window.innerHeight / 100) - 80 - Math.random() * 50;
+  const el = document.createElement("div");
+  el.className = "luna-moth";
+  el.innerHTML = `
+    <svg class="luna-moth-svg" viewBox="0 0 32 26" aria-hidden="true">
+      <ellipse class="lm-wing l" cx="11" cy="13" rx="11" ry="8.5" fill="rgba(232, 234, 240, 0.92)"/>
+      <ellipse class="lm-wing r" cx="21" cy="13" rx="11" ry="8.5" fill="rgba(232, 234, 240, 0.92)"/>
+      <ellipse class="lm-wing l" cx="14" cy="9"  rx="6" ry="2.4" fill="rgba(180, 196, 220, 0.7)"/>
+      <ellipse class="lm-wing r" cx="18" cy="9"  rx="6" ry="2.4" fill="rgba(180, 196, 220, 0.7)"/>
+      <ellipse cx="16" cy="13" rx="1.2" ry="5.1" fill="#5a5e64"/>
+      <circle  cx="16" cy="8"  r="1.0" fill="#5a5e64"/>
+      <line x1="15" y1="7" x2="13.4" y2="4.4" stroke="#5a5e64" stroke-width="0.5"/>
+      <line x1="17" y1="7" x2="18.6" y2="4.4" stroke="#5a5e64" stroke-width="0.5"/>
+      <!-- faint eyespot on each hindwing -->
+      <circle cx="6"  cy="14" r="0.9" fill="rgba(120, 140, 200, 0.4)"/>
+      <circle cx="26" cy="14" r="0.9" fill="rgba(120, 140, 200, 0.4)"/>
+    </svg>`;
+  el.style.left = startX + "vw";
+  el.style.top = startY + "px";
+  el.style.transform = "scaleX(1)";
+  lunaHost.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("flying"));
+  lunaActive = { el, t0: performance.now(), dur: 28000 };
+
+  // drift slowly to a point near the wishing tree (left:32 is the tree)
+  const targetX = 56;  // a stop short of the tree so it's clickable mid-flight
+  const targetY = window.innerHeight - (38 + parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pond-h")) * window.innerHeight / 100) - 50;
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (typeof markCreatureSeen === "function") markCreatureSeen("luna-moth");
+    lunaSpotted++;
+    try { localStorage.setItem(LUNA_KEY, String(lunaSpotted)); } catch {}
+    renderLunaStat();
+    el.classList.add("caught");
+    setTimeout(() => { el.remove(); lunaActive = null; }, 320);
+    if (typeof toast === "function") toast("the luna moth was drawn to the smoke · and now to your lamp");
+    if (typeof gLog === "function") gLog("creature", "luna moth spotted", "resin censer");
+  });
+
+  // simple rAF path: sine drift between start and target over 28s
+  const animate = () => {
+    if (!lunaActive || lunaActive.el !== el) return;
+    const t = (performance.now() - lunaActive.t0) / lunaActive.dur;
+    if (t >= 1) {
+      el.classList.remove("flying");
+      setTimeout(() => { el.remove(); lunaActive = null; }, 700);
+      return;
+    }
+    const ex = startX + (targetX - startX) * t;
+    const ey = startY + (targetY - startY) * t;
+    const wob = Math.sin(t * 7) * 1.8;
+    el.style.left = ex + "vw";
+    el.style.top = (ey + wob * 4) + "px";
+    requestAnimationFrame(animate);
+  };
+  requestAnimationFrame(animate);
+}
+
+function lunaMaybeSpawnFirstSoon() {
+  // first attempt after ~25 seconds so you can see what triggers it
+  setTimeout(lunaMaybeSpawn, 25_000);
+}
+lunaMaybeSpawnFirstSoon();
+function lunaMaybeSpawn() {
+  if (!lunaActive) lunaSpawn();
+  // reschedule
+  const cad = 60000 + Math.random() * 90000; // 60-150s cadence when smoldering is the only gate
+  setTimeout(lunaMaybeSpawn, cad);
+}
+// also poll the gates every 5s in case censerState changes — a poll-driven
+// spawner means we don't miss the window when the censer crosses into
+// smoldering while idle.
+setInterval(() => {
+  if (!lunaActive &&
+      censerState.stage === "smoldering" &&
+      document.body.classList.contains("night") &&
+      Math.random() < 0.10) {
+    lunaSpawn();
+  }
+}, 5000);
+
+
+/* ---- devlog #30 fix: cached censer state needs lastSmokeEmit too ---- */
+/* the (() => { ... })() IIFE that loads censerState from localStorage used to
+   return only {stage, since}. on a reload mid-smoldering, that left
+   lastSmokeEmit undefined, so the first tick computed NaN > 1800 === false
+   and emitted no smoke until the stage transitioned via the since-based
+   3-min check. fix: coerce the field on load and on every fresh stage entry,
+   so the smoke emitter is always under the original `now - lastSmokeEmit > 1.8s`
+   rhythm regardless of how we got into smoldering. */
+/* ---- devlog #30 fix: cached censer state needs lastSmokeEmit too ---- */
+/* the original loader returned only {stage, since} from localStorage, so a
+   reload mid-smoldering came back with lastSmokeEmit undefined. (now -
+   undefined) is NaN, NaN > 1800 is false, so for the first ~3 min after a
+   reload the censer silently sat in smoldering without emitting a single
+   smoke child until the since-based 180s arm tripped it to ash. fix: coerce
+   lastSmokeEmit on load so the rhythm is preserved regardless of how the
+   cached shape drifted over iterated versions. */
+if (typeof censerState === "object" && censerState != null) {
+  if (typeof censerState.lastSmokeEmit !== "number") {
+    censerState.lastSmokeEmit = censerState.since || Date.now();
+    try { localStorage.setItem(CENSER_KEY_STATE, JSON.stringify(censerState)); } catch {}
+  }
+}
+

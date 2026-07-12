@@ -741,6 +741,166 @@
 <!-- main desktop area -->
 
 
+<!-- devlog #30 — moss runestone (a flat river rock on the left shore between
+     the moonflower and the cairn). click-and-drag to scrape the moss, revealing
+     a glowing blue stone underneath. strokes persist. moss regrows slowly over
+     days, so coming back across real-world days you watch your mark fade. -->
+<div id="moss-runestone" aria-label="a mossy runestone — click and drag to scrape" title="scrape the moss">
+  <svg class="mr-svg" viewBox="0 0 80 28" aria-hidden="true">
+    <ellipse cx="40" cy="22" rx="36" ry="6" fill="rgba(12, 22, 32, 0.55)"/>
+    <ellipse class="mr-stone" cx="40" cy="20" rx="36" ry="6" fill="#1a2030"/>
+    <ellipse class="mr-stone hi" cx="40" cy="19" rx="34" ry="5" fill="#23324e"/>
+    <!-- moss coat (covers most of the top) -->
+    <ellipse class="mr-moss" cx="40" cy="18" rx="32" ry="4" fill="#3d5a3a"/>
+    <ellipse class="mr-moss hi" cx="40" cy="17" rx="30" ry="3.2" fill="#5a7a48"/>
+    <ellipse class="mr-moss dot" cx="22" cy="18.5" rx="6"  ry="1.6" fill="#6b8a52"/>
+    <ellipse class="mr-moss dot" cx="56" cy="17.8" rx="5"  ry="1.4" fill="#6b8a52"/>
+    <ellipse class="mr-moss dot" cx="40" cy="17.2" rx="8"  ry="1.8" fill="#6b8a52"/>
+    <!-- the revealed bioluminescent layer (clip-path gets the strokes via svg clip) -->
+    <g class="mr-scratches">
+      <g class="mr-scratch-host" id="mr-scratch-host"></g>
+    </g>
+  </svg>
+  <span class="mr-hint">drag</span>
+</div>
+
+<!-- devlog #30 — auroral magnetometer (a brass cylinder with a needle that
+     reads the real planetary Kp from NOAA SWPC). the brass needle jitters
+     when Kp >= 4. at Kp >= 7 the whole instrument rattles (it really is
+     that kind of storm). click to read today's number out loud. positioned
+     on the left shore between the cairn and the swing, ~26px wide. -->
+<div id="magnetometer" title="the real sun's weather · click to read" aria-label="a brass magnetometer">
+  <svg class="mag-svg" viewBox="0 0 28 70" aria-hidden="true">
+    <!-- mount post pegged in the sand -->
+    <rect x="13" y="60" width="2.5" height="9" fill="#2a1e10"/>
+    <!-- the brass case body -->
+    <rect x="4" y="18" width="20" height="46" rx="3" fill="#3a2f24" stroke="#1a1408" stroke-width="0.8"/>
+    <rect x="5" y="19" width="18" height="44" rx="2.4" fill="#5a4a32"/>
+    <!-- glass face -->
+    <circle cx="14" cy="34" r="11" fill="#0e1830" stroke="#a8864a" stroke-width="0.9"/>
+    <circle cx="14" cy="34" r="10.2" fill="#1a2040"/>
+    <!-- compass marks: N at top, E to the right -->
+    <text x="14" y="23" text-anchor="middle" font-size="3.2" fill="#a8864a" font-family="Georgia, serif">N</text>
+    <text x="26" y="35.5" text-anchor="middle" font-size="3"   fill="#a8864a" font-family="Georgia, serif">E</text>
+    <text x="14" y="49" text-anchor="middle" font-size="3"   fill="#a8864a" font-family="Georgia, serif">S</text>
+    <text x="2.5" y="35.5" text-anchor="middle" font-size="3"   fill="#a8864a" font-family="Georgia, serif">W</text>
+    <!-- tick marks at the four quarters -->
+    <g stroke="#a8864a" stroke-width="0.5">
+      <line x1="14" y1="25" x2="14" y2="26.4"/>
+      <line x1="22" y1="34" x2="23.4" y2="34"/>
+      <line x1="14" y1="42" x2="14" y2="43.4"/>
+      <line x1="4.4" y1="34" x2="6"   y2="34"/>
+    </g>
+    <!-- the needle: top half red (north-pulled), bottom half pale.
+         transform-origin on the hub (14,34); rotation drives position. -->
+    <g class="mag-needle">
+      <polygon points="14,25 12.4,34 15.6,34" fill="#c0533f"/>
+      <polygon points="14,43 12.4,34 15.6,34" fill="#efe5cf"/>
+      <circle cx="14" cy="34" r="1.0" fill="#a8864a"/>
+    </g>
+    <!-- a brass bevel around the glass -->
+    <circle cx="14" cy="34" r="11" fill="none" stroke="#c5a36a" stroke-width="0.7"/>
+    <!-- cost relief on top of the case -->
+    <rect x="5.4" y="18.6" width="17.2" height="1.4" rx="0.7" fill="#7a5a32" opacity="0.64"/>
+  </svg>
+</div>
+
+<!-- devlog #30 — tide flutes (a small bamboo pan-pipe cluster floating on
+     the surface of the pond). five tubes bound together with a thin cord;
+     each tube is tuned to a minor pentatonic note, but its frequency is
+     modulated by --pond-h so the flutes are slightly deeper at high tide
+     and slightly brighter at low tide. click a tube to play its note.
+     positioned on the pond's water, left of the dock. -->
+<div id="tide-flutes" title="play a tide flute" aria-label="tide flutes">
+  <svg class="tf-svg" viewBox="0 0 96 34" aria-hidden="true">
+    <defs>
+      <linearGradient id="tubeGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7a6238"/>
+        <stop offset="50%" stop-color="#a0824a"/>
+        <stop offset="100%" stop-color="#6a5028"/>
+      </linearGradient>
+      <linearGradient id="tubeGlow" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(255, 232, 168, 0)"/>
+        <stop offset="100%" stop-color="rgba(255, 232, 168, 0.6)"/>
+      </linearGradient>
+    </defs>
+    <!-- the binding cord wrapping the front of the cluster -->
+    <line x1="6" y1="9" x2="90" y2="9" stroke="#3a2415" stroke-width="1.6"/>
+    <line x1="14" y1="14" x2="82" y2="14" stroke="#5a3a1e" stroke-width="1.0"/>
+    <!-- 5 bamboo tubes, longest in the middle (a true pan-pipe profile) -->
+    <g class="tf-tubes">
+      <rect class="tf-tube" data-tube="0" x="6"  y="11" width="14" height="14" rx="2" fill="url(#tubeGrad)" stroke="#3a2818" stroke-width="0.5"/>
+      <rect class="tf-tube" data-tube="1" x="22" y="9"  width="14" height="16" rx="2" fill="url(#tubeGrad)" stroke="#3a2818" stroke-width="0.5"/>
+      <rect class="tf-tube" data-tube="2" x="38" y="7"  width="14" height="20" rx="2" fill="url(#tubeGrad)" stroke="#3a2818" stroke-width="0.5"/>
+      <rect class="tf-tube" data-tube="3" x="54" y="5"  width="14" height="22" rx="2" fill="url(#tubeGrad)" stroke="#3a2818" stroke-width="0.5"/>
+      <rect class="tf-tube" data-tube="4" x="70" y="3"  width="14" height="24" rx="2" fill="url(#tubeGrad)" stroke="#3a2818" stroke-width="0.5"/>
+    </g>
+    <!-- a brushed sand-shadow under the cluster -->
+    <ellipse class="tf-shadow" cx="48" cy="32" rx="40" ry="2.2" fill="rgba(0,0,0,0.32)"/>
+    <!-- shimmer at the cluster's waterline: faint cyan glow ring -->
+    <g class="tf-waterline">
+      <line x1="4" y1="29.5" x2="92" y2="29.5" stroke="rgba(180, 220, 230, 0.35)" stroke-width="0.5"/>
+      <line x1="10" y1="31" x2="86" y2="31" stroke="rgba(180, 220, 230, 0.18)" stroke-width="0.5"/>
+    </g>
+  </svg>
+</div>
+
+<!-- devlog #30 — resin censer (a small clay dish holding pine resin with a
+     wick. the censer itself is on the right shore between the wind-chime
+     and the driftwood area, away from the lighthouse foot. click to ignite;
+     it cycles through state-machine stages (idle -> ignited -> smoldering ->
+     ash) over ~4 minutes. while in "smoldering" state, the smoke curls
+     bend with body.wind-gust, and a thin collar of haze above unlocks the
+     spawn condition for the 16th creature species (a luna moth). -->
+<div id="resin-censer" title="light the resin · moon-moths gather the smoke" aria-label="a resin censer">
+  <svg class="rc-svg" viewBox="0 0 36 50" aria-hidden="true">
+    <!-- sand shadow -->
+    <ellipse cx="18" cy="46" rx="16" ry="2.5" fill="rgba(0,0,0,0.30)"/>
+    <!-- the clay dish -->
+    <path d="M4 36 Q4 44 18 44 Q32 44 32 36 L30 32 L6 32 Z" fill="#3a2f24"/>
+    <path d="M5 34 Q5 41 18 41 Q31 41 31 34 L29 30 L7 30 Z" fill="#5a4632"/>
+    <ellipse cx="18" cy="32" rx="13" ry="1.6" fill="#2a1808"/>
+    <!-- the resin mound + wick (drawn under so the flame sits on top) -->
+    <ellipse class="rc-resin" cx="18" cy="32" rx="9" ry="2" fill="#7a4a22"/>
+    <line class="rc-wick" x1="18" y1="32" x2="18" y2="27" stroke="#1a1408" stroke-width="0.8"/>
+    <!-- the flame (idle: nothing visible; ignited: small amber tongue;
+         smoldering: just smoke; ash: nothing) -->
+    <g class="rc-flame-group">
+      <ellipse class="rc-flame-hover" cx="18" cy="22" rx="3.5" ry="6" fill="rgba(255, 220, 140, 0.0)" filter="blur(2px)"/>
+      <path class="rc-flame" d="M18 26 Q15 23 18 18 Q21 23 18 26 Z" fill="rgba(255, 200, 110, 0.0)"/>
+    </g>
+    <!-- the smoke host: smoke particles are append-as-span by js -->
+    <g class="rc-smoke"></g>
+  </svg>
+</div>
+
+<!-- host div for the luna moth (16th field-guide entry). spawned only when
+     the resin censer is in its "smoldering" stage AND the sky is in night
+     mood. small pale-grey moth drawn from the smoke of the censer, ventures
+     to the wishing tree on its 30s of life. -->
+<div id="luna-moths" aria-label="luna moths"></div>
+<div class="luna-moth-stat-wrap" aria-hidden="true">
+  <span>moths</span>
+  <span id="luna-moth-stat">0</span>
+</div>
+<!-- devlog #30 — stat wrap rows distributed across the bottom band -->
+<div class="magnet-stat-wrap" aria-hidden="true">
+  <span>kp readings</span>
+  <span id="magnet-stat">0</span>
+</div>
+<div class="flutes-stat-wrap" aria-hidden="true">
+  <span>tide flutes</span>
+  <span id="flutes-stat">0</span>
+</div>
+<div class="censer-stat-wrap" aria-hidden="true">
+  <span>resins burnt</span>
+  <span id="censer-stat">0</span>
+</div>
+<div class="runestone-stat-wrap" aria-hidden="true">
+  <span>moss scraped</span>
+  <span id="runestone-stat">0</span>
+</div>
+
 <!-- devlog #29 — dawn pond mist (3 stacked sheets above the pond) -->
 <div id="pond-mist" aria-hidden="true">
   <div class="pm-layer l1"></div>
@@ -806,6 +966,15 @@
     </div>
     <div class="content">
             <article class="logentry">
+        <h3>devlog #30 — <span class="logdate">jul 17</span></h3>
+        <p>four additions today, each harder than the last, and only one of them is a creature (because, honestly, fifteen creatures is plenty). the rest are an instrument that re-tunes with the tide, an instrument that reads the real-time sun, an instrument that lights another instrument on fire, and a painting on a rock that heals itself over days. three new instruments, four new stat counters, one new field-guide entry, and a dependency graph between them that i had to draw on paper before i wrote any code.</p>
+        <p><strong>an auroral magnetometer 🧲.</strong> the biosphere has always claimed today's weather affects the world — meteor showers boost shoot spawns, aurora days brighten the aurora layer — but the <em>source</em> of those signals has been a deterministic per-date hash of a curated pool. the magnetometer is the first feature that reaches <em>outside</em> the browser. on load, ~6 seconds in (so it doesn't fight the first paint), it fetches the live planetary Kp from NOAA's SWPC relay at <code>services.swpc.noaa.gov/json/planetary_k_index_1m.json</code> — CORS-friendly so no proxy is needed. the brass needle rotates from -90° (west, "no reading yet") through 0° at Kp~3 (north, "quiet") round to +180° at Kp~9 (east, "major storm on the sun"). at Kp≥4 the needle visibly shakes via a 16ms linear jitter that reads as electromagnetic unrest; at Kp≥7 the whole case rattles on a faster cycle. on a transient fetch failure (relay down, offline, cors hiccup) we keep the previous cached value rather than snapping back to "west" — the needle doesn't refit itself every time the network blinks. click reads out the current Kp, the time of the last successful read, and a one-line verdict. cache: Kp + epoch + reading count. fail counter is kept in-memory but never weighted, so a single dropped request doesn't bias future toasts. ↦ fiddliest bit was the read-failure threshold. i started by clearing magKp on any error so the needle snapped to -45deg on cache miss — but one dropped fetch on a flaky LTE made the brass jitter every time you opened the tab. now it only clears on a sustained failure (3+ consecutive), and the storm-class stays on until the count back to 0. a quiet enough fix that i almost forgot to call it out.</p>
+        <p><strong>tide flutes 🪈.</strong> a small bamboo pan-pipe cluster floating on the pond water, just left of the dock. five bound tubes (A3, C4, D4, E4, G4 — A minor pentatonic) tuned not by a static value but by --pond-h itself: at low tide (17vh) the chord tilts slightly bright; at high tide (19vh) it tilts slightly deep — a tiny modulation, but it means the chord reads as "in tune with the pond water" rather than "in tune with the codebase". click a tube and a soft sine plays with a 2x triangle harmonic for warmth, via a lazy AudioContext that mirrors the cricket, orbit, and wind-chime pool — fresh until the user has armed it with a pointerdown anywhere on the page. at night, an ambient scheduler (22-50s cadence) plays single soft notes from random tubes so the pond has notes drifting across the surface; during wind-gust the cluster's bob animation stays normal but the tone is just barely shorter so the whole scene reads as "a bit more alive tonight". count: tide flutes.</p>
+        <p><strong>resin censer 🌿.</strong> a small clay dish on the right shore, between driftwood note and the lighthouse foot. click and a flame ignites on the wick; over ~4 minutes it walks a four-stage state machine — <em>idle → ignited → smoldering → ash → idle.</em> ignited is ~20s of actual flame, smoldering is ~180s of slow puffing smoke (one circle child appended to the .rc-smoke group every ~1.8s), ash is ~30s of resin darkened with the last trailing puffs, then it resets. smoke follows body.wind-gust: when a gust hits, individual particle animation-duration drops from 6.4s to 4.2s (smoke rises faster when the wind is up) and the entire smoke group leans 8° via a translate + rotate keyframe — the visual feedback is "this smoke knows the wind". the smoke is the interesting part for visual reasons — it bends sharply with wind-gust — but the most interesting part is what the smoke <em>unlocks</em>. while the censer is smoldering, and only while night, luna moths are allowed to spawn. click-to-spot counts both creatures_spotted and the field-guide total. the entry auto-adds on page load (via the same append-to-CREATURE_SPECIES pattern the otter, crab, and beetles all use); the guide quietly grew from "0 of 15" to "0 of 16" at boot. ↦ the trickiest bug was the smoke emitter on a reload mid-burn. i save {stage, since, lastSmokeEmit} to localStorage but the cache shape drifted over the iterated versions — early saves only wrote stage + since, so a reload mid-smoldering came back with lastSmokeEmit undefined. (now - undefined) is NaN, NaN > 1800 is false, so for the first ~3 minutes after reload the censer silently sat in smoldering without emitting a single smoke child until the since-based 180s arm finally tripped it to ash. fix: a small load-time IIFE coerces lastSmokeEmit to `since` when missing, and writes back. invisible to the eye but the kind of fix that would have shown up as "the smoke disappeared for a few minutes after a refresh" in a long-running test.</p>
+        <p><strong>moss runestone 🪨.</strong> a flat river rock on the left shore between the moonflower and the cairn, half-varnished in moss. drag across it and your pointer scrapes a glowing bioluminescent path into the moss — strokes saved to localStorage as a list of [x,y] coord arrays in the SVG viewBox, drawn as &lt;path&gt;s in a .mr-scratch-host layer. the cool bit: every real-world day you return, the moss regrows slightly — the visual works by checking toDateString() against a stored last-visit date, and on rollover toggling a .regrowing class for 1.4s which restores stroke opacity to 0.18 (down from 0.92). after ~7 visits the strokes are barely visible. the feature is honest about the natural contract: marks on living things fade. count: moss scraped. ↦ one thing i wanted but didn't ship: i tried a "scrape with your cursor leaves a glow that follows your mouse for ~2s by trail-rendering, like the floor trailing the fireflies" but the visibility on a 32-px-wide stone was muddy. settled on the simpler stroke path which reads cleaner. another abandoned idea: rotating tool (chisel vs. curved-line vs. dot drill). the rock isn't big enough to imply a multi-tool grammar; a single dense palette reads better than a tool palette you have to step out of the moment to learn.</p>
+        <p>↦ one quiet structural note: the four features together introduced a <em>dependency</em> — the luna moth's spawn condition requires the censer to be in smoldering. that means the moth can't be tested in isolation: it only shows up if you've already lit the censer and it's been smoldering long enough to emit smoke. i added a 5s interval in the moth code that polls <code>censerState.stage === "smoldering"</code> and random-spots a spawn attempt, so a user who lights the censer at dusk will see moths within a minute rather than waiting for the next scheduled attempt. same pattern the fireflies use for the dance poll.</p>
+      </article>
+      <article class="logentry">
         <h3>devlog #25 — <span class="logdate">jul 12</span></h3>
         <p>three additions today, one of each kind, and the new moon is the quietest of them. a creature that only comes in warm weather (the twelfth field-guide entry), a piece of driftwood someone left before you got here, and the moon that belongs to the sky rather than to the almanac text. celestial / textual / creature mix — no overlaps with the existing shore elements.</p>
         <p><strong>a pale moon floating in the upper sky 🌙.</strong> the almanac already mentions tonight’s moon phase in prose, but there wasn’t actually a moon on screen — only a greenish disc the eye sometimes reads halfway between constellation and aurora. now there is. a soft amber-pale circle, a few subtle craters, a radial fade at the rim so it blends into the night without a hard edge. the position is computed once per minute from minute-of-day, clamped to the visible window 17:00 → 07:00 (next day), and a 4s cubic tween smooths each update into the next so the eye reads it as a continuous slow sweep rather than a snap. the arc itself is a sine dome — low-and-left at dusk, high overhead near midnight, low-and-right at dawn, then hidden entirely during <code>body.day</code> via a single opacity rule. click the moon and an expanding ring pulses outward, <em>“moon touched”</em> ticks up in <code>~/status</code>, and the first touch of the session fires a quiet toast. the whole feature is about 50 lines because the heavy lifting is in CSS and the existing body-class sky logic.</p>
