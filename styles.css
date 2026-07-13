@@ -2915,9 +2915,214 @@ body.stargazer #ferns { opacity: 0.55; }
 #rowboat, #ferns, .stepstone,
 /* devlog #31 — five new shore/sky elements added in #31 share the
    tide-wobble transition so they shift smoothly with --pond-h. */
-#listening-conch, #pebble-bowl, #bead-strand, #mini-bonsai, #sky-lantern {
+#listening-conch, #pebble-bowl, #bead-strand, #mini-bonsai, #sky-lantern,
+/* devlog #33 — four new shore elements share the same tide transition. */
+#pinwheel, #fossil-stone, #signpost, #singing-bowl,
+/* devlog #34 — five new shore elements share the same tide transition.
+   the tide whistle and rain spout are upper-shore, the moon journal and
+   kelp use translate, but moving them along with --pond-h costs nothing
+   when the cycle is calm. */
+#moon-journal,
+#mushroom-log,
+#tide-whistle,
+#rain-spout,
+#kelp {
   transition: bottom 1100ms ease, left 1100ms ease, right 1100ms ease, top 1100ms ease;
 }
+
+/* ==== devlog #34 — moon-journal, mushroom-log, tide-whistle, rain-spout, kelp ==== */
+
+/* ---- moon-journal ----
+   placed in the upper-left corner (just below topbar) so the wood-bound
+   ledger reads as a shelf item, not as a competing shore object. the
+   left shore from sand-garden (150) through sundial (512) is already
+   packed with the daisy chain of moss-runestone / cairn / magnetometer /
+   swing, so a journal wedged between them would always overlap something
+   on a narrow viewport. top placement sidesteps that whole subtree. */
+#moon-journal {
+  position: fixed;
+  left: 110px;
+  top: 60px;
+  width: 56px; height: 80px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#moon-journal:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(240, 232, 184, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.mj-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.mj-moon .mj-lit { transition: d 320ms ease; }
+.mj-shadow-overlay { transition: d 320ms ease; }
+.mj-name { transition: opacity 220ms ease; }
+body.stargazer #moon-journal { opacity: 0.55; }
+body.motion-reduced #moon-journal,
+body.motion-reduced .mj-moon .mj-lit,
+body.motion-reduced .mj-shadow-overlay { transition: none; }
+
+/* ---- mushroom-log ----
+   placed past the sundial, on the center-left shore where the bead-strand
+   cluster leaves a gap. on a 1280px viewport that's at x=560-656, clear
+   of the sundial (ends 556) and the bead-strand at calc(50%-36)~604. the
+   original left:350 collided with the cairn (360), magnetometer (418) and
+   swing (448) — too crowded. left:560 stays on the lower shore without
+   competing for space with the existing daisy chain. */
+#mushroom-log {
+  position: fixed;
+  left: 570px;
+  bottom: calc(38px + var(--pond-h) - 8px);
+  width: 96px; height: 38px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#mushroom-log:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(143, 212, 154, 0.4)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.ml-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ml-cap { transition: opacity 600ms ease; }
+body.stargazer #mushroom-log { opacity: 0.55; }
+
+/* ---- tide-whistle ----
+   a leaning hollow reed on a wooden ledge. strikes a tone whose pitch is
+   derived from --pond-h via getComputedStyle() at strike time. transform
+   origin at the bottom of the reed so the .tw-reed group bends from the
+   wooden ledge when struck. counter: whistles blown. */
+#tide-whistle {
+  position: fixed;
+  left: calc(50% - 24px);
+  bottom: calc(38px + var(--pond-h) - 56px);
+  width: 50px; height: 90px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#tide-whistle:hover { transform: translateY(-2px); filter: drop-shadow(0 0 9px rgba(255, 232, 168, 0.45)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55)); }
+.tw-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tw-reed { transform-origin: 25px 76px; }
+#tide-whistle.blown .tw-reed { animation: tw-blown 480ms cubic-bezier(.2, .8, .3, 1); }
+@keyframes tw-blown {
+  0%   { transform: rotate(0deg)   scaleY(1); }
+  22%  { transform: rotate(-3deg) scaleY(1.04); }
+  55%  { transform: rotate(2deg)  scaleY(0.94); }
+  100% { transform: rotate(0deg)  scaleY(1); }
+}
+body.motion-reduced #tide-whistle.blown .tw-reed { animation: none; }
+body.stargazer #tide-whistle { opacity: 0.55; }
+
+/* ---- rain-spout ----
+   a brass downspout in the upper-right shore, left of the lighthouse (32).
+   on click, a single drop falls; on rain-forecast days, drips auto-fire
+   every 4-7s while the tab is visible. drops are simple css-animated divs
+   inside #rain-spout, removed after 600ms. counter: drips (cumulative). */
+#rain-spout {
+  position: fixed;
+  right: 130px;
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 32px; height: 88px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#rain-spout:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(168, 134, 74, 0.5)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.rs-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.rs-drop {
+  position: absolute;
+  left: 15px;
+  width: 2px; height: 8px;
+  background: rgba(180, 210, 230, 0.85);
+  border-radius: 2px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.rs-drop.falling { animation: rs-drop-fall 560ms linear forwards; }
+@keyframes rs-drop-fall {
+  0%   { transform: translateY(0);    opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translateY(72px); opacity: 0; }
+}
+body.stargazer #rain-spout { opacity: 0.55; }
+body.motion-reduced .rs-drop { display: none !important; }
+
+/* ---- kelp ----
+   three pond-side stalks in the lower-right shore, right of the resin
+   censer (175) and clear of the lighthouse / signpost cluster. idles with
+   a very gentle sway; body.wind-gust swaps in a 1.4s keyframe twice as
+   wide; click adds .prodded for 600ms. no audio - it is a wind-driven
+   plant, not an instrument.
+*/
+#kelp {
+  position: fixed;
+  right: 380px;
+  bottom: calc(38px + var(--pond-h) - 12px);
+  width: 64px; height: 100px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+.kp-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.kp-blade { transform-origin: 32px 86px; animation: kp-idle 6.4s ease-in-out infinite; }
+.kp-2 { animation-delay: -1.4s; animation-duration: 7.2s; }
+.kp-3 { animation-delay: -2.7s; animation-duration: 6.8s; }
+@keyframes kp-idle {
+  0%, 100% { transform: rotate(-1.6deg); }
+  50%      { transform: rotate(1.6deg); }
+}
+body.wind-gust .kp-blade { animation: kp-sway 1.4s ease-in-out infinite; }
+@keyframes kp-sway {
+  0%, 100% { transform: rotate(-7deg); }
+  50%      { transform: rotate(8deg); }
+}
+#kelp.prodded .kp-blade { animation: kp-prod 620ms cubic-bezier(.3, .8, .3, 1); }
+@keyframes kp-prod {
+  0%   { transform: rotate(0deg);    }
+  35%  { transform: rotate(-10deg);  }
+  70%  { transform: rotate(5deg);    }
+  100% { transform: rotate(0deg);    }
+}
+body.stargazer #kelp { opacity: 0.55; }
+body.motion-reduced .kp-blade { animation: none !important; }
+
+/* ---- devlog #34 stat wraps on the bottom:14px row ----
+   five new stat counters in a horizontal band that fits below the existing
+   stat rows (32px, 48px, 60px, 64px, 80px). the 14px row sits in the
+   quietest strip of the taskbar - the stat-wrap text aligns above the
+   taskbar line without crowding any window. */
+.moon-journal-stat-wrap,
+.mushroom-log-stat-wrap,
+.tide-whistle-stat-wrap,
+.rain-spout-stat-wrap,
+.kelp-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+  bottom: 14px;
+}
+.moon-journal-stat-wrap { left: 12vw; }
+.mushroom-log-stat-wrap { left: 28vw; }
+.tide-whistle-stat-wrap { left: 44vw; }
+.rain-spout-stat-wrap   { left: 60vw; }
+.kelp-stat-wrap         { left: 76vw; }
+.moon-journal-stat-wrap #moon-journal-stat,
+.mushroom-log-stat-wrap #mushroom-log-stat,
+.tide-whistle-stat-wrap #tide-whistle-stat,
+.rain-spout-stat-wrap #rain-spout-stat,
+.kelp-stat-wrap #kelp-stat { color: var(--moss); margin-left: 4px; }
+body.motion-reduced .moon-journal-stat-wrap,
+body.motion-reduced .mushroom-log-stat-wrap,
+body.motion-reduced .tide-whistle-stat-wrap,
+body.motion-reduced .rain-spout-stat-wrap,
+body.motion-reduced .kelp-stat-wrap { display: none; }
+body.stargazer .moon-journal-stat-wrap,
+body.stargazer .mushroom-log-stat-wrap,
+body.stargazer .tide-whistle-stat-wrap,
+body.stargazer .rain-spout-stat-wrap,
+body.stargazer .kelp-stat-wrap { opacity: 0.5; }
 
 /* ---- pond turtle (surfaces to bask by day) ----
    fades up at the water's edge, bobs, and slips under when clicked. */
@@ -5457,3 +5662,143 @@ body.stargazer .candle-stat-wrap,
 body.stargazer .bubbles-stat-wrap,
 body.stargazer .tidestake-stat-wrap,
 body.stargazer .woodfish-stat-wrap { opacity: 0.5; }
+
+/* ==== devlog #33 — pinwheel, fossil stone, driftwood signpost, singing bowl ==== */
+
+/* ---- pinwheel ----
+   a small wooden pinwheel planted on a stick in the upper shore. four
+   blades of coloured paper around a centre hub; idles with a slow spin
+   and accelerates during body.wind-gust. click cycles the colour palette.
+   positioned upper shore (top:46) so the stick visually anchors it; right
+   shore band sits at right:280 (clear of the front-right cluster). */
+#pinwheel {
+  position: fixed;
+  top: 46px;
+  right: 280px;
+  width: 36px; height: 60px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: filter 200ms ease, transform 200ms ease;
+}
+#pinwheel:hover { transform: translateY(-1px); filter: drop-shadow(0 0 7px rgba(192, 83, 63, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.pw-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pw-cluster {
+  transform-origin: 18px 14px;
+  animation: pw-idle 2.4s linear infinite;
+}
+@keyframes pw-idle {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+body.wind-gust .pw-cluster { animation-duration: 0.6s; }
+body.motion-reduced .pw-cluster { animation: none; }
+body.stargazer #pinwheel { opacity: 0.6; }
+
+/* ---- fossil stone ----
+   a flat river rock on the lower shore with a pressed fern frond imprint.
+   positioned left:520 so it sits in the gap between the magnetometer
+   (418) and the swing (448) / pebble bowl (568) without crowding.
+   on click the .read class dims the imprint briefly so the user has
+   visual feedback even after the toast has faded. */
+#fossil-stone {
+  position: fixed;
+  left: 520px;
+  bottom: calc(38px + var(--pond-h) - 8px);
+  width: 56px; height: 30px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#fossil-stone:hover { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(143, 212, 154, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)); }
+.fs-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.fs-imprint { transition: opacity 700ms ease; }
+#fossil-stone.read .fs-imprint { opacity: 0.45; }
+body.stargazer #fossil-stone { opacity: 0.55; }
+
+/* ---- driftwood signpost ----
+   a wooden post with two carved arrow signs (one fresh pale, one older
+   brown). both sign texts are updated on cycle. positioned right:228 so
+   the post sits just right of the resin censer (right:175) and clear of
+   the lighthouse (right:32) and driftwood note. */
+#signpost {
+  position: fixed;
+  right: 228px;
+  bottom: calc(38px + var(--pond-h) - 8px);
+  width: 62px; height: 80px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#signpost:hover { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(255, 217, 160, 0.4)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.sp-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sp-text, .sp-text-2 { transition: opacity 360ms ease; }
+body.stargazer #signpost { opacity: 0.55; }
+
+/* ---- singing bowl ----
+   a brass bowl on a wooden stand. click triggers a tide-modulated tone
+   and a one-shot expanding ring on the .sb-struck circle. positioned
+   right:90 on the lower-right shore so it's a companion to the right-
+   shore cluster (lighthouse on the far right, signpost+resin-censer to
+   its left), and clear of the driftwood note. */
+#singing-bowl {
+  position: fixed;
+  right: 90px;
+  bottom: calc(38px + var(--pond-h) - 8px);
+  width: 44px; height: 36px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  transition: filter 200ms ease;
+}
+#singing-bowl:hover { filter: drop-shadow(0 0 8px rgba(255, 232, 168, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5)); }
+.sb-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sb-struck {
+  transform-origin: 22px 14px;
+  opacity: 0;
+}
+#singing-bowl.struck .sb-struck {
+  stroke: rgba(255, 232, 168, 0.85);
+  opacity: 1;
+  animation: sb-bowl-ring 1400ms ease-out forwards;
+}
+@keyframes sb-bowl-ring {
+  0%   { transform: scale(0.6); stroke-width: 1.2; }
+  100% { transform: scale(2.8); stroke-width: 0.2; }
+}
+body.motion-reduced #singing-bowl.struck .sb-struck { animation: none; transform: scale(1.6); stroke-width: 0.4; }
+body.stargazer #singing-bowl { opacity: 0.6; }
+
+/* ---- devlog #33 stat wraps ----
+   a fifth band on the bottom at bottom:32px, well below the prior #30
+   wraps (80px), #31 wraps (64px), #32 wraps (48px), #29 wraps (60px).
+   vw-step ladder: 4vw, 19vw, 36vw, 53vw so the four counters share the
+   horizontal band and never overlap with each other or with the prior
+   counters' positions. */
+.pinwheel-stat-wrap, .fossil-stat-wrap, .signpost-stat-wrap, .singingbowl-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+}
+.pinwheel-stat-wrap    { bottom: 32px; left: 4vw; }
+.fossil-stat-wrap      { bottom: 32px; left: 19vw; }
+.signpost-stat-wrap    { bottom: 32px; left: 36vw; }
+.singingbowl-stat-wrap { bottom: 32px; left: 53vw; }
+.pinwheel-stat-wrap #pinwheel-stat,
+.fossil-stat-wrap #fossil-stat,
+.signpost-stat-wrap #signpost-stat,
+.singingbowl-stat-wrap #singingbowl-stat { color: var(--moss); margin-left: 4px; }
+body.motion-reduced .pinwheel-stat-wrap,
+body.motion-reduced .fossil-stat-wrap,
+body.motion-reduced .signpost-stat-wrap,
+body.motion-reduced .singingbowl-stat-wrap { display: none; }
+body.stargazer .pinwheel-stat-wrap,
+body.stargazer .fossil-stat-wrap,
+body.stargazer .signpost-stat-wrap,
+body.stargazer .singingbowl-stat-wrap { opacity: 0.5; }

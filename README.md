@@ -69,6 +69,19 @@ biosphere02/
 - deterministic from each day's date so it doesn't shift under you on refresh
 - if today's forecast is "meteor shower" the shooting-star rate is boosted (~5-11s instead of 15-30s); if it's "aurora drift" the aurora layer brightens
 
+### the smaller shore & sky things
+Nine small self-contained shoreline elements that each latch onto a different existing system rather than introducing new ones:
+
+- **pinwheel** 🎡 — a wooden pinwheel on a stick in the upper shore. idles with a slow spin, accelerates on `body.wind-gust`. click cycles through four palette sets (ember / ocean / moss / mist).
+- **fossil stone** 🍂 — a flat river rock on the lower shore with a pressed-fern frond imprint. click reads a one-line description (name · era · note) of the next specimen out of a curated six.
+- **driftwood signpost** 🪧 — a wooden post with two carved arrow signs on the right shore. click cycles the two plates together through ten paired destinations (→ the moon, ↑ the past, ← the chapel, …).
+- **singing bowl** 🔔 — a small brass bowl on the right shore. click strikes a soft sustained tone whose pitch is modulated by `--pond-h` so the bowl reads as "in tune with the pond water". lazy shared `AudioContext`, arms on first pointerdown, respects the mute/reduced-motion settings.
+- **moon-journal** 🍂 — a small wood-bound ledger showing today's moon phase. click cycles through the full eight phases as SVG overlay paths. counter persists.
+- **mushroom-log** 🍄ᵗ — four mushroom caps on a fallen log (chanterelle, turkey tail, oyster, amethyst deceiver). click reads the next specimen via toast. counter persists.
+- **tide-whistle** 🎵 — a leaning hollow reed pitched to `--pond-h` (17vh→220hz, 19vh→280hz, same math as the singing bowl). its own lazy AudioContext, separate from the bowl pool. counter persists.
+- **rain-spout** 💧 — a brass downspout that drops a single water bead on click; autodrips every 4-7s on rain-forecast days (`forecastFor(new Date()).kind === "rain"`) while the tab is visible. counter persists.
+- **kelp** 🌿 — three pond-side stalks that sway on `body.wind-gust` (kp-idle / kp-sway keyframes) and prod on click (one-shot `kp-prod` keyframe). counter persists.
+
 ### the greenhouse 🌱
 Plant a seed and water it. The plant grows through 6 SVG stages (seed → sprout → sapling → young tree → thriving tree → ancient grove) based on two signals:
 - **water** (short-term — every click counts)

@@ -10246,3 +10246,482 @@ if (fishEl) {
     if (typeof gLog === "function" && fishCount === 1) gLog("fish", "wooden fish flipped", "the pond");
   });
 }
+/* ============================================================
+   devlog #33 — pinwheel (palette cycle), fossil stone (specimen
+   cycle), driftwood signpost (destination cycle), singing bowl
+   (tide-modulated audio synthesis).  four additions, none of them
+   creatures, each latches onto a different existing system: the
+   pinwheel is a wind-driven stick (the .wind-gust class wheel), the
+   fossil stone is the toast()-side of the bottle fragments, the
+   signpost cycles through curated destinations like the conch
+   cycles through sea sounds, and the singing bowl reads --pond-h
+   directly via getComputedStyle — the same source of truth that
+   drives the tide clock and the tide flutes.
+   ============================================================ */
+
+/* ---- pinwheel: 4-colour palette cycle ----
+   four 4-blade palettes keyed off index stored in localStorage. on
+   click the four blade fills are written into the inline svg paths
+   in document order; the palette label name is toasted back. the
+   blade fills are matched against the existing dusk source tint so
+   the pinwheel reads as a foreground object, not a UI element. */
+const PW_KEY = "biosphere02.pinwheel.v1";
+const PW_PALETTES = [
+  // ember — matches the most common dusk tint
+  ["#c0533f", "#e08a3f", "#a83a26", "#f0b668"],
+  // ocean
+  ["#3f86c0", "#5fb0d8", "#2a6090", "#9ad8e8"],
+  // moss
+  ["#8fd49a", "#6cb37e", "#a8e0b0", "#d6f0d8"],
+  // mist
+  ["#a8b0c0", "#c8d0e0", "#888c98", "#e0e4ec"],
+];
+let pwIndex = 0;
+try { pwIndex = +(localStorage.getItem(PW_KEY) || 0) || 0; } catch {}
+function applyPinwheelPalette() {
+  const pal = PW_PALETTES[pwIndex % PW_PALETTES.length];
+  const blades = document.querySelectorAll("#pinwheel .pw-blade");
+  for (let i = 0; i < blades.length; i++) {
+    blades[i].setAttribute("fill", pal[i % pal.length]);
+  }
+}
+applyPinwheelPalette();
+const _pinwheelStatEl = document.getElementById("pinwheel-stat");
+if (_pinwheelStatEl) _pinwheelStatEl.textContent = pwIndex;
+const pinwheelEl = document.getElementById("pinwheel");
+if (pinwheelEl) {
+  pinwheelEl.addEventListener("click", () => {
+    pwIndex++;
+    try { localStorage.setItem(PW_KEY, String(pwIndex)); } catch {}
+    applyPinwheelPalette();
+    if (_pinwheelStatEl) _pinwheelStatEl.textContent = pwIndex;
+    const labels = ["ember", "ocean", "moss", "mist"];
+    if (typeof toast === "function") toast(`pinwheel · ${labels[pwIndex % 4]} palettes`, 1800);
+  });
+}
+
+/* ---- fossil stone: 6 specimen cards ----
+   six pressed-fern species. on click the toast() helper shows a
+   one-line description (name · era · note); counter increments. */
+const FS_KEY = "biosphere02.fossil.v1";
+const FS_SPECIMENS = [
+  { name: "alethopteris", era: "carboniferous", note: "a seed-fern frond · 300 million years old · the swamp that became coal" },
+  { name: "glossopteris", era: "permian",      note: "tongue-shaped leaves · once grew across all the southern continents · proof of drift" },
+  { name: "annularia",    era: "carboniferous", note: "whorled leaves around a hollow reed-stem · the first upright forest understory" },
+  { name: "cordaites",    era: "carboniferous", note: "a tall conifer cousin · strap-shaped leaves that blew in monsoons of the warm paleozoic" },
+  { name: "pecopteris",   era: "carboniferous", note: "a fern with small pinnae in tidy rows · the undergrowth of every mire in the carboniferous" },
+  { name: "neuropteris",  era: "carboniferous", note: "a winged seed-fern · the rounded leaflet shape is unmistakable on a fresh split" },
+];
+let fsIndex = 0;
+try { fsIndex = +(localStorage.getItem(FS_KEY) || 0) || 0; } catch {}
+const _fossilStatEl = document.getElementById("fossil-stat");
+if (_fossilStatEl) _fossilStatEl.textContent = fsIndex;
+const fossilEl = document.getElementById("fossil-stone");
+if (fossilEl) {
+  fossilEl.addEventListener("click", () => {
+    fossilEl.classList.add("read");
+    setTimeout(() => fossilEl.classList.remove("read"), 700);
+    const spec = FS_SPECIMENS[fsIndex % FS_SPECIMENS.length];
+    fsIndex++;
+    try { localStorage.setItem(FS_KEY, String(fsIndex)); } catch {}
+    if (_fossilStatEl) _fossilStatEl.textContent = fsIndex;
+    if (typeof toast === "function") {
+      toast(`${spec.name} · ${spec.era} · ${spec.note}`, 3600);
+    }
+  });
+}
+
+/* ---- driftwood signpost: 10 destination cycles ----
+   ten destinations; each updates BOTH sign plates' text and arrow
+   direction. the arrow is a literal unicode character that the user
+   reads alongside the wood grain. signs cycle deterministically — a
+   given click count always lands on the same destination. */
+const SP_KEY = "biosphere02.signpost.v1";
+const SP_DESTINATIONS = [
+  { a1: "→", text1: "the moon",   a2: "↑", text2: "the past" },
+  { a1: "←", text1: "the chapel",  a2: "→", text2: "the river" },
+  { a1: "↑", text1: "the treetops", a2: "↓", text2: "the root" },
+  { a1: "→", text1: "the meadow",  a2: "↑", text2: "the wind" },
+  { a1: "↓", text1: "the pond",    a2: "←", text2: "the shore" },
+  { a1: "→", text1: "the next one", a2: "←", text2: "the gone ones" },
+  { a1: "↑", text1: "the high noon", a2: "↓", text2: "the dark hour" },
+  { a1: "←", text1: "the western wood", a2: "→", text2: "the eastern clearing" },
+  { a1: "→", text1: "the lighthouse",  a2: "↓", text2: "the harbor" },
+  { a1: "↑", text1: "the wish tree",   a2: "→", text2: "the listening room" },
+];
+let spIndex = 0;
+try { spIndex = +(localStorage.getItem(SP_KEY) || 0) || 0; } catch {}
+function applySignpost() {
+  const dest = SP_DESTINATIONS[spIndex % SP_DESTINATIONS.length];
+  const t1 = document.querySelector("#signpost .sp-text");
+  const t2 = document.querySelector("#signpost .sp-text-2");
+  if (t1) t1.textContent = `${dest.a1} ${dest.text1}`;
+  if (t2) t2.textContent = `${dest.a2} ${dest.text2}`;
+}
+applySignpost();
+const _spStatEl = document.getElementById("signpost-stat");
+if (_spStatEl) _spStatEl.textContent = spIndex;
+const signpostEl = document.getElementById("signpost");
+if (signpostEl) {
+  signpostEl.addEventListener("click", () => {
+    spIndex++;
+    try { localStorage.setItem(SP_KEY, String(spIndex)); } catch {}
+    applySignpost();
+    const dest = SP_DESTINATIONS[(spIndex - 1) % SP_DESTINATIONS.length];
+    if (_spStatEl) _spStatEl.textContent = spIndex;
+    if (typeof toast === "function") {
+      toast(`${dest.a1} ${dest.text1} · ${dest.a2} ${dest.text2}`, 2400);
+    }
+  });
+}
+
+/* ---- singing bowl: tide-modulated audio synthesis ----
+   click strikes the bowl: a soft sustained tone plays at a base
+   frequency derived from --pond-h so the bowl tracks the actual pond
+   water (same source-of-truth as the tide clock and tide flutes).
+   persistent counter: bowls struck.
+   audio: lazy AudioContext (mirrors the cricket/conch/beads pattern),
+   with one fundamental sine + a 2x harmonic sine for the bowl's
+   "singing" character, routed through an envelope with a 60ms attack,
+   220ms sustain plateau, and ~4.5s exponential decay back to ~0.
+   a slow ~5hz lfo modulates the master amplitude to give the bowl
+   its characteristic shimmer. */
+const SB_KEY = "biosphere02.singingbowl.v1";
+const _sbCtxRef = { ctx: null, armed: false };
+let sbStrikes = 0;
+try { sbStrikes = +(localStorage.getItem(SB_KEY) || 0) || 0; } catch {}
+
+function _sbGetCtx() {
+  if (_sbCtxRef.ctx) return _sbCtxRef.ctx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  _sbCtxRef.ctx = new AC();
+  return _sbCtxRef.ctx;
+}
+// arm on first pointerdown anywhere on the page — the lazy-context
+// pattern shared with the cricket, the conch, and the bead strand.
+document.addEventListener("pointerdown", () => {
+  if (_sbCtxRef.armed) return;
+  const ctx = _sbGetCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended") ctx.resume();
+  _sbCtxRef.armed = true;
+}, { once: false });
+
+function sbFrequencyFromTide() {
+  // --pond-h cycles roughly 17-19 vh; map to 220-280hz (A3 to C#4) so
+  // the chord sits in a warm bell register. linear in vh: 17vh -> 220,
+  // 19vh -> 280. cached on first read.
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--pond-h") || "18vh";
+  const vh = parseFloat(raw) || 18;
+  const t = Math.max(0, Math.min(1, (vh - 17) / 2));
+  return 220 + 60 * t;
+}
+
+function strikeSingingBowl() {
+  const ctx = _sbGetCtx();
+  if (ctx && ctx.state === "suspended") ctx.resume();
+  const f = sbFrequencyFromTide();
+  // visual ring
+  const el = document.getElementById("singing-bowl");
+  if (el) {
+    el.classList.remove("struck");
+    void el.offsetWidth;  // force reflow so the keyframe restarts
+    el.classList.add("struck");
+    setTimeout(() => el.classList.remove("struck"), 1400);
+  }
+  // audio (only after the user has armed the context)
+  if (ctx && _sbCtxRef.armed) {
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 0;
+    master.connect(ctx.destination);
+    // fundamental + 2x harmonic give the bowl its bell-like singing quality
+    const o1 = ctx.createOscillator();
+    o1.type = "sine";
+    o1.frequency.setValueAtTime(f, now);
+    const o2 = ctx.createOscillator();
+    o2.type = "sine";
+    o2.frequency.setValueAtTime(f * 2, now);
+    // slow lfo adds the breathing shimmer that distinguishes a singing bowl
+    // from a static bell tone
+    const lfo = ctx.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = 5.2;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.05;
+    lfo.connect(lfoGain).connect(master.gain);
+    o1.connect(master);
+    o2.connect(master);
+    // envelope: 60ms attack -> 220ms sustain at 0.22 ->
+    // 4.5s exponential decay to 0.0001
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.linearRampToValueAtTime(0.22, now + 0.06);
+    master.gain.linearRampToValueAtTime(0.20, now + 0.26);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 4.8);
+    o1.start(now); o2.start(now); lfo.start(now);
+    o1.stop(now + 5.0); o2.stop(now + 5.0); lfo.stop(now + 5.0);
+  }
+  sbStrikes++;
+  try { localStorage.setItem(SB_KEY, String(sbStrikes)); } catch {}
+  const _sbStatEl = document.getElementById("singingbowl-stat");
+  if (_sbStatEl) _sbStatEl.textContent = sbStrikes;
+  if (typeof toast === "function") {
+    const vh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pond-h") || "18vh") || 18;
+    const t = vh < 17.6 ? "low tide" : vh < 18.4 ? "rising" : "high tide";
+    toast(`bowl sings at ${Math.round(f)}hz · ${t}`, 2200);
+  }
+}
+
+const singingBowlEl = document.getElementById("singing-bowl");
+if (singingBowlEl) {
+  singingBowlEl.addEventListener("click", strikeSingingBowl);
+}
+
+// resume audio context when tab regains focus (mirrors how orbit + cricket
+// handle visibilitychange — keep the bowl playable after a background tab)
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden
+      && _sbCtxRef.armed
+      && _sbCtxRef.ctx
+      && _sbCtxRef.ctx.state === "suspended") {
+    _sbCtxRef.ctx.resume().catch(() => {});
+  }
+});
+
+/* ============================================================
+   devlog #34 — moon-journal, mushroom-log, tide-whistle,
+   rain-spout, kelp. five shore elements that each latch onto a
+   different existing system: the moon-journal onto the lunar
+   cycle, the mushroom-log onto toast + deterministic cycling,
+   the tide-whistle onto --pond-h audio, the rain-spout onto
+   forecastFor(new Date()) kind === "rain", and the kelp onto
+   body.wind-gust. none introduce a fresh state variable.
+   ============================================================ */
+
+const MJ_KEY = "biosphere02.moon-journal.v1";
+const MJ_PHASES = ["new moon","waxing crescent","first quarter","waxing gibbous","full moon","waning gibbous","last quarter","waning crescent"];
+const MJ_OVERLAY_PATHS = [
+  "M28 15 A 9 9 0 0 1 28 33 Z",
+  "M28 15 A 6 9 0 0 1 28 33 A 9 9 0 0 1 28 15 Z",
+  "M28 15 L 28 33 A 9 9 0 0 1 28 15 Z",
+  "M28 15 A 6 9 0 0 0 28 33 A 9 9 0 0 1 28 15 Z",
+  "",
+  "M28 15 A 6 9 0 0 1 28 33 A 9 9 0 0 0 28 15 Z",
+  "M28 15 L 28 33 A 9 9 0 0 0 28 15 Z",
+  "M28 15 A 6 9 0 0 0 28 33 A 9 9 0 0 0 28 15 Z",
+];
+let mjState = { page: 0, read: 0 };
+try { mjState = Object.assign({ page: 0, read: 0 }, JSON.parse(localStorage.getItem(MJ_KEY) || "{}")); } catch {}
+function _moonPhaseIdxToday() {
+  const lp = 2551442.8;
+  const known = new Date("2000-01-06T18:14:00Z").getTime() / 1000;
+  const now = Date.now() / 1000;
+  const phase = ((now - known) % lp) / lp;
+  return Math.floor(phase * 8) % 8;
+}
+function _renderMoonJournal() {
+  const el = document.getElementById("moon-journal");
+  if (!el) return;
+  const overlay = el.querySelector(".mj-shadow-overlay");
+  const name = el.querySelector(".mj-name");
+  if (overlay) overlay.setAttribute("d", MJ_OVERLAY_PATHS[mjState.page] || "");
+  if (name) name.textContent = MJ_PHASES[mjState.page];
+  const statEl = document.getElementById("moon-journal-stat");
+  if (statEl) statEl.textContent = mjState.read;
+}
+if (!localStorage.getItem(MJ_KEY)) mjState.page = _moonPhaseIdxToday();
+_renderMoonJournal();
+const moonJournalEl = document.getElementById("moon-journal");
+if (moonJournalEl) {
+  moonJournalEl.addEventListener("click", () => {
+    mjState.page = (mjState.page + 1) % 8;
+    mjState.read++;
+    try { localStorage.setItem(MJ_KEY, JSON.stringify(mjState)); } catch {}
+    _renderMoonJournal();
+    if (typeof toast === "function") toast(`moon · ${MJ_PHASES[mjState.page]}`, 1800);
+  });
+}
+
+const ML_KEY = "biosphere02.mushroom-log.v1";
+const ML_SPECIMENS = [
+  "golden chanterelle · apricot, faintly peppery",
+  "turkey tail · striped browns of the pacific northwest",
+  "pale oyster · faint anise, layered shelving",
+  "amethyst deceiver · vivid lavender in autumn leaf litter",
+];
+let mlState = { idx: 0, read: 0 };
+try { mlState = Object.assign({ idx: 0, read: 0 }, JSON.parse(localStorage.getItem(ML_KEY) || "{}")); } catch {}
+function _renderMushroomLog() {
+  const statEl = document.getElementById("mushroom-log-stat");
+  if (statEl) statEl.textContent = mlState.read;
+}
+_renderMushroomLog();
+const mushroomLogEl = document.getElementById("mushroom-log");
+if (mushroomLogEl) {
+  mushroomLogEl.addEventListener("click", () => {
+    const spec = ML_SPECIMENS[mlState.idx % ML_SPECIMENS.length];
+    mlState.idx = (mlState.idx + 1) % ML_SPECIMENS.length;
+    mlState.read++;
+    try { localStorage.setItem(ML_KEY, JSON.stringify(mlState)); } catch {}
+    _renderMushroomLog();
+    if (typeof toast === "function") toast(spec, 2400);
+  });
+}
+
+const TW_KEY = "biosphere02.tide-whistle.v1";
+const _twCtxRef = { ctx: null, armed: false };
+let twStrikes = 0;
+try { twStrikes = +(localStorage.getItem(TW_KEY) || 0) || 0; } catch {}
+function _twGetCtx() {
+  if (_twCtxRef.ctx) return _twCtxRef.ctx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  _twCtxRef.ctx = new AC();
+  return _twCtxRef.ctx;
+}
+function _twFrequencyFromTide() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue("--pond-h") || "18vh";
+  const vh = parseFloat(raw) || 18;
+  const t = Math.max(0, Math.min(1, (vh - 17) / 2));
+  return 220 + 60 * t;
+}
+function strikeTideWhistle() {
+  const ctx = _twGetCtx();
+  if (ctx && ctx.state === "suspended") ctx.resume();
+  const el = document.getElementById("tide-whistle");
+  if (el) {
+    el.classList.remove("blown");
+    void el.offsetWidth;
+    el.classList.add("blown");
+    setTimeout(() => el.classList.remove("blown"), 520);
+  }
+  const f = _twFrequencyFromTide();
+  if (ctx && _twCtxRef.armed) {
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 0;
+    master.connect(ctx.destination);
+    const o1 = ctx.createOscillator();
+    o1.type = "sine";
+    o1.frequency.setValueAtTime(f, now);
+    const o2 = ctx.createOscillator();
+    o2.type = "sine";
+    o2.frequency.setValueAtTime(f * 2, now);
+    const o1Gain = ctx.createGain();
+    o1Gain.gain.value = 1;
+    const o2Gain = ctx.createGain();
+    o2Gain.gain.value = 0.34;
+    o1.connect(o1Gain).connect(master);
+    o2.connect(o2Gain).connect(master);
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.linearRampToValueAtTime(0.18, now + 0.03);
+    master.gain.linearRampToValueAtTime(0.16, now + 0.25);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 1.85);
+    o1.start(now); o2.start(now);
+    o1.stop(now + 1.95); o2.stop(now + 1.95);
+  }
+  twStrikes++;
+  try { localStorage.setItem(TW_KEY, String(twStrikes)); } catch {}
+  const statEl = document.getElementById("tide-whistle-stat");
+  if (statEl) statEl.textContent = twStrikes;
+  if (typeof toast === "function") {
+    const vh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pond-h") || "18vh") || 18;
+    const tideLabel = vh < 17.6 ? "low tide" : vh < 18.4 ? "rising" : "high tide";
+    toast(`whistle at ${Math.round(f)}hz · ${tideLabel}`, 2000);
+  }
+}
+const tideWhistleEl = document.getElementById("tide-whistle");
+if (tideWhistleEl) {
+  tideWhistleEl.addEventListener("click", strikeTideWhistle);
+}
+
+const RS_KEY = "biosphere02.rain-spout.v1";
+let rsDrips = 0;
+try { rsDrips = +(localStorage.getItem(RS_KEY) || 0) || 0; } catch {}
+function _renderRainSpout() {
+  const statEl = document.getElementById("rain-spout-stat");
+  if (statEl) statEl.textContent = rsDrips;
+}
+_renderRainSpout();
+let _rsShowerTimer = null;
+function _spawnSpoutDrip() {
+  const host = document.getElementById("rain-spout");
+  if (!host) return;
+  if (typeof isMotionReduced === "function" && isMotionReduced()) return;
+  const d = document.createElement("div");
+  d.className = "rs-drop falling";
+  host.appendChild(d);
+  rsDrips++;
+  try { localStorage.setItem(RS_KEY, String(rsDrips)); } catch {}
+  _renderRainSpout();
+  setTimeout(() => d.remove(), 660);
+}
+function _startSpoutShower() {
+  if (_rsShowerTimer) return;
+  const tick = () => {
+    if (!document.hidden) _spawnSpoutDrip();
+    _rsShowerTimer = setTimeout(tick, 4000 + Math.random() * 3000);
+  };
+  _rsShowerTimer = setTimeout(tick, 1500);
+}
+function _stopSpoutShower() {
+  if (_rsShowerTimer) { clearTimeout(_rsShowerTimer); _rsShowerTimer = null; }
+}
+const rainSpoutEl = document.getElementById("rain-spout");
+if (rainSpoutEl) {
+  rainSpoutEl.addEventListener("click", () => _spawnSpoutDrip());
+}
+if (typeof forecastFor === "function") {
+  try {
+    if (forecastFor(new Date()).kind === "rain") _startSpoutShower();
+  } catch {}
+}
+
+const KP_KEY = "biosphere02.kelp.v1";
+let kpProds = 0;
+try { kpProds = +(localStorage.getItem(KP_KEY) || 0) || 0; } catch {}
+function _renderKelp() {
+  const statEl = document.getElementById("kelp-stat");
+  if (statEl) statEl.textContent = kpProds;
+}
+_renderKelp();
+const kelpEl = document.getElementById("kelp");
+if (kelpEl) {
+  kelpEl.addEventListener("click", () => {
+    kelpEl.classList.remove("prodded");
+    void kelpEl.offsetWidth;
+    kelpEl.classList.add("prodded");
+    setTimeout(() => kelpEl.classList.remove("prodded"), 700);
+    kpProds++;
+    try { localStorage.setItem(KP_KEY, String(kpProds)); } catch {}
+    _renderKelp();
+  });
+}
+
+document.addEventListener("pointerdown", () => {
+  if (typeof _sbCtxRef !== "undefined" && _sbCtxRef && !_sbCtxRef.armed) {
+    const ctx = _sbCtxRef.ctx;
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+    _sbCtxRef.armed = true;
+  }
+  if (!_twCtxRef.armed) {
+    const ctx = _twGetCtx();
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+    _twCtxRef.armed = true;
+  }
+}, { passive: true });
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && _twCtxRef.armed && _twCtxRef.ctx
+      && _twCtxRef.ctx.state === "suspended") {
+    _twCtxRef.ctx.resume().catch(() => {});
+  }
+  if (typeof forecastFor === "function") {
+    try {
+      const isRain = forecastFor(new Date()).kind === "rain";
+      if (isRain && !document.hidden) _startSpoutShower();
+      else _stopSpoutShower();
+    } catch {}
+  }
+});
