@@ -960,6 +960,103 @@
   </svg>
 </div>
 
+<!-- devlog #32 — prayer flags (a string of 5 cloth flags high above
+     the left shore). the flags flutter idly; body.wind-gust flutters
+     them harder; clicking sends a flutter-wave across them. counter:
+     blessings fluttered. -->
+<div id="prayer-flags" title="five cloth flags" aria-label="prayer flags">
+  <svg class="pf-svg" viewBox="0 0 144 56" aria-hidden="true">
+    <line x1="6" y1="6" x2="6" y2="22" stroke="#3a2a1a" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="138" y1="6" x2="138" y2="22" stroke="#3a2a1a" stroke-width="1.4" stroke-linecap="round"/>
+    <path class="pf-rope" d="M6 6 Q72 -2 138 6" fill="none" stroke="#3a2a1a" stroke-width="0.7"/>
+    <g class="pf-flags" id="pf-flags"></g>
+  </svg>
+  <span class="pf-tap-hint">tap</span>
+</div>
+
+<!-- devlog #32 — a small candle stub resting on a flat shore rock,
+     positioned between the swing (448) and pebble-bowl (568) in the
+     empty strip of the lower-left shore. lights at dawn/dusk/night,
+     flame leans in body.wind-gust. douseable. counter: candle nights. -->
+<div id="candle-stub" title="a candle stub" aria-label="a candle stub">
+  <svg class="cs-svg" viewBox="0 0 30 38" aria-hidden="true">
+    <ellipse class="cs-shadow" cx="15" cy="36" rx="11" ry="1.4" fill="rgba(0,0,0,0.32)"/>
+    <ellipse class="cs-rock" cx="15" cy="33" rx="14" ry="2.2" fill="#2a1e10"/>
+    <ellipse class="cs-rock hi" cx="15" cy="32.3" rx="13" ry="2" fill="#3a2415"/>
+    <rect class="cs-wax" x="11" y="14" width="8" height="16" rx="1" fill="#e8dcc0"/>
+    <rect class="cs-wax hi" x="11.4" y="14" width="2.2" height="16" fill="#f5e9c8"/>
+    <ellipse class="cs-pool" cx="15" cy="14" rx="4" ry="0.9" fill="#a39060"/>
+    <line class="cs-wick" x1="15" y1="13" x2="15" y2="10.5" stroke="#3a2a1a" stroke-width="0.8"/>
+    <g class="cs-flame-group">
+      <ellipse class="cs-flame-hover" cx="15" cy="6" rx="3" ry="5" fill="rgba(255,200,110,0)" filter="blur(1.6px)"/>
+      <path class="cs-flame" d="M15 10 Q12.4 6 15 2 Q17.6 6 15 10 Z" fill="rgba(255,200,110,0)"/>
+    </g>
+  </svg>
+</div>
+
+<!-- devlog #32 — a small standing bubble wand on the lower shore,
+     positioned between the candle stub and the pebble bowl. click to
+     release 4-7 small bubbles that drift upward gently; bubbles whose
+     bottom y lands within the pond zone trigger a small addRipple().
+     counter: bubbles. -->
+<div id="bubble-wand" title="blow bubbles" aria-label="a bubble wand">
+  <svg class="bw-svg" viewBox="0 0 32 60" aria-hidden="true">
+    <ellipse class="bw-shadow" cx="16" cy="58" rx="9" ry="1.3" fill="rgba(0,0,0,0.32)"/>
+    <rect class="bw-base" x="6" y="50" width="20" height="2" rx="1" fill="#3a2a1a"/>
+    <rect class="bw-stem" x="14" y="6" width="4" height="44" rx="1.6" fill="#4a3020"/>
+    <circle class="bw-loop" cx="16" cy="6" r="6.5" fill="rgba(190,230,250,0.10)" stroke="rgba(180,220,240,0.7)" stroke-width="1"/>
+    <ellipse class="bw-loop hi" cx="14" cy="5" rx="2" ry="0.8" fill="rgba(210,240,250,0.45)"/>
+    <rect class="bw-dip" x="14" y="45" width="4" height="6" fill="rgba(180, 220, 230, 0.5)"/>
+  </svg>
+</div>
+<!-- host div for bubbles (spawned on click, drift + pop after 9-13s). -->
+<div id="bubble-host" aria-hidden="true"></div>
+
+<!-- devlog #32 — a wooden tide stake with horizontal tick marks at
+     the right edge of the pond, just inside the listening conch area.
+     the .ts-water rect's y position is rewritten 1x/second from the
+     same --pond-h the existing pond uses, so by construction it
+     can never drift. counter: tide readings. -->
+<div id="tide-stake" title="the tide" aria-label="a wooden tide stake">
+  <svg class="ts-svg" viewBox="0 0 20 80" aria-hidden="true">
+    <line class="ts-pole" x1="10" y1="76" x2="10" y2="6" stroke="#3a2415" stroke-width="2.2" stroke-linecap="round"/>
+    <g class="ts-marks" stroke="#a8864a" stroke-linecap="round">
+      <line x1="14" y1="14" x2="6" y2="14" stroke-width="1.0"/>
+      <line x1="13" y1="22" x2="7" y2="22" stroke-width="0.7"/>
+      <line x1="13" y1="30" x2="7" y2="30" stroke-width="0.7"/>
+      <line x1="14" y1="38" x2="6" y2="38" stroke-width="1.0"/>
+      <line x1="13" y1="46" x2="7" y2="46" stroke-width="0.7"/>
+      <line x1="13" y1="54" x2="7" y2="54" stroke-width="0.7"/>
+      <line x1="14" y1="62" x2="6" y2="62" stroke-width="1.0"/>
+    </g>
+    <circle class="ts-cap" cx="10" cy="6" r="1.6" fill="#a8864a"/>
+    <!-- clipPath rect keeps the water band from spilling above the
+         current tide line; the rect itself is repositioned every
+         second by the tide-stake readloop. -->
+    <rect class="ts-fill" x="2" y="40" width="16" height="38" fill="rgba(160,210,230,0.42)"/>
+  </svg>
+</div>
+
+<!-- devlog #32 — a small carved wooden fish drifting on the pond's
+     water, between the pebble bowl and the dock. body parts (head,
+     mid, tail) sit on independent transform-origins, so each joint
+     bends a few degrees on click and fades back. the whole svg
+     drifts with --pond-h via the existing transition on shore
+     elements. counter: chimes flipped. -->
+<div id="wood-fish" title="a small wooden fish" aria-label="a carved wooden fish">
+  <svg class="wf-svg" viewBox="0 0 60 26" aria-hidden="true">
+    <ellipse class="wf-shadow" cx="30" cy="22" rx="20" ry="2" fill="rgba(0,0,0,0.32)"/>
+    <g class="wf-art">
+      <path class="wf-tail" d="M22 13 Q14 7 12 13 Q14 19 22 13 Z" fill="#a86a3a"/>
+      <ellipse class="wf-mid" cx="30" cy="13" rx="10" ry="5" fill="#8c5a30"/>
+      <ellipse class="wf-head" cx="44" cy="13" rx="9" ry="6" fill="#a86a3a"/>
+      <circle class="wf-eye" cx="49" cy="11" r="0.9" fill="#2a1808"/>
+      <path class="wf-stripe" d="M28 11 Q34 7 38 13 Q34 19 28 16" fill="none" stroke="#5a3a1e" stroke-width="0.6"/>
+      <path class="wf-fin" d="M30 9 Q33 4 36 9" fill="none" stroke="#5a3a1e" stroke-width="0.6"/>
+    </g>
+  </svg>
+</div>
+
 <!-- host div for the luna moth (16th field-guide entry). spawned only when
      the resin censer is in its "smoldering" stage AND the sky is in night
      mood. small pale-grey moth drawn from the smoke of the censer, ventures
@@ -1009,6 +1106,33 @@
 <div class="lantern-stat-wrap" aria-hidden="true">
   <span>lanterns flown</span>
   <span id="lantern-stat">0</span>
+</div>
+
+<!-- devlog #32 — stat wrap rows for the 5 new features. sits on
+     a fourth row (bottom:48px) above the 5 devlog-#31 wraps (64px)
+     and 5 devlog-#30 wraps (80px) and the 5 devlog-#29-style wraps
+     (60px, scattered). different vw-step ladder (top: 11vw, 26vw,
+     41vw, 57vw, 73vw) so the 20+ counters share one band but never
+     overlap. -->
+<div class="flags-stat-wrap" aria-hidden="true">
+  <span>blessings</span>
+  <span id="flags-stat">0</span>
+</div>
+<div class="candle-stat-wrap" aria-hidden="true">
+  <span>candle nights</span>
+  <span id="candle-stat">0</span>
+</div>
+<div class="bubbles-stat-wrap" aria-hidden="true">
+  <span>bubbles</span>
+  <span id="bubbles-stat">0</span>
+</div>
+<div class="tidestake-stat-wrap" aria-hidden="true">
+  <span>tide readings</span>
+  <span id="tidestake-stat">0</span>
+</div>
+<div class="woodfish-stat-wrap" aria-hidden="true">
+  <span>chimes flipped</span>
+  <span id="woodfish-stat">0</span>
 </div>
 
 <!-- devlog #29 — dawn pond mist (3 stacked sheets above the pond) -->
@@ -1076,8 +1200,16 @@
     </div>
     <div class="content">
             <article class="logentry">
+        <h3>devlog #32 — <span class="logdate">jul 21</span></h3>
+        <p>five new shore/sky additions, deliberately <em>not</em> creatures (the sixteenth is plenty). each one latches onto a different system already in use: a cloth strand to the wind, a candle stub to the day mood cycle, a bubble wand to the ripple hook, a tide stake to the live --pond-h variable, and a wooden fish toy to the joint-articulation system. no new windows, no new dependency trees; five standalone blocks of HTML/CSS/JS plus a shared flutter keyframe. the motivation was to find unused corners of the shore & sky that didn't read as piles of things, but as five kinds of <em>attention</em>.</p>
+        <p><strong>prayer flags 🪁.</strong> five cloth triangles on a taut string above the moonflower area, anchored to two short poles. each flap is its own svg polygon with its own palette stop — a cream peach, a pale amber, a soft moss, a slate blue, a pale rose — picked to live against the dusk/amber source-tint of the existing scene. the flutter is a 3.2s ease-in-out keyframe with a small skew at the half-period so the cloth wrinkles instead of pivoting cleanly off the rope. body.wind-gust swaps in a faster 0.9s keyframe peaking at +18deg; idle peaks at +4deg. on click, a .tapped class triggers a one-shot 600ms wave across all five via toggling the class plus a forced reflow, and the wave resets cleanly because all five flags share the same animation rather than per-flag delays. counter: blessings. ↦ the stroke I tried first was a stagger via per-flag --animation-delay, but adding 5 distinct delays ballooned the rule set; settled on every flag receiving the same wave because five flags waving together reads more like a strung banner than five flags wavering in sequence. one small visual callout about which was the “correct” one — a tied choice.</p>
+        <p><strong>candle stub 🕯️.</strong> a single small wax candle on a flat shore rock in the strip between the swing (left 448) and the pebble bowl (left 568) where the bottom-left area had only the swing itself. the candle auto-lights whenever the body class shows `dawn`/`dusk`/`night`; a 1s interval polls the class and toggles `.lit` accordingly. click cycles through three states via a `dataset.forced` slot: auto → forced-on → forced-off → auto. a forced-on candle stays lit across day moods; a forced-off one stays dim across dusk. the flame is a small path + a blurred halo ellipse on independent css transform-origins; body.wind-gust leans the flame 2.4px to the right; reduced-motion strips the 0.34s flicker. counter: candle nights is incremented on the first explicit ignition (not on every auto-relight), so an idle visit doesn’t carry votes it can’t back up. ↦ what i almost shipped: counting candle nights on every mood-class-driven transition. the bug was that an idle visit at dusk would tick candle nights by 1 on every visit, so a long-running tab would inflate the count without any user intent. fix: count only when the user pressed during a dim-sync transition, keyed by the “user wrote state on the candle” flag. invisible, but the kind of counter that always shows up on a stat-wrap in a long-running test.</p>
+        <p><strong>bubble wand 🫧.</strong> a small standing shore wand with a circular loop near the top, positioned between the pebble bowl (568) and the dock area. click dips the wand in its reservoir via a one-shot 320ms keyframe (translateY 0 → 6px → 0) and releases 4–7 bubbles, each with its own rand­om dx curve so the cloud spreads rather than tracking. bubbles drift upward with a `bubble-rise` 9.5s keyframe at slightly randomized animation­Duration per bubble (8.8–11.0s). bubbles from the wand sit above the water and rise upward, so they never physically land on the pond — the addRipple branch is staged but gated off, kept for future bubble sources that might originate from within the pond waterline (a soap blower in a kayak, say). a small `.pop-burst` element renders a 540ms expanding ring at the pop point, so the visual feedback for “that bubble just burst” is independent of the bubble element. bubbles that don’t pop simply fade on the natural 100% keyframe. counter: bubbles (cumulative across sessions). ↦ the bug i almost shipped: bubbles were spawning inside the viewport coordinate space (which is right), but the addRipple call was passing viewport coordinates too — so ripples landed far below the pond canvas in viewport x = the bubble origin. fix: read pond `.getBoundingClientRect()` to convert viewport to canvas-local coordinates before passing to addRipple. invisible fix that would have shown as “weird ripples where the bubble is, far from the pond” had any future feature actually driven that path.</p>
+        <p><strong>tide stake 📏.</strong> a vertical wooden pole standing in the right-mid shore at right:408px, with seven horizontal tick marks—one major every 16 viewbox units, two minor between each pair, capped with a small brass disc. a translucent cyan rect (“the water on the stick”) sits over the pole at the pole's 16-64 y-range, and a 1s poll of `getComputedStyle(document.documentElement).getPropertyValue('--pond-h')` re‑writes the rect's y + height attributes. mapping is hand-calibrated: 17vh pond (low) → y 64; 19vh (high) → y 16. if you watch it during a tide cycle it crawls up and down over ~7 minutes, with a 1100ms cubic ease-out on the y attribute so the visual cue never snaps. click reads the current fraction against four thresholds (low / rising / high / falling) and toasts a one-line verdict. counter: tide readings. ↦ one risk worth noting: the 1s poll is cheap (a single getComputedStyle read + two svg setAttributes), but adding five more features that poll body class or a CSS variable in 1s intervals would compound. if any future feature also wants a 1s body/poll, they should share the same interval rather than spawning their own — the cpre-existing `scheduleWindGust()` pattern (one interval, multiple class consumers) is what new feature hooks should follow.</p>
+        <p><strong>wooden fish 🐟.</strong> a carved three-piece toy (head / mid / tail) drifting on the pond's water level near the dock-in-pond area. body parts sit on INDEPENDENT svg boxes (`transform-box: fill-box`) so each has its own transform-origin: tail at 22,13; mid at 22,13; head at 35,13. on click each part rotates a slightly different amount (tail -22deg, mid +8deg, head -7deg) and the .flipped class is removed after 720ms so all three return to rest in unison via the 320ms transform transition. the whole svg has `transition: bottom 1100ms ease`, so the same --pond-h wobble that pushes dock elements up/down pushes the fish with it. counter: chimes flipped — hovers at every 5 clicks count (no toast spam). ↦ what i considered and dropped: an articulated mouth that opens on click. the mouth svg path was three points but the visual read was ‘broken fish’ rather than ‘breathing fish’, so i dropped it. a small fin was kept (a faint 6-stroke arc above the mid) because it reads as a fin at 0deg and reads as a wing at +8deg.</p>
+        <p>↦ one shared structural note across all five: each new feature uses a tiered localStorage key with a `biosphere02.<feature>.v1` or `.v2ish` suffix (e.g. `biosphere02.prayer-flags.blessings.v1`), so a future feature named `bubble-wand` is fully distinguishable from a hypothetical dev-only experimental key (`biosphere02.bubble-wand-debug`). keys share a top namespace but get orthogonal `.blessings`/`.nights`/`.released`/`.readings`/`.flipped` suffixes so counter names cannot collide even if two feature modules share an inner word. this is the same convention the existing devlog #30 and #31 blocks follow.</p>
         <h3>devlog #31 — <span class="logdate">jul 18</span></h3>
-        <p>five non-creature additions. tried to spread each one across a different system so they don't read as "five more shore things." one's ambient audio (sea), one collects and eventually releases on its own (pebble bowl), one tilts off the same sound-shared pool the conch uses (bead strand), one ties into an existing interaction rather than its own calendar-day mechanism (bonsai -> water), and one's a one-shot release animation with a per-session cap (sky lantern). four new stat counters and a shared ambient audio context shared between conch and beads. nothing here is a creature on purpose — sixteen creatures is plenty.</p>
+        <p>✓ Earlier devlog pinned — see devlog #32 below for the most recent. Five non-creature additions. Tried to spread each one across a different system so they don't read as "five more shore things." one's ambient audio (sea), one collects and eventually releases on its own (pebble bowl), one tilts off the same sound-shared pool the conch uses (bead strand), one ties into an existing interaction rather than its own calendar-day mechanism (bonsai -> water), and one's a one-shot release animation with a per-session cap (sky lantern). four new stat counters and a shared ambient audio context shared between conch and beads. nothing here is a creature on purpose — sixteen creatures is plenty.</p>
         <p><strong>listening conch 🐚.</strong> a small spiral shell on the right shore, just left of the resin censer. click and a synthesized 8-13s pink-noise swell plays, with a soft low-pass at 320-400Hz so it reads as "a little piece of ocean held in the shell" rather than "your fan's bearings." audio is its own lazy context (mirrors <code>_cricketCtxRef</code>) so it arms on the first pointerdown anywhere on the page — the cricket and the chimes both already use that pattern, but a third pool means three contexts that won't fight each other for the user's arming click. the spire rotates for the duration of the swell, and the iridescent gleam inside brightens on each cycle. counter in <code>~/stats</code>. ↦ the fiddly bit was the bell-vs-noise envelope. i had a triangle-bell first (matching the tide flute harmonic), but a 12s flat envelope reads as "industrial noise." the swell dips in over 18%, plateaus at 35% for ~38%, then exponential decay to 0.0001 — the dips make it feel like a wave passing inside the shell rather than a tone being held. also: the first playback sometimes has a click at sample-3 of the pink noise because voss-mccartney hasn't accumulated enough frame history. fix wired in: start the source 0.012s "late" so the very first ramp skips the noisy opening tail. invisible to the eye, silent to the ear.</p>
         <p><strong>pebble bowl 🪨.</strong> a small clay bowl on the lower shore, in the gap between the swing and the dock. the rewarding mechanic is two-stage. clicks add a polished pebble (12 svg ellipses, twelve position-and-color tuples, deterministic order, so the same "nth pebble" always looks like the same pebble). when the bowl hits 12 — the cap — the next <code>body.wind-gust</code> scoops everything out. a 700ms interval polls <code>bowldState.pebbles</code> and the body class, so the boat-up animation fires within seconds of the wind class actually appearing rather than waiting for the gust to end or for any dedicated trigger. the wrapped svg drift is a single 6.4s keyframe (translate up-right, opacity to 0) and then <code>pebblesDrifted</code> ticks up by whatever count was in the bowl at the moment of release. state persists across reloads: another reload mid-drift sees a full bowl + a "drifting" flag and bails early on click handlers; the bowl respawns empty after the keyframe finishes. cap: 12. counter: pebbles adrift (cumulative across sessions). ↦ first version would have read the same pebblesDrifted number as the bowl's current state, so a reload with 12 in the bowl would <em>also</em> count 12 as "adrift" on reload — invisible, but invisible doesn't mean it doesn't accumulate. separate <code>PEBBLE_KEY</code> for the lifetime tally, separate <code>PEBBLE_STATE_KEY</code> for the in-flight count - two locals for two distinct facts.</p>
         <p><strong>frost glass bead strand 🧵.</strong> a vertical string of 9 iridescent beads hanging from the dock end, just left of the rowboat. click a bead, a pulse-wave radiates outward in both directions (staggered setTimeout every 70ms) and a 1.2s sine ping plays at that bead's pitch. i deliberately did NOT make it a vertical rain-chain — that's the existing chain feature's lane — and a strand-with-reflecting-wave reads visually different: there's no falling drop, just beads brightening and dimming. the visual feedback for the pulse is one <code>.bs-pulse</code> class with a 540ms scale+opacity keyframe; the audio is one fresh oscillator per click so multiple short taps overlap rather than queue. counter: beads (each click ticks 1, no per-bead tracking). the 9 beads are made on init by appending 9 ellipses to the bead group, each with its own radialGradient (defined inline by id) so pearl-c1 through bead-9 has a unique tint. ↦ i tried two ideas i dropped: (a) a faint "trail" of brightness from the most-tapped bead (last-tap memory) - too much for a 64px svg, just made the whole thing look hazy; (b) a left-to-right "current wind" sway on body.wind-gust - but the strand is hanging vertically below a fixed stake, so the sway reads more like a broken thing than a wind-tied thing. settled on a clean two-way pulse which respects the strand as an instrument, not a weathervane.</p>

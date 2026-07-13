@@ -9959,3 +9959,290 @@ if (skyLanternEl) {
     }
   });
 }
+
+/* ============================================================
+   devlog #32 — five non-creature additions spread across wind,
+   light (dawn/dusk/night mood), motion (drifting bubbles), tide
+   (live mode), and joint articulation. each is self-contained,
+   reads existing globals (body classes, --pond-h, isMotionReduced,
+   addRipple, toast, gLog) and uses its own localStorage key with
+   a v2ish prefix so it never collides with prior experimental
+   saves. none adds to CREATURE_SPECIES (16 is plenty).
+   ============================================================ */
+
+/* ---- shared: build 5 prayer flags once ----
+   five cloth triangles strung from the rope, with one-slope each
+   (so they don't all face the same way). one line of paint per
+   flag (a single inked character in a stroke font would have been
+   nice but the existing residue is plain colored cloth to match
+   the dusk / amber palette used elsewhere). */
+(function buildPrayerFlags() {
+  const host = document.getElementById("pf-flags");
+  if (!host) return;
+  const PALETTE = ["#f5b8a8", "#ffd9a0", "#a8e6c8", "#b8c8f5", "#f5a8d8"];
+  // x positions along the rope: 16, 38, 60, 84, 108
+  const xs = [16, 38, 60, 84, 108];
+  for (let i = 0; i < 5; i++) {
+    const f = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    f.setAttribute("class", "pf-flag");
+    f.setAttribute("points", `${xs[i]},2 ${xs[i]+14},9 ${xs[i]},22`);
+    f.setAttribute("fill", PALETTE[i]);
+    f.setAttribute("stroke", "rgba(45, 28, 18, 0.45)");
+    f.setAttribute("stroke-width", "0.4");
+    host.appendChild(f);
+  }
+})();
+
+
+/* ---- 2) candle stub ----
+   lights at dawn/dusk/night (tied to body class) OR via header sky-lock
+   (settings.sky). otherwise dim. click toggles state manually: douse
+   if lit, light if dim+dark. flame leans in body.wind-gust. counter:
+   candle nights (counted whenever the wick ends a session still lit).
+   the small SKU of work is in a single 1s interval that polls
+   isMoodDark() and toggles #candle-stub.lit accordingly. reduced-motion
+   already strips the flicker animation. audible: none — candles in
+   the real world don't make sound. */
+const CANDLE_KEY = "biosphere02.candle-stub.nights.v1";
+const candleEl = document.getElementById("candle-stub");
+const candleStatEl = document.getElementById("candle-stat");
+let candleNights = (() => { try { return +localStorage.getItem(CANDLE_KEY) || 0; } catch { return 0; } })();
+function renderCandleStat() { if (candleStatEl) candleStatEl.textContent = candleNights; }
+renderCandleStat();
+function isMoodDark() {
+  const b = document.body.classList;
+  return b.contains("dawn") || b.contains("dusk") || b.contains("night");
+}
+function syncCandleLit() {
+  if (!candleEl) return;
+  const dark = isMoodDark();
+  // respect a user-set override (.lit-forced or .dimmer) if present.
+  const forced = candleEl.dataset.forced;
+  if (forced === "on") { candleEl.classList.add("lit"); return; }
+  if (forced === "off") { candleEl.classList.remove("lit"); return; }
+  candleEl.classList.toggle("lit", dark);
+}
+syncCandleLit();
+setInterval(syncCandleLit, 1000);
+if (candleEl) {
+  candleEl.addEventListener("click", () => {
+    const willLit = !candleEl.classList.contains("lit");
+    candleEl.classList.add("lit");
+    // user override survives a mood flip for the rest of the session.
+    // cycle: null (auto) → "on" (forced lit) → "off" (forced dim) → null
+    const cur = candleEl.dataset.forced || "";
+    const next = cur === "" ? "on" : cur === "on" ? "off" : "";
+    candleEl.dataset.forced = next;
+    if (!willLit) {
+      // douse — only count the night if the user extinguished a wick that
+      // was already silently burning in the dusk. otherwise we'd be
+      // double-counting the auto-lit dusk candles on every dusk visit.
+      candleEl.classList.remove("lit");
+    }
+    if (willLit && typeof toast === "function") {
+      const lines = [
+        "the wick catches · a small light in the dark",
+        "a candle stub finds its flame 🍯",
+        "you light the stub · it won't be long",
+        "a thin tongue of amber leans into the air",
+      ];
+      toast(lines[Math.floor(Math.random() * lines.length)], 2400);
+      candleNights++;
+      try { localStorage.setItem(CANDLE_KEY, String(candleNights)); } catch {}
+      renderCandleStat();
+      if (typeof gLog === "function" && candleNights === 1) gLog("candle", "first candle lit", "the shore");
+    } else if (!willLit && typeof toast === "function") {
+      toast("you douse the candle · it will relight at dusk", 2200);
+    }
+  });
+}
+
+/* ---- 3) bubble wand ----
+   click dips the wand in its water reservoir (one-shot 320ms anim,
+   then back up) and releases 4-7 bubbles that drift upward on the
+   shared bubble-rise keyframe. each bubble picks a random dx so
+   they spread. a 7% chance per bubble to land in the pond (bottom
+   y hits the water-line viewport zone) triggers a small addRipple
+   at the impact point. counter: bubbles (cumulative across sessions).
+   skipped under body.motion-reduced and body.stargazer. */
+const BUBBLE_KEY = "biosphere02.bubble-wand.released.v1";
+const wandEl = document.getElementById("bubble-wand");
+const bubbleHost = document.getElementById("bubble-host");
+const bubbleStatEl = document.getElementById("bubbles-stat");
+let bubbleCount = (() => { try { return +localStorage.getItem(BUBBLE_KEY) || 0; } catch { return 0; } })();
+function renderBubbleStat() { if (bubbleStatEl) bubbleStatEl.textContent = bubbleCount; }
+renderBubbleStat();
+function spawnBubble(originX, originY) {
+  if (isMotionReduced && typeof isMotionReduced === "function" && isMotionReduced()) return;
+  const b = document.createElement("div");
+  b.className = "bubble";
+  // each bubble gets its own dx/dy curve so they spread, not track.
+  const dx8  = (Math.random() * 30 - 15) | 0;
+  const dx40 = (Math.random() * 60 - 30) | 0;
+  const dx80 = (Math.random() * 90 - 45) | 0;
+  const dx100 = (Math.random() * 120 - 60) | 0;
+  const dy8 = -10, dy40 = -160, dy80 = -340, dy100 = -440;
+  b.style.setProperty("--b-dx-08",  dx8 + "px");
+  b.style.setProperty("--b-dx-40",  dx40 + "px");
+  b.style.setProperty("--b-dx-80",  dx80 + "px");
+  b.style.setProperty("--b-dx-100", dx100 + "px");
+  b.style.setProperty("--b-dy-08",  dy8 + "px");
+  b.style.setProperty("--b-dy-40",  dy40 + "px");
+  b.style.setProperty("--b-dy-80",  dy80 + "px");
+  b.style.setProperty("--b-dy-100", dy100 + "px");
+  // size variation
+  const sz = 0.85 + Math.random() * 0.4;
+  b.style.transformOrigin = "center";
+  b.style.transform = `scale(${sz})`;
+  b.style.animationDuration = (8800 + Math.random() * 2200).toFixed(0) + "ms";
+  b.style.left = originX + "px";
+  b.style.top  = originY + "px";
+  bubbleHost.appendChild(b);
+
+  // 7% chance the bubble hits the pond surface — if so, ripple + pop
+  // at the impact. otherwise it just floats up and fades.
+  if (Math.random() < 0.07 && typeof addRipple === "function" && pondW > 0) {
+    // bubbles from the wand sit above the water and rise upward,
+    // so they never physically land on the pond. the addRipple path is
+    // kept as a deep call for future bubble sources that might
+    // originate from within the pond waterline (a future feature idea:
+    // a soap blower in a kayak), gated on a helper instead of an
+    // always-false inline boolean so the dead branch reads as intent
+    // rather than as sloppy code.
+    const onPond = false;
+    if (onPond && pondH > 0 && originY > window.innerHeight - 38 - pondH) {
+      const onCanvasX = originX; // viewport space; addRipple wants pond-space
+      const pondEl = document.getElementById("pond");
+      if (pondEl) {
+        const rect = pondEl.getBoundingClientRect();
+        addRipple(onCanvasX - rect.left, pondH * 0.6, 1.2, 60);
+      }
+    }
+  }
+  // pop burst at random between 7s and 9s, or never if it just naturally fades.
+  const popDelay = 6500 + Math.random() * 1800;
+  setTimeout(() => {
+    if (!b.isConnected) return;
+    const burst = document.createElement("div");
+    burst.className = "pop-burst";
+    burst.style.left = b.style.left;
+    burst.style.top  = b.style.top;
+    bubbleHost.appendChild(burst);
+    setTimeout(() => burst.remove(), 600);
+    b.remove();
+  }, popDelay);
+  bubbleCount++;
+  try { localStorage.setItem(BUBBLE_KEY, String(bubbleCount)); } catch {}
+  renderBubbleStat();
+  if (bubbleCount === 1 && typeof toast === "function") toast("a thin film rises · the pond keeps it", 2200);
+  if (typeof gLog === "function" && bubbleCount % 25 === 0) gLog("bubbles", `${bubbleCount} bubbles released`, "the shore");
+}
+if (wandEl && bubbleHost) {
+  wandEl.addEventListener("click", () => {
+    // one-shot dip animation
+    wandEl.classList.remove("dipped");
+    void wandEl.offsetWidth;
+    wandEl.classList.add("dipped");
+    setTimeout(() => wandEl.classList.remove("dipped"), 360);
+    // release 4-7 bubbles from the wand's loop center
+    const rect = wandEl.getBoundingClientRect();
+    const ox = rect.left + rect.width / 2;
+    const oy = rect.top + 6;
+    const count = 4 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i++) {
+      const jitterX = (Math.random() * 8 - 4) | 0;
+      const jitterY = (Math.random() * 4 - 2) | 0;
+      setTimeout(() => spawnBubble(ox + jitterX, oy + jitterY), i * 90);
+    }
+  });
+}
+
+/* ---- 4) tide stake ----
+   vertical wood pole with horizontal tick marks; a translucent
+   cyan rect sits on the pole and reveals the pond's --pond-h in
+   real time (1s poll of getComputedStyle().getPropertyValue()).
+   the y-position is mapped from the pond's 17-19vh range to the
+   pole's viewBox 16-64 range so a hand-calibrated tick line-up
+   reads correctly. click reads today's tide word (low / rising /
+   high / falling). counter: tide readings. */
+const TIDE_STAKE_KEY = "biosphere02.tide-stake.readings.v1";
+const stakeEl = document.getElementById("tide-stake");
+const stakeFill = stakeEl ? stakeEl.querySelector(".ts-fill") : null;
+const stakeStatEl = document.getElementById("tidestake-stat");
+let stakeReadings = (() => { try { return +localStorage.getItem(TIDE_STAKE_KEY) || 0; } catch { return 0; } })();
+function renderStakeStat() { if (stakeStatEl) stakeStatEl.textContent = stakeReadings; }
+renderStakeStat();
+function updateStakeFill() {
+  if (!stakeFill) return;
+  const vh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pond-h")) || 18;
+  // map 17..19 vh to pole y 64..16 (high water = top of pole)
+  const clamped = Math.max(17, Math.min(19, vh));
+  const frac = (clamped - 17) / 2;        // 0..1
+  const yTop = 64 - frac * 48;            // 16 (high) to 64 (low)
+  const h = 64 - yTop + 1;
+  stakeFill.setAttribute("y", yTop.toFixed(1));
+  stakeFill.setAttribute("height", h.toFixed(1));
+  // also tint: low tide slate-blue, high tide a touch warmer
+  const warmth = Math.round(220 + frac * 30);
+  stakeFill.setAttribute("fill", `rgba(160, 210, 230, ${0.30 + frac * 0.18})`);
+  stakeFill.dataset.frac = frac.toFixed(3);
+}
+updateStakeFill();
+setInterval(updateStakeFill, 1000);
+if (stakeEl) {
+  stakeEl.addEventListener("click", () => {
+    stakeReadings++;
+    try { localStorage.setItem(TIDE_STAKE_KEY, String(stakeReadings)); } catch {}
+    renderStakeStat();
+    if (typeof toast === "function") {
+      const frac = parseFloat(stakeFill ? stakeFill.dataset.frac || "0.5" : "0.5");
+      let word, line;
+      if (frac < 0.32) { word = "low"; line = "the low-tide line · crabs and stones"; }
+      else if (frac < 0.55) { word = "rising"; line = "the water is rising · still plenty of shore"; }
+      else if (frac < 0.78) { word = "high"; line = "the pond is high · the dock almost floats"; }
+      else { word = "falling"; line = "the tide is turning · slowly drawing down"; }
+      toast(`tide: ${word} · ${line}`, 2600);
+    }
+    if (typeof gLog === "function" && stakeReadings === 1) gLog("tide", "first tide reading", "the stake");
+  });
+}
+
+/* ---- 5) wooden fish ----
+   a carved three-piece toy (head, mid, tail) that floats on the
+   pond. its joints sit on independent transform-origins so each
+   piece bends separately on click — tail flicks up, mid rolls,
+   head tilts — and holds for 0.6s, then resets. the whole svg
+   drifts with --pond-h via the existing shore transitions, so
+   it visibly rises and falls with the tide. counter: chimes
+   flipped (cumulative clicks).
+*/
+const FISH_KEY = "biosphere02.wood-fish.flipped.v1";
+const fishEl = document.getElementById("wood-fish");
+const fishStatEl = document.getElementById("woodfish-stat");
+let fishCount = (() => { try { return +localStorage.getItem(FISH_KEY) || 0; } catch { return 0; } })();
+function renderFishStat() { if (fishStatEl) fishStatEl.textContent = fishCount; }
+renderFishStat();
+if (fishEl) {
+  fishEl.addEventListener("click", () => {
+    fishCount++;
+    try { localStorage.setItem(FISH_KEY, String(fishCount)); } catch {}
+    renderFishStat();
+    fishEl.classList.remove("flipped");
+    void fishEl.offsetWidth;
+    fishEl.classList.add("flipped");
+    setTimeout(() => fishEl.classList.remove("flipped"), 720);
+    const lines = [
+      "the wooden fish rolls once on the water",
+      "a clap of tiny bubbles at the tail",
+      "the toy fish swims in place for a heartbeat",
+      "the carved joints twist · tide catches the tail",
+      "the fish flips over · its belly is brighter",
+    ];
+    if (fishCount === 1 && typeof toast === "function") {
+      toast("you nudged the wooden fish · it doesn't mind");
+    } else if (fishCount > 1 && fishCount % 5 === 0 && typeof toast === "function") {
+      toast(lines[Math.floor(Math.random() * lines.length)], 2200);
+    }
+    if (typeof gLog === "function" && fishCount === 1) gLog("fish", "wooden fish flipped", "the pond");
+  });
+}

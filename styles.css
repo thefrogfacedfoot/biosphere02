@@ -2755,7 +2755,7 @@ body.stargazer #swing { opacity: 0.55; }
    small peeping bob (motion-gated). */
 #nest {
   position: fixed;
-  left: calc(50% + 90px);
+  left: calc(50% + 130px);
   bottom: calc(38px + var(--pond-h) - 4px);
   width: 48px; height: 32px;
   z-index: 3;
@@ -5234,3 +5234,226 @@ body.stargazer .pebble-stat-wrap,
 body.stargazer .bonsai-stat-wrap,
 body.stargazer .beads-stat-wrap,
 body.stargazer .lantern-stat-wrap { opacity: 0.5; }
+
+/* ==== devlog #32 — prayer flags, candle stub, bubble wand, tide stake, wooden fish ==== */
+
+/* ---- prayer flags (5 cloth flags on a string above the moonflower) ---- */
+#prayer-flags {
+  position: fixed;
+  top: 9vh;
+  left: 14vw;
+  width: 144px; height: 56px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 240ms ease;
+}
+#prayer-flags:hover { filter: drop-shadow(0 0 10px rgba(255, 226, 158, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.pf-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pf-flag {
+  transform-box: fill-box;
+  transform-origin: 6px 0;
+  animation: pf-idle 3.2s ease-in-out infinite;
+}
+.pf-flag:nth-child(2n) { animation-duration: 3.6s; animation-delay: -0.4s; }
+.pf-flag:nth-child(3n) { animation-duration: 2.9s; animation-delay: -0.9s; }
+@keyframes pf-idle {
+  0%, 100% { transform: rotate(-3deg) skewY(-1.5deg); }
+  50%      { transform: rotate(4deg)  skewY(1.5deg); }
+}
+body.wind-gust #prayer-flags .pf-flag {
+  animation: pf-wind 0.9s ease-in-out infinite;
+}
+@keyframes pf-wind {
+  0%, 100% { transform: rotate(-14deg) skewY(-3deg); }
+  50%      { transform: rotate(18deg)  skewY(4deg); }
+}
+#prayer-flags.tapped .pf-flag {
+  animation: pf-tapped 0.6s ease-out;
+}
+@keyframes pf-tapped {
+  0%   { transform: rotate(0deg)    skewY(0deg);   }
+  30%  { transform: rotate(20deg)   skewY(7deg);   }
+  60%  { transform: rotate(-10deg)  skewY(-5deg);  }
+  100% { transform: rotate(0deg)    skewY(0deg);   }
+}
+.pf-tap-hint {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 8.5px;
+  color: rgba(255, 226, 158, 0.65);
+  letter-spacing: 0.7px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+#prayer-flags:hover .pf-tap-hint { opacity: 0.85; }
+body.motion-reduced #prayer-flags .pf-flag,
+body.motion-reduced #prayer-flags.tapped .pf-flag { animation: none; }
+body.stargazer #prayer-flags { opacity: 0.55; }
+
+/* ---- candle stub (a small wax candle on a flat shore rock) ---- */
+#candle-stub {
+  position: fixed;
+  left: 488px;
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 30px; height: 38px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#candle-stub:hover { filter: drop-shadow(0 0 9px rgba(255, 200, 110, 0.6)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); transform: translateY(-1px); }
+.cs-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.cs-flame, .cs-flame-hover { transition: opacity 600ms ease, fill 600ms ease, transform 240ms ease; opacity: 0; transform-origin: 15px 11px; }
+#candle-stub.lit .cs-flame { opacity: 1; fill: rgba(255, 210, 120, 0.96); animation: cs-flicker 0.34s ease-in-out infinite alternate; }
+#candle-stub.lit .cs-flame-hover { opacity: 0.55; }
+@keyframes cs-flicker {
+  from { transform: scaleY(0.95) scaleX(1.04) translateY(0); }
+  to   { transform: scaleY(1.08) scaleX(0.94) translateY(-0.5px); }
+}
+body.wind-gust #candle-stub.lit .cs-flame { transform: scaleY(1.05) scaleX(0.85) translateX(2.4px); }
+body.wind-gust #candle-stub.lit .cs-flame-hover { transform: translateX(2.4px); }
+body.motion-reduced #candle-stub.lit .cs-flame,
+body.motion-reduced #candle-stub.lit .cs-flame-hover { animation: none; }
+body.motion-reduced .cs-flame,
+body.motion-reduced .cs-flame-hover { transition: none; }
+body.stargazer #candle-stub { opacity: 0.55; }
+
+/* ---- bubble wand (standing shore wand, click to release bubbles) ---- */
+#bubble-wand {
+  position: fixed;
+  left: 632px;
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 32px; height: 60px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 220ms ease;
+}
+#bubble-wand:hover { transform: translateY(-2px); filter: drop-shadow(0 0 10px rgba(190, 230, 250, 0.6)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.bw-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#bubble-wand.dipped .bw-stem { animation: bw-dip 320ms cubic-bezier(.4,.0,.4,1); }
+@keyframes bw-dip {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(6px); }
+  100% { transform: translateY(0); }
+}
+body.motion-reduced #bubble-wand.dipped .bw-stem { animation: none; }
+.bubble {
+  position: fixed;
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(220, 240, 250, 0.78) 0%, rgba(160, 210, 235, 0.42) 55%, rgba(110, 180, 220, 0.15) 100%);
+  border: 1px solid rgba(220, 240, 250, 0.45);
+  box-shadow: inset 0 0 2px rgba(255, 255, 255, 0.35), 0 0 4px rgba(180, 220, 235, 0.30);
+  pointer-events: none;
+  z-index: 90;
+  animation: bubble-rise 9.5s cubic-bezier(.3,.2,.6,1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes bubble-rise {
+  0%   { transform: translate(0,0) scale(0.4); opacity: 0; }
+  8%   { opacity: 0.85; transform: translate(var(--b-dx-08, 0), var(--b-dy-08, -10px)) scale(0.7); }
+  40%  { transform: translate(var(--b-dx-40, 0), var(--b-dy-40, -160px)) scale(1.0); opacity: 0.92; }
+  80%  { transform: translate(var(--b-dx-80, 0), var(--b-dy-80, -340px)) scale(1.05); opacity: 0.7; }
+  100% { transform: translate(var(--b-dx-100, 0), var(--b-dy-100, -440px)) scale(1.12); opacity: 0; }
+}
+.pop-burst {
+  position: fixed;
+  width: 8px; height: 8px;
+  margin: -4px 0 0 -4px;
+  pointer-events: none;
+  z-index: 91;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(210, 240, 250, 0.55) 50%, transparent 80%);
+  animation: pop-burst 540ms ease-out forwards;
+}
+@keyframes pop-burst {
+  0%   { transform: scale(0.4); opacity: 1; }
+  60%  { transform: scale(2.2); opacity: 0.7; }
+  100% { transform: scale(3.4); opacity: 0; }
+}
+body.motion-reduced .bubble,
+body.motion-reduced .pop-burst { display: none !important; }
+body.stargazer #bubble-wand { opacity: 0.55; }
+
+/* ---- tide stake (wooden pole with ticks, water reveals live tide) ---- */
+#tide-stake {
+  position: fixed;
+  right: 408px;
+  bottom: calc(38px + var(--pond-h) - 12px);
+  width: 20px; height: 80px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: bottom 1100ms ease, transform 200ms ease, filter 200ms ease;
+}
+#tide-stake:hover { transform: translateY(-1px); filter: drop-shadow(0 0 7px rgba(168, 224, 230, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.ts-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ts-fill { transition: y 1100ms cubic-bezier(.4,.0,.3,1); }
+body.stargazer #tide-stake { opacity: 0.55; }
+
+/* ---- wooden fish (carved toy drifting on the pond) ---- */
+#wood-fish {
+  position: fixed;
+  left: calc(50% + 130px);
+  bottom: calc(38px + var(--pond-h) - 18px);
+  width: 60px; height: 26px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: bottom 1100ms ease;
+  animation: wf-bob 4.2s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes wf-bob {
+  from { transform: translateX(-6px) rotate(-1.5deg); }
+  to   { transform: translateX(0)    rotate(1.5deg);  }
+}
+#wood-fish:hover { filter: drop-shadow(0 0 8px rgba(168, 130, 76, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.wf-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.wf-tail  { transform-box: fill-box; transform-origin: 22px 13px; transition: transform 320ms cubic-bezier(.4,.0,.3,1); }
+.wf-mid   { transform-box: fill-box; transform-origin: 22px 13px; transition: transform 320ms cubic-bezier(.4,.0,.3,1); }
+.wf-head  { transform-box: fill-box; transform-origin: 35px 13px; transition: transform 320ms cubic-bezier(.4,.0,.3,1); }
+#wood-fish.flipped .wf-tail { transform: rotate(-22deg); }
+#wood-fish.flipped .wf-mid  { transform: rotate(8deg) translateX(-2px); }
+#wood-fish.flipped .wf-head { transform: rotate(-7deg) translateY(-2px); }
+body.motion-reduced #wood-fish { animation: none; }
+body.motion-reduced .wf-tail,
+body.motion-reduced .wf-mid,
+body.motion-reduced .wf-head { transition: none; }
+body.stargazer #wood-fish { opacity: 0.55; }
+
+/* ---- devlog #32 stat wraps (a fourth row at bottom:48px) ---- */
+.flags-stat-wrap, .candle-stat-wrap, .bubbles-stat-wrap, .tidestake-stat-wrap, .woodfish-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+}
+.flags-stat-wrap     { bottom: 48px; left: 11vw; }
+.candle-stat-wrap    { bottom: 48px; left: 26vw; }
+.bubbles-stat-wrap   { bottom: 48px; left: 41vw; }
+.tidestake-stat-wrap { bottom: 48px; left: 57vw; }
+.woodfish-stat-wrap  { bottom: 48px; left: 73vw; }
+.flags-stat-wrap #flags-stat,
+.candle-stat-wrap #candle-stat,
+.bubbles-stat-wrap #bubbles-stat,
+.tidestake-stat-wrap #tidestake-stat,
+.woodfish-stat-wrap #woodfish-stat { color: var(--moss); margin-left: 4px; }
+body.motion-reduced .flags-stat-wrap,
+body.motion-reduced .candle-stat-wrap,
+body.motion-reduced .bubbles-stat-wrap,
+body.motion-reduced .tidestake-stat-wrap,
+body.motion-reduced .woodfish-stat-wrap { display: none; }
+body.stargazer .flags-stat-wrap,
+body.stargazer .candle-stat-wrap,
+body.stargazer .bubbles-stat-wrap,
+body.stargazer .tidestake-stat-wrap,
+body.stargazer .woodfish-stat-wrap { opacity: 0.5; }
