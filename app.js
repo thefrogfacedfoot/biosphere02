@@ -10725,3 +10725,350 @@ document.addEventListener("visibilitychange", () => {
     } catch {}
   }
 });
+
+/* ============================================================
+   devlog #35 — five new shore things
+   each one is small, uses its own v1-suffixed localStorage key,
+   latches onto an existing system rather than spawning a fresh
+   dependency tree, and lands in a stat-wrap row at bottom:96px
+   without touching any of the 6 existing rows (14/32/48/64/80px).
+   ============================================================ */
+
+/* ---- driftwood spyglass ---- */
+/* 12 curated sky observations. the cycle index lives in its own
+   key so a returning user resumes at the same observation rather
+   than restarting from 0; total peeks is a separate counter. */
+const SPYGLASS_IDX_KEY = "biosphere02.spyglass.index.v1";
+const SPYGLASS_COUNT_KEY = "biosphere02.spyglass.observations.v1";
+const spyglassEl = document.getElementById("spyglass");
+const spyglassStatEl = document.getElementById("spyglass-stat");
+const SPYGLASS_OBSERVATIONS = [
+  { head: "named star · Sirius",         body: "the dog star · brightest thing in our night sky, 8.6 light-years away" },
+  { head: "named star · Polaris",        body: "the north star · sailors' anchor for the last two thousand years" },
+  { head: "named star · Vega",           body: "brightest in Lyra · was the north star 12,000 years ago and will be again" },
+  { head: "named star · Betelgeuse",     body: "orion's shoulder · a red supergiant nearing the end of its life" },
+  { head: "named star · Arcturus",       body: "the bear-guardian · trails the tail of the Big Dipper across the sky" },
+  { head: "atlas stamp · Orion",         body: "the hunter · belt of three bright stars in a perfect row" },
+  { head: "atlas stamp · Cassiopeia",    body: "the queen · a W-shape you can read in five seconds flat" },
+  { head: "atlas stamp · Lyra",          body: "the lyre · Vega is its brightest string stretched taut" },
+  { head: "atlas stamp · Cygnus",        body: "the swan · flying south along the milky way · Deneb at the tail" },
+  { head: "atlas stamp · Leo",           body: "the lion · Regulus marks the heart, a tight sickle is the mane" },
+  { head: "atlas stamp · Big Dipper",    body: "not a constellation itself · a ladle whose handle points to polaris" },
+  { head: "the moon",                    body: "" }, // body filled at click time from #moon status-window readout
+];
+let spyglassIdx = (() => { try { return +localStorage.getItem(SPYGLASS_IDX_KEY) || 0; } catch { return 0; } })();
+let spyglassCount = (() => { try { return +localStorage.getItem(SPYGLASS_COUNT_KEY) || 0; } catch { return 0; } })();
+function renderSpyglassCount() { if (spyglassStatEl) spyglassStatEl.textContent = spyglassCount; }
+renderSpyglassCount();
+if (spyglassEl) {
+  spyglassEl.addEventListener("click", () => {
+    const o = SPYGLASS_OBSERVATIONS[spyglassIdx % SPYGLASS_OBSERVATIONS.length];
+    // the 12th observation reads the live moon-phase readout from the
+    // status window so it's the actual current phase, not a placeholder.
+    let body = o.body;
+    if (!body && o.head === "the moon") {
+      try {
+        const e = document.getElementById("moon");
+        body = e && e.textContent ? e.textContent : "today's moon";
+      } catch { body = "today's moon"; }
+    }
+    spyglassIdx++;
+    spyglassCount++;
+    try { localStorage.setItem(SPYGLASS_IDX_KEY, String(spyglassIdx)); } catch {}
+    try { localStorage.setItem(SPYGLASS_COUNT_KEY, String(spyglassCount)); } catch {}
+    renderSpyglassCount();
+    if (typeof toast === "function") toast(`📡 ${o.head} · ${body}`, 4400);
+    spyglassEl.classList.remove("peeking");
+    void spyglassEl.offsetWidth;
+    spyglassEl.classList.add("peeking");
+    setTimeout(() => spyglassEl.classList.remove("peeking"), 540);
+  });
+}
+
+/* ---- stratified memory jar ---- */
+/* each distinct calendar day adds one 2.5mm band of seasonal color
+   at the top of the visible strata. state stores a list of date
+   strings so a dud state still rebuilds correctly. a 60s poll
+   checks whether the day has rolled; the next click also reads. */
+const MJ_KEY_DATES = "biosphere02.memoryjar.dates.v1";
+const MJ_KEY_COUNT = "biosphere02.memoryjar.layers.v1";
+const memoryJarEl = document.getElementById("memory-jar");
+const mjStrataHost = document.getElementById("mj2-strata");
+const memoryjarStatEl = document.getElementById("memoryjar-stat");
+const MJ_SEASON_PALettes = [
+  { top: "#c8a8c8", mid: "#a884a8", bot: "#806088" },
+  { top: "#e8c878", mid: "#c8a050", bot: "#9a7a32" },
+  { top: "#c8643a", mid: "#a85024", bot: "#7c3814" },
+  { top: "#a8c4d8", mid: "#88a4c0", bot: "#5c7a98" },
+];
+function mjSeasonIdx(date) {
+  const m = date.getMonth() + 1;
+  if (m >= 4 && m <= 6) return 0;
+  if (m >= 7 && m <= 9) return 1;
+  if (m >= 10 && m <= 12) return 2;
+  return 3;
+}
+function loadMjDates() {
+  try { return JSON.parse(localStorage.getItem(MJ_KEY_DATES) || "[]") || []; } catch { return []; }
+}
+function saveMjDates(arr) {
+  try { localStorage.setItem(MJ_KEY_DATES, JSON.stringify(arr)); } catch {}
+}
+function renderMemoryJar(strataN) {
+  if (!mjStrataHost) return;
+  // jar interior runs from y=6 (just under the cork) to y=73 (baseplate).
+  // oldest band at the bottom, newest at the top so today's layer lands
+  // where a returning user expects it.
+  const bottomY = 73;
+  const bandH = 2.5;
+  const totalBands = Math.min(strataN, 26);
+  const bandsUsedH = totalBands * bandH;
+  const startY = bottomY - bandsUsedH;
+  const palette = MJ_SEASON_PALettes[(new Date()).getMonth() % 4];
+  let html = "";
+  for (let i = 0; i < totalBands; i++) {
+    const y = startY + i * bandH;
+    const t = i / Math.max(1, totalBands - 1);
+    const col = t < 0.34 ? palette.bot : (t < 0.7 ? palette.mid : palette.top);
+    html += `<rect x="7.5" y="${y.toFixed(2)}" width="13" height="${bandH.toFixed(2)}" fill="${col}" opacity="0.84"/>`;
+  }
+  if (totalBands > 0) {
+    const ty = startY + (totalBands - 1) * bandH;
+    html += `<ellipse cx="14" cy="${(ty + 0.5).toFixed(2)}" rx="6" ry="0.45" fill="rgba(255,240,210,0.20)"/>`;
+  }
+  mjStrataHost.innerHTML = html;
+}
+function tallyMemoryJar() {
+  const today = new Date().toDateString();
+  const dates = loadMjDates();
+  if (!dates.includes(today)) {
+    dates.push(today);
+    saveMjDates(dates);
+  }
+  return dates.length;
+}
+let memoryjarCount = 0;
+try { memoryjarCount = +(localStorage.getItem(MJ_KEY_COUNT) || 0); } catch {}
+function renderMemoryCount() { if (memoryjarStatEl) memoryjarStatEl.textContent = memoryjarCount; }
+renderMemoryJar(memoryjarCount);
+renderMemoryCount();
+if (memoryJarEl) {
+  // 60s poll — if the day rolled over while the tab stayed open, append
+  // today's band so the jar grows with the calendar, not just on click
+  setInterval(() => {
+    const n = tallyMemoryJar();
+    if (n !== memoryjarCount) {
+      memoryjarCount = n;
+      try { localStorage.setItem(MJ_KEY_COUNT, String(memoryjarCount)); } catch {}
+      renderMemoryJar(memoryjarCount);
+      renderMemoryCount();
+      memoryJarEl.classList.remove("bumped");
+      void memoryJarEl.offsetWidth;
+      memoryJarEl.classList.add("bumped");
+      setTimeout(() => memoryJarEl.classList.remove("bumped"), 720);
+    }
+  }, 60_000);
+  memoryJarEl.addEventListener("click", () => {
+    const n = tallyMemoryJar();
+    const today = new Date();
+    const seasonWord = ["spring", "summer", "autumn", "winter"][mjSeasonIdx(today)];
+    memoryjarCount = n;
+    try { localStorage.setItem(MJ_KEY_COUNT, String(memoryjarCount)); } catch {}
+    renderMemoryJar(memoryjarCount);
+    renderMemoryCount();
+    if (n === 1) toast(`first layer · ${seasonWord}`, 2400);
+    else toast(`${n} layers · ${today.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`, 2400);
+    memoryJarEl.classList.remove("bumped");
+    void memoryJarEl.offsetWidth;
+    memoryJarEl.classList.add("bumped");
+    setTimeout(() => memoryJarEl.classList.remove("bumped"), 720);
+  });
+}
+
+/* ---- pocket tide compass ---- */
+/* needle rotation is derived from --pond-h with the same math the
+   tide-clock / tide-flutes / tide-whistle use: 17vh→low, 18vh→mid,
+   19vh→high. the readloop is a 1s getComputedStyle poll. counter is
+   the # of explicit readings. */
+const TIDECOMPASS_KEY = "biosphere02.tidecompass.bearings.v1";
+const tideCompassEl = document.getElementById("tide-compass");
+const tideCompassNeedleEl = tideCompassEl ? tideCompassEl.querySelector(".tc2-needle") : null;
+const tidecompassStatEl = document.getElementById("tidecompass-stat");
+let tidecompassCount = (() => { try { return +localStorage.getItem(TIDECOMPASS_KEY) || 0; } catch { return 0; } })();
+function renderTideCompassCount() { if (tidecompassStatEl) tidecompassStatEl.textContent = tidecompassCount; }
+renderTideCompassCount();
+function parsePondH() {
+  const v = getComputedStyle(document.documentElement).getPropertyValue("--pond-h") || "18vh";
+  const m = /([0-9.]+)vh/.exec(v);
+  return m ? parseFloat(m[1]) : 18;
+}
+function pondTideRot(h) {
+  // the SVG geometry puts the red needle-end pointing UP by default
+  // (and the white end pointing DOWN), with "high" labelled at the top
+  // and "low" at the bottom. so we want red (high side) UP at high tide,
+  // DOWN at low tide, horizontal at mid. linear interp, clamped.
+  //   h=17 (low)  -> rot=180 (red down, toward "low" label)
+  //   h=18 (mid)  -> rot=90  (red right, mid-east)
+  //   h=19 (high) -> rot=0   (red up, toward "high" label)
+  const frac = Math.max(0, Math.min(1, (h - 17) / 2));
+  return (180 - frac * 180).toFixed(2);
+}
+let _lastPondRot = null;
+function tickTideCompass() {
+  const h = parsePondH();
+  const rot = pondTideRot(h);
+  if (rot !== _lastPondRot && tideCompassNeedleEl) {
+    tideCompassNeedleEl.style.setProperty("--tc2-rot", rot + "deg");
+    _lastPondRot = rot;
+  }
+}
+setInterval(tickTideCompass, 1000);
+tickTideCompass();
+if (tideCompassEl) {
+  tideCompassEl.addEventListener("click", () => {
+    const h = parsePondH();
+    let verdict;
+    if (h < 17.6) verdict = "low · the moon is two steps back";
+    else if (h < 18.4) verdict = "mid · holding its breath";
+    else verdict = "high · the moon has come around";
+    tidecompassCount++;
+    try { localStorage.setItem(TIDECOMPASS_KEY, String(tidecompassCount)); } catch {}
+    renderTideCompassCount();
+    if (typeof toast === "function") toast(`🧭 ${verdict} · ${h.toFixed(2)}vh`, 3600);
+  });
+}
+
+/* ---- star-knot rope coil ---- */
+/* 12 knots laid out along the coil, each one tinted by a month-color
+   palette. .is-active marks the current "free end". click advances the
+   index by 1 (modulo 12) so the rope never runs out. */
+const KROPE_IDX_KEY = "biosphere02.knotrope.index.v1";
+const KROPE_COUNT_KEY = "biosphere02.knotrope.advances.v1";
+const knotRopeEl = document.getElementById("knot-rope");
+const krKnotsEl = document.getElementById("kr-knots");
+const knotropeStatEl = document.getElementById("knotrope-stat");
+const KR_KNOT_COLORS = [
+  // jan → dec — blended from the season-particle palettes already in use
+  "#a8c4d8", "#aca8c8", "#b8a8c8", "#c8a8c8", "#d8a888", "#e8c878",
+  "#dca84a", "#c88a3a", "#c8643a", "#a85024", "#8e6878", "#9ba0b8",
+];
+const KR_KNOT_NAMES = [
+  "jan", "feb", "mar", "apr", "may", "jun",
+  "jul", "aug", "sep", "oct", "nov", "dec",
+];
+let krIdx = (() => { try { return +localStorage.getItem(KROPE_IDX_KEY) || 0; } catch { return 0; } })();
+let krCount = (() => { try { return +localStorage.getItem(KROPE_COUNT_KEY) || 0; } catch { return 0; } })();
+function renderKnotropeStat() { if (knotropeStatEl) knotropeStatEl.textContent = krCount; }
+function renderKnotRope() {
+  if (!krKnotsEl) return;
+  const html = [];
+  for (let i = 0; i < 12; i++) {
+    const fx = i / 11;
+    const cx = 14 + fx * 52;
+    const cy = 27 + Math.sin(fx * Math.PI) * -1.4;
+    const w = 3.4;
+    const h = 2.2;
+    const col = KR_KNOT_COLORS[i];
+    const active = i === (krIdx % 12);
+    html += `<g class="kr-knot ${active ? "is-active" : ""}" data-i="${i}">
+      <ellipse cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" rx="${(w/2).toFixed(2)}" ry="${(h/2).toFixed(2)}" fill="${col}" opacity="0.78"/>
+      <circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="0.7" fill="rgba(28,20,12,0.85)"/>
+    </g>`;
+  }
+  krKnotsEl.innerHTML = html;
+}
+renderKnotRope();
+renderKnotropeStat();
+if (knotRopeEl) {
+  knotRopeEl.addEventListener("click", () => {
+    krIdx++;
+    krCount++;
+    try { localStorage.setItem(KROPE_IDX_KEY, String(krIdx)); } catch {}
+    try { localStorage.setItem(KROPE_COUNT_KEY, String(krCount)); } catch {}
+    renderKnotRope();
+    renderKnotropeStat();
+    const which = KR_KNOT_NAMES[(krIdx - 1) % 12];
+    if (krCount === 1) toast(`first knot → ${which}`, 2200);
+    else toast(`knot → ${which}`, 2000);
+  });
+}
+
+/* ---- mushroom-ink stamp ---- */
+/* 6 mushroom cap designs, each one drawn as a svg group inside the
+   .isk-mark host. click rotates through the design list cyclically,
+   each click writes a fresh stamp on the #isk-mark paper. */
+const INKSTAMP_IDX_KEY = "biosphere02.inkstamp.index.v1";
+const INKSTAMP_COUNT_KEY = "biosphere02.inkstamp.stamps.v1";
+const inkStampEl = document.getElementById("ink-stamp");
+const iskMarkEl = document.getElementById("isk-mark");
+const iskCapEl = document.querySelector(".isk-cap.isk-cap-current");
+const iskCapShineEl = document.querySelector(".isk-cap-shine.isk-cap-current");
+const inkstampStatEl = document.getElementById("inkstamp-stat");
+const INK_STAMPS = [
+  { cap: "#e2a14a", shine: "#ffe6a0", name: "chanterelle" },
+  { cap: "#a07248", shine: "#e8c898", band: "#9a5a30", name: "turkey tail" },
+  { cap: "#e0d2ad", shine: "#fff5d8", name: "oyster" },
+  { cap: "#7a5a8a", shine: "#c8a8d8", name: "amethyst deceiver" },
+  { cap: "#c8b078", shine: "#f0e0a8", shaggy: true, name: "shaggy mane" },
+  { cap: "#cfb88c", shine: "#f4e2b0", hedgehog: true, name: "hedgehog" },
+];
+function capSvg(stampDef) {
+  const r = `<g class="live" transform="rotate(-8 64 27)">
+    <ellipse cx="64" cy="27" rx="6.4" ry="3.6" fill="${stampDef.cap}" opacity="0.86"/>
+    ${stampDef.band ? `<ellipse cx="64" cy="27" rx="4" ry="1" fill="${stampDef.band}" opacity="0.55"/>` : ""}
+    ${stampDef.shaggy ? `<ellipse cx="64" cy="24.5" rx="6.2" ry="3" fill="${stampDef.cap}" opacity="0.42"/>` : ""}
+    ${stampDef.hedgehog ? Array.from({length: 10}, (_, i) => {
+        // full crown of "spines" — half-arc read as half a hedgehog
+        const a = (i / 10) * Math.PI * 2;
+        const x1 = 64 + Math.cos(a) * 3.4;
+        const y1 = 27 + Math.sin(a) * 1.7;
+        const x2 = 64 + Math.cos(a) * 6.4;
+        const y2 = 27 + Math.sin(a) * 1.6;
+        return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${stampDef.cap}" stroke-width="0.5" opacity="0.85"/>`;
+      }).join("") : ""}
+    <ellipse cx="64" cy="25" rx="3" ry="0.7" fill="${stampDef.shine}" opacity="0.55"/>
+  </g>`;
+  return r;
+}
+let inkstampIdx = (() => { try { return +localStorage.getItem(INKSTAMP_IDX_KEY) || 0; } catch { return 0; } })();
+let inkstampCount = (() => { try { return +localStorage.getItem(INKSTAMP_COUNT_KEY) || 0; } catch { return 0; } })();
+function renderInkstampStat() { if (inkstampStatEl) inkstampStatEl.textContent = inkstampCount; }
+function applyCurrentStampLook() {
+  if (!iskCapEl) return;
+  const def = INK_STAMPS[inkstampIdx % INK_STAMPS.length];
+  iskCapEl.setAttribute("fill", def.cap);
+  if (iskCapShineEl) iskCapShineEl.setAttribute("fill", def.shine);
+}
+function renderPaperStack() {
+  if (!iskMarkEl) return;
+  const recent = inkstampCount > 0 ? (inkstampIdx - 1 + INK_STAMPS.length) % INK_STAMPS.length : null;
+  if (recent === null) { iskMarkEl.innerHTML = ""; return; }
+  const def = INK_STAMPS[recent];
+  const prev = INK_STAMPS[(recent - 1 + INK_STAMPS.length) % INK_STAMPS.length];
+  const prevHtml = `<g transform="rotate(8 70 32)" opacity="0.30">
+    <ellipse cx="70" cy="32" rx="5" ry="3" fill="${prev.cap}"/>
+    <ellipse cx="69.5" cy="30.6" rx="2.4" ry="0.6" fill="${prev.shine}" opacity="0.55"/>
+  </g>`;
+  iskMarkEl.innerHTML = prevHtml + capSvg(def);
+}
+applyCurrentStampLook();
+renderPaperStack();
+renderInkstampStat();
+if (inkStampEl) {
+  inkStampEl.addEventListener("click", () => {
+    inkstampIdx++;
+    inkstampCount++;
+    try { localStorage.setItem(INKSTAMP_IDX_KEY, String(inkstampIdx)); } catch {}
+    try { localStorage.setItem(INKSTAMP_COUNT_KEY, String(inkstampCount)); } catch {}
+    applyCurrentStampLook();
+    renderPaperStack();
+    renderInkstampStat();
+    const def = INK_STAMPS[(inkstampIdx - 1 + INK_STAMPS.length) % INK_STAMPS.length];
+    if (inkstampCount === 1) toast(`mushroom · ${def.name}`, 2200);
+    else if (inkstampCount % 6 === 0) toast(`pressed ${inkstampCount} · ${def.name}`, 2200);
+    inkStampEl.classList.remove("stamped");
+    void inkStampEl.offsetWidth;
+    inkStampEl.classList.add("stamped");
+    setTimeout(() => inkStampEl.classList.remove("stamped"), 460);
+  });
+}

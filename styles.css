@@ -5802,3 +5802,167 @@ body.stargazer .pinwheel-stat-wrap,
 body.stargazer .fossil-stat-wrap,
 body.stargazer .signpost-stat-wrap,
 body.stargazer .singingbowl-stat-wrap { opacity: 0.5; }
+
+/* ==== devlog #35 — driftwood spyglass, memory jar, tide compass,
+   star-knot rope coil, mushroom-ink stamp ==== */
+
+/* ---- driftwood spyglass ---- */
+/* top:60 right:34 — sits in the top-right shelf area, mirroring
+   moon-journal on the left (top:60 left:110). the body rocks a hair
+   when .sg-body gets the .peeking class for the click-feedback hop. */
+#spyglass {
+  position: fixed;
+  top: 60px;
+  right: 34px;
+  width: 48px; height: 32px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#spyglass:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(255, 217, 160, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.sg-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sg-body { transform-origin: 24px 20px; transition: transform 220ms ease; }
+#spyglass.peeking .sg-body { animation: sg-rock 520ms ease-out; }
+@keyframes sg-rock {
+  0%   { transform: rotate(0deg); }
+  35%  { transform: rotate(-4deg) translateY(-2px); }
+  100% { transform: rotate(0deg); }
+}
+body.stargazer #spyglass { opacity: 0.6; }
+
+/* ---- stratified memory jar ---- */
+/* top:60 right:90 — tall narrow jar at 28x80 viewBox. the .mj2-strata
+   group is populated by js as colored band <rect>s based on the number
+   of distinct calendar-day visits, the top 6mm reserved for the cork. */
+#memory-jar {
+  position: fixed;
+  top: 60px;
+  right: 90px;
+  width: 28px; height: 80px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#memory-jar:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(143, 212, 154, 0.4)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.mj2-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.mj2-strata rect { transition: opacity 380ms ease; }
+#memory-jar.bumped .mj2-strata rect:last-child { animation: mj2-band 700ms ease-out; }
+@keyframes mj2-band {
+  0%   { opacity: 0; }
+  40%  { opacity: 1; }
+  100% { opacity: 0.9; }
+}
+body.motion-reduced #memory-jar .mj2-strata rect { transition: none; }
+body.stargazer #memory-jar { opacity: 0.6; }
+
+/* ---- pocket tide compass ---- */
+/* top:60 right:140 — square brass-case compass. the .tc2-needle
+   rotation comes from the inline --tc2-rot custom property set by
+   the readloop tick that derives from --pond-h. */
+#tide-compass {
+  position: fixed;
+  top: 60px;
+  right: 140px;
+  width: 40px; height: 52px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#tide-compass:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(168, 144, 112, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.tc2-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tc2-needle { transform-origin: 20px 22px; transform: rotate(var(--tc2-rot, 0deg)); transition: transform 1100ms cubic-bezier(.4, .0, .3, 1); }
+@media (prefers-reduced-motion: reduce) { .tc2-needle { transition: none; } }
+body.motion-reduced .tc2-needle { transition: none; }
+body.stargazer #tide-compass { opacity: 0.6; }
+
+/* ---- star-knot rope coil ---- */
+/* top:60 right:200 — the .kr-knots host is populated by js with 12
+   nodes. the .is-active class bumps the in-current knot to a faint
+   glow. */
+#knot-rope {
+  position: fixed;
+  top: 60px;
+  right: 200px;
+  width: 80px; height: 40px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+#knot-rope:hover { filter: drop-shadow(0 0 6px rgba(168, 144, 112, 0.35)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.kr-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.kr-knot ellipse { transition: r 320ms ease; }
+.kr-knot.is-active ellipse { fill: rgba(255, 217, 160, 0.85); }
+.kr-knot.is-active circle { fill: rgba(255, 232, 168, 0.9); filter: drop-shadow(0 0 4px rgba(255, 217, 160, 0.65)); }
+body.stargazer #knot-rope { opacity: 0.6; }
+
+/* ---- mushroom-ink stamp ---- */
+/* top:60 right:295 — ink-pad + mushroom-shape stamp + small paper
+   pad. the .isk-mark stamp is appended by js as the active mushroom
+   shape. the .isk-handle group runs the .isk-press 420ms keyframe
+   on .stamped class to mirror the chip pattern the tide-flutes use. */
+#ink-stamp {
+  position: fixed;
+  top: 60px;
+  right: 295px;
+  width: 76px; height: 44px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#ink-stamp:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(143, 212, 154, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.isk-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.isk-handle { transform-origin: 28px 24px; transition: transform 180ms ease; }
+#ink-stamp.stamped .isk-handle { animation: isk-press 420ms cubic-bezier(.3, .7, .3, 1); }
+@keyframes isk-press {
+  0%   { transform: rotate(0deg); }
+  35%  { transform: rotate(-9deg) translateX(-3px); }
+  100% { transform: rotate(0deg); }
+}
+.isk-mark > * { opacity: 0; transition: opacity 700ms ease; }
+.isk-mark > .live { opacity: 0.92; }
+body.motion-reduced #ink-stamp .isk-handle,
+body.motion-reduced .isk-mark > * { transition: none; animation: none !important; }
+body.stargazer #ink-stamp { opacity: 0.6; }
+
+/* ---- devlog #35 stat wraps on the bottom:96px row ---- */
+/* five new stat counters in a horizontal band that sits above the
+   devlog #30 row (80px). 96px is the next clean ladder rung in the
+   bottom counter band. */
+.spyglass-stat-wrap,
+.memoryjar-stat-wrap,
+.tidecompass-stat-wrap,
+.knotrope-stat-wrap,
+.inkstamp-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+  bottom: 96px;
+}
+.spyglass-stat-wrap    { left: 9vw; }
+.memoryjar-stat-wrap   { left: 22vw; }
+.tidecompass-stat-wrap { left: 38vw; }
+.knotrope-stat-wrap    { left: 54vw; }
+.inkstamp-stat-wrap    { left: 70vw; }
+.spyglass-stat-wrap #spyglass-stat,
+.memoryjar-stat-wrap #memoryjar-stat,
+.tidecompass-stat-wrap #tidecompass-stat,
+.knotrope-stat-wrap #knotrope-stat,
+.inkstamp-stat-wrap #inkstamp-stat { color: var(--moss); margin-left: 4px; }
+body.motion-reduced .spyglass-stat-wrap,
+body.motion-reduced .memoryjar-stat-wrap,
+body.motion-reduced .tidecompass-stat-wrap,
+body.motion-reduced .knotrope-stat-wrap,
+body.motion-reduced .inkstamp-stat-wrap { display: none; }
+body.stargazer .spyglass-stat-wrap,
+body.stargazer .memoryjar-stat-wrap,
+body.stargazer .tidecompass-stat-wrap,
+body.stargazer .knotrope-stat-wrap,
+body.stargazer .inkstamp-stat-wrap { opacity: 0.5; }
