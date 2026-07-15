@@ -1337,6 +1337,149 @@
   <span id="mala-stat">0</span>
 </div>
 
+<!-- devlog #38 — kalimba (thumb piano) at top:64 right:280 — top deck
+     between the lighthouse base (right:82 width:50) and the older
+     top-shelf rows. a small wooden box with 17 metal tines; click
+     cycles "currently plucked" tine index, slides an amber highlight
+     beneath the active tine via the kp-glow rect, and depresses the
+     tine band via the kp-tease keyframe (320ms). persists
+     biosphere02.kalimba.v1 (next index) + biosphere02.kalimba.count.v1
+     independently — a returning user resumes on the same tine. counter: plucks. -->
+<div id="kalimba" title="pluck a tine" aria-label="a thumb piano">
+  <svg class="kp-svg" viewBox="0 0 52 24" aria-hidden="true">
+    <ellipse class="kp-shadow" cx="26" cy="22" rx="22" ry="1.4" fill="rgba(0,0,0,0.32)"/>
+    <rect class="kp-board" x="0" y="16" width="52" height="7" rx="0.6" fill="#4a2818"/>
+    <rect x="0" y="16" width="52" height="1.2" fill="#6a3a2a"/>
+    <rect class="kp-bridge" x="0" y="14.2" width="52" height="2" fill="#7a5a32"/>
+    <g class="kp-tines" id="kp-tines"></g>
+    <rect class="kp-glow" id="kp-glow" x="2" y="0" width="2.6" height="14" rx="0.4" fill="rgba(255,200,110,0.55)"/>
+  </svg>
+</div>
+
+<!-- devlog #38 — small wooden lyre at top:124 left:212 (between ink stamp
+     and the tide-flutes area). 5 gut strings tremble on body.wind-gust
+     via the lf-tremor keyframe; click forces a swing keyframe regardless
+     of wind. persists biosphere02.lyre.v1. counter: hums. -->
+<div id="lyre-frame" title="listen to the strings" aria-label="a small wooden lyre">
+  <svg class="ly-svg" viewBox="0 0 54 38" aria-hidden="true">
+    <ellipse class="ly-shadow" cx="27" cy="36" rx="22" ry="1.5" fill="rgba(0,0,0,0.32)"/>
+    <rect x="3" y="32" width="48" height="5" rx="1" fill="#3a2415"/>
+    <rect x="3" y="32" width="48" height="1.2" fill="#5a3a26"/>
+    <path class="ly-arm-l" d="M11 32 Q9 22 14 16 L20 16 L20 32 Z" fill="#4a2818" stroke="#2a1a0a" stroke-width="0.5"/>
+    <path class="ly-arm-r" d="M43 32 Q45 22 40 16 L34 16 L34 32 Z" fill="#4a2818" stroke="#2a1a0a" stroke-width="0.5"/>
+    <rect class="ly-bar" x="11" y="14" width="32" height="2.4" rx="0.5" fill="#5a3a26"/>
+    <g class="ly-strings" id="ly-strings">
+      <line x1="14" y1="16" x2="14" y2="32" stroke="#dcc28c" stroke-width="0.5"/>
+      <line x1="19" y1="16" x2="19" y2="32" stroke="#dcc28c" stroke-width="0.5"/>
+      <line x1="27" y1="16" x2="27" y2="32" stroke="#dcc28c" stroke-width="0.5"/>
+      <line x1="35" y1="16" x2="35" y2="32" stroke="#dcc28c" stroke-width="0.5"/>
+      <line x1="40" y1="16" x2="40" y2="32" stroke="#dcc28c" stroke-width="0.5"/>
+    </g>
+  </svg>
+</div>
+
+<!-- devlog #38 — small clay djembe at top:212 left:280 on a wooden stand
+     with two carved feet. the drum head shifts down 2.4px and back via
+     the rd-beat keyframe when body.rain-day or body.forecast-rain is
+     set (both already set by the existing forecast poll). click forces
+     a strike regardless of rain state. persists
+     biosphere02.raindrum.v1. counter: strikes. -->
+<div id="rain-drum" title="the drum feels the rain" aria-label="a small hand drum">
+  <svg class="rd-svg" viewBox="0 0 48 46" aria-hidden="true">
+    <ellipse class="rd-shadow" cx="24" cy="44" rx="20" ry="1.5" fill="rgba(0,0,0,0.32)"/>
+    <rect x="20" y="40" width="8" height="5" rx="0.6" fill="#3a2415"/>
+    <line x1="22" y1="40" x2="22" y2="46" stroke="#5a3a26" stroke-width="0.6"/>
+    <line x1="26" y1="40" x2="26" y2="46" stroke="#5a3a26" stroke-width="0.6"/>
+    <path class="rd-body" d="M11 18 Q11 14 14 14 L34 14 Q37 14 37 18 L34 38 Q32 40 30 40 L18 40 Q16 40 14 38 Z" fill="#6a4022" stroke="#3a1a08" stroke-width="0.5"/>
+    <line x1="12" y1="26" x2="36" y2="26" stroke="#4a2818" stroke-width="0.5"/>
+    <line x1="13" y1="32" x2="35" y2="32" stroke="#4a2818" stroke-width="0.5"/>
+    <ellipse class="rd-head" cx="24" cy="14" rx="13" ry="3.4" fill="#a85a30"/>
+    <ellipse class="rd-head-shine" cx="24" cy="13.4" rx="12" ry="2.6" fill="#c08a5a"/>
+    <circle class="rd-rim-k" cx="14" cy="14" r="0.7" fill="#3a1a08"/>
+    <circle class="rd-rim-k" cx="18" cy="13" r="0.7" fill="#3a1a08"/>
+    <circle class="rd-rim-k" cx="24" cy="12.6" r="0.7" fill="#3a1a08"/>
+    <circle class="rd-rim-k" cx="30" cy="13" r="0.7" fill="#3a1a08"/>
+    <circle class="rd-rim-k" cx="34" cy="14" r="0.7" fill="#3a1a08"/>
+  </svg>
+</div>
+
+<!-- devlog #38 — small wooden music box at top:212 left:336 (between
+     incense-sticks and the oil-lamp right side). visible brass cylinder
+     with 4 notch marks + 8 comb teeth that oscillate on click. the
+     cylinder spin keyframe (800ms) and the teeth oscillate keyframe run
+     together via .playing for one play-cycle. persists
+     biosphere02.musicbox.v1 as a JSON object { next, count } — a
+     returning user resumes on the tune they'd left off on. counter: tunes. -->
+<div id="music-box" title="play a tune" aria-label="a small music box">
+  <svg class="mb-svg" viewBox="0 0 54 22" aria-hidden="true">
+    <ellipse class="mb-shadow" cx="27" cy="20" rx="22" ry="1.4" fill="rgba(0,0,0,0.32)"/>
+    <rect class="mb-box" x="0" y="6" width="54" height="14" rx="1" fill="#4a2818" stroke="#2a1a0a" stroke-width="0.5"/>
+    <rect x="0" y="6" width="54" height="1.4" fill="#6a3a2a"/>
+    <ellipse class="mb-cyl" cx="10" cy="13" rx="4.6" ry="7" fill="#c5a36a" stroke="#7a5a32" stroke-width="0.4"/>
+    <line x1="6" y1="11" x2="14" y2="11" stroke="#7a5a32" stroke-width="0.4"/>
+    <line x1="6" y1="13" x2="14" y2="13" stroke="#7a5a32" stroke-width="0.4"/>
+    <line x1="6" y1="15" x2="14" y2="15" stroke="#7a5a32" stroke-width="0.4"/>
+    <line x1="6" y1="17" x2="14" y2="17" stroke="#7a5a32" stroke-width="0.4"/>
+    <rect x="22" y="14" width="28" height="4" fill="#1a0a04"/>
+    <g class="mb-teeth" id="mb-teeth">
+      <line x1="24" y1="9"  x2="24" y2="14" stroke="#c5a36a" stroke-width="0.6"/>
+      <line x1="27" y1="9"  x2="27" y2="14" stroke="#c5a36a" stroke-width="0.6"/>
+      <line x1="30" y1="9"  x2="30" y2="14" stroke="#c5a36a" stroke-width="0.6"/>
+      <line x1="33" y1="9"  x2="33" y2="14" stroke="#c5a36a" stroke-width="0.6"/>
+      <line x1="37" y1="9"  x2="37" y2="14" stroke="#c5a36a" stroke-width="0.6"/>
+      <line x1="41" y1="9"  x2="41" y2="14" stroke="#c5a36a" stroke-width="0.6"/>
+      <line x1="45" y1="9"  x2="45" y2="14" stroke="#c5a36a" stroke-width="0.6"/>
+      <line x1="48" y1="9"  x2="48" y2="14" stroke="#c5a36a" stroke-width="0.6"/>
+    </g>
+  </svg>
+</div>
+
+<!-- devlog #38 — single bronze bell hanging on a small wooden beam at
+     top:124 right:160. clear of the cattail-torch (top:124 right:90
+     width:26 → 116px width band starting 116 from right edge; bronze bell
+     starts at right:160, leaving a 44px gap). click triggers the bb-tilt
+     keyframe (480ms, rotate ±3deg) on the bell svg paired with a clapper
+     translation. persists biosphere02.bronzebell.v1. counter: rings. -->
+<div id="bronze-bell" title="ring the bell" aria-label="a single bronze bell">
+  <svg class="bb-svg" viewBox="0 0 30 46" aria-hidden="true">
+    <ellipse class="bb-shadow" cx="15" cy="44" rx="11" ry="1.4" fill="rgba(0,0,0,0.32)"/>
+    <rect x="3" y="2" width="24" height="3.4" rx="0.5" fill="#3a2415"/>
+    <line x1="15" y1="5.4" x2="15" y2="14" stroke="#7a5a32" stroke-width="0.7"/>
+    <ellipse cx="15" cy="11" rx="5.5" ry="0.8" fill="#8a6a4a" stroke="#5a3a26" stroke-width="0.4"/>
+    <path class="bb-body" d="M8 14 Q8 22 6 30 L24 30 Q22 22 22 14 Z" fill="#c0533f" stroke="#5a1a14" stroke-width="0.5"/>
+    <ellipse cx="15" cy="14" rx="7" ry="1.4" fill="#d96a4d"/>
+    <ellipse cx="15" cy="30" rx="9" ry="1.4" fill="#3a0a14"/>
+    <line class="bb-clapper" x1="15" y1="22" x2="15" y2="29" stroke="#5a1a14" stroke-width="0.6"/>
+    <circle class="bb-clapper-ball" cx="15" cy="29" r="1.4" fill="#5a1a14"/>
+  </svg>
+</div>
+
+<!-- devlog #38 — 5 stat counters share a fresh bottom:148 row, stacking
+     above the bottom:130 devlog #37 row, the bottom:112 row, the bottom:96
+     row, the bottom:80 row, and the bottom:30 firefly row. placements
+     follow the existing 16vw ladder (8, 24, 40, 56, 72 vw) so the band
+     reads as a row, not scattered. -->
+<div class="kalimba-stat-wrap" aria-hidden="true">
+  <span>plucks</span>
+  <span id="kalimba-stat">0</span>
+</div>
+<div class="lyre-stat-wrap" aria-hidden="true">
+  <span>hums</span>
+  <span id="lyre-stat">0</span>
+</div>
+<div class="raindrum-stat-wrap" aria-hidden="true">
+  <span>strikes</span>
+  <span id="raindrum-stat">0</span>
+</div>
+<div class="musicbox-stat-wrap" aria-hidden="true">
+  <span>tunes</span>
+  <span id="musicbox-stat">0</span>
+</div>
+<div class="bronzebell-stat-wrap" aria-hidden="true">
+  <span>rings</span>
+  <span id="bronzebell-stat">0</span>
+</div>
+
 <!-- welcome page (full-screen splash, first visit only — dismissable forever) -->
 <div id="welcome-page" class="welcome-page" hidden>
   <div class="welcome-card">
@@ -1856,6 +1999,16 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
+      <article class="logentry">
+        <h3>devlog #38 — <span class="logdate">jul 24</span></h3>
+        <p>five small music &amp; sound pieces. none are creatures (sixteen plus the luna moth is plenty), none are new windows, none add fresh dependency trees. each one latches onto a system already running: the kalimba cycles a "currently plucked" tine index; the lyre-frame reads <code>body.wind-gust</code> to tremble its strings; the rain-drum reads <code>body.rain-day</code> / <code>body.forecast-rain</code> to "strike itself" during a rained day; the music-box cycles 4 curated tunes through a single plucked-comb keyframe; the bronze-bell rings on click. three of the five are pure-DOM click feedback; two (lyre, rain-drum) latch onto existing body classes, so no fresh scheduler is born. each counter follows the established <code>biosphere02.&lt;name&gt;.v1</code> convention with no cross-references — a future feature named "drum" tomorrow won't collide with the raindrum counter.</p>
+        <p><strong>kalimba 🪘.</strong> a 17-tine thumb piano at top:64 right:280, parked on the upper deck between the lighthouse base (right:32 + width:50 = right:82) and the older top-shelf rows. the 17 tines span x=2..50 evenly (2.83px each) and are emitted by <code>buildKpTines()</code> in app.js so a returning user sees the same tine layout regardless of reload. click fires the <code>kp-tease</code> keyframe (320ms, scaleY 0.98→1.02→1) on the tine-band and the <code>kp-glow-flash</code> keyframe (320ms) on the amber highlight rect — an explicit pluck-feedback loop without audio. the glow rect's x-position is computed from the current index and updated on every click; click also slides index forward by one (modulo 17). <code>biosphere02.kalimba.v1</code> persists the next index, <code>biosphere02.kalimba.count.v1</code> persists the count, separate keys. counter: plucks. ↦ a considered-and-dropped: a single bell at the right end. the bells/keys separation is established; one bell at far-right reads as "broken kalimba" rather than "complete kalimba with extra bell."</p>
+        <p><strong>lyre-frame 🎻.</strong> a small wooden lyre at top:124 left:212, between the ink stamp and the tide-flutes area. two stacked resonator halves + a top crossbar + 5 gut strings; left/right arms are mirror <code>path</code> shapes (Q-curve into a flat stack) so the silhouette reads as a "lyre" rather than a "frame with strings." on <code>body.wind-gust</code>, the 5 strings apply the <code>lf-tremor</code> keyframe with a staggered 80ms delay per string so the tremble travels along the chord. click forces a swing via the <code>lf-swing</code> keyframe (480ms, rotate ±1.6deg) regardless of wind — the user reads "i did something." <code>biosphere02.lyre.v1</code> persists the counter. counter: hums. ↦ a dropped design: a 5th-string "click detector" that fires every click. a click is a transient, the lyre's natural state is tremoring; firing 5 separate transients on each click would read as a nervous glitch rather than as a single felt impact.</p>
+        <p><strong>rain-drum 🥁.</strong> a small clay djembe at top:212 left:280, on a wooden stand with two carved feet. drum body is a <code>path</code> with a Q-curve at the top going into a straight goblet shape; rim is a 5-knot lacing pattern (5 small circles around the head) so the head reads as "tied skin" not "painted oval." on <code>body.rain-day</code> OR <code>body.forecast-rain</code>, the drum-head applies the <code>rd-beat</code> keyframe (1.4s loop) — drum head shifts down 2.4px and back, on a slower cadence than chime frequencies. click forces a single strike via the same keyframe (660ms) regardless of rain state. counter persists to <code>biosphere02.raindrum.v1</code>. counter: strikes. ↦ with-and-without: a poll-driven strike during a rained day would fire 0 strikes outside the rained day; the click counter increments during both modes so manual-strike is not gated behind weather. an "i heard it because it rained" feeling would have come from poll-driven strikes only, but that hides the piece's existence on dry days.</p>
+        <p><strong>music-box 🎼.</strong> a small wooden box at top:212 left:336 with a visible brass cylinder + 8 comb teeth. click cycles through 4 curated tune states via a single shared name list (<em>spinning wheel · rain on tile · evening bells · celestial sphere</em>) — each tune is just a name; the visual cycle is one cylinder rotation + one comb pluck keyframe (800ms), so a tune reads as "the music box played" rather than "the music box played spinning wheel followed by 14 specific notes." cylinder spin runs once per click via the <code>mb-cyl</code> transform: 0°→360° over 800ms; teeth oscillate via the <code>mb-teeth-pluck</code> keyframe (oscillate 1.4px down then back). <code>biosphere02.musicbox.v1</code> persists <code>{ next, count }</code> as a JSON object so a returning user resumes on the tune they'd left off on. first click emits toast "music box · spinning wheel." counter: tunes. ↦ a structural note: 4 tunes rather than 12. 4 reads as "a small curated collection" (the canonical number); 12 reads as "a music library" and would invite a UI the music-box doesn't want.</p>
+        <p><strong>bronze-bell 🔔.</strong> a single bronze bell hanging from a small wooden beam at top:124 right:160, with a clapper visible inside the bell mouth. placed clear of the cattail-torch (top:124 right:90 width:26) and the existing right-corridor pieces. click fires the <code>bb-tilt</code> keyframe (480ms, rotate ±3deg) on the bell svg, paired with a <code>bb-clapper</code> translation (1.6px sideways, the inner clapper ball swings side-to-side). the bell-body fill is a single bronze tone (#c0533f) with a brighter amber shine strip; clapper is dark brown; bell mouth is the dark interior ellipse. counter persists to <code>biosphere02.bronzebell.v1</code>. counter: rings. ↦ dropped: a stacking multi-bell counting up to 5 bell-rings then resetting with a "tolling" composite chime on the 6th. the user's eye locates a single bell whereas 5+ bells invites a row-of-bells construction that would dominate the right corridor and steal the cattail-torch's space.</p>
+        <p>↦ structural coupling across all five: the rain-drum and the lyre-frame read body classes (rain-day, forecast-rain, wind-gust) via the same 1s-poll pattern the candle-stub and devlog #37 use, so all four pieces flip together within 1s of a body-class change. a sky-lock / forecast change in settings updates each within one second; the emanation is uniform across the four 'auto-event' pieces now living in the codebase. the kalimba, bronze-bell, and music-box are pure-DOM click handlers — they don't read body classes — because their feedback loop is internal-class-only: pluck / ring / play, then counter ticks. the new bottom:148 row of stat wraps takes the place above the bottom:130 row, the bottom:112 row, the bottom:96 row, the bottom:80 row, and the bottom:30 firefly row. 5 additions, 5 systems. of the five, only the rain-drum's 1s-poll can do anything other than "stay still": the others either animate on click once (and idle) or tremble on wind (which is sparse). the rain-day is the densest auto-event, but a 1s poll on a single boolean is still 1ms per minute of work. total added DOM: ~3.0kb of static html + svg, plus 5 stat-wrap divs. five additions, five systems, none of them running per-frame work outside the visible interaction window.</p>
+      </article>
       <article class="logentry">
         <h3>devlog #37 — <span class="logdate">jul 21</span></h3>
         <p>five small shrine &amp; altar pieces, sharing the v1-keying and body-class coupling of the recent batches. none are creatures, none spawn new windows, none add fresh dependency trees. each piece latches onto a system already running: the shrine-stone tints its moss from <code>body.season-*</code> via css and gains a faint green halo on body.dusk/night — no js poll. the offering-bowl cycles a curated 10-entry list through the existing toast helper and persists next-offer index so a returning user lands on a different offering than yesterday. the incense-tray, oil-lamp, and (already-in-code) candle-stub/cattail-torch share one <code>isMoodDark()</code> + 1s-interval poll pattern, so all four flip within 1s of each other on a sky-lock change. the prayer-mala anchors its current bead to the same <code>--moon-phase-frac</code> the moon-journal reads, so a returning user resumes at a different bead than yesterday.</p>

@@ -6337,3 +6337,192 @@ body.stargazer .offeringbowl-stat-wrap,
 body.stargazer .incense-stat-wrap,
 body.stargazer .oillamp-stat-wrap,
 body.stargazer .prayer-mala-stat-wrap { opacity: 0.5; }
+
+/* ==== devlog #38 — kalimba, lyre-frame, rain-drum, music-box, bronze-bell ==== */
+
+/* ---- kalimba (thumb piano) ----
+   a 17-tine thumb piano on the top deck at top:64 right:280. the tines
+   are emitted by buildKpTines() in app.js; the .kp-glow rect slides
+   beneath the active tine. click fires the kp-tease keyframe on the
+   tine band and the kp-glow-flash keyframe on the amber highlight. */
+#kalimba {
+  position: fixed;
+  right: 280px;
+  top: 64px;
+  width: 52px; height: 24px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#kalimba:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(255, 200, 110, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.kp-svg { width: 100%; height: 100%; display: block; overflow: visible; pointer-events: none; }
+.kp-tines rect { transition: transform 200ms ease; transform-origin: 50% 100%; transform-box: fill-box; }
+#kalimba.plucked .kp-tines rect { animation: kp-tease 320ms cubic-bezier(.3, .8, .3, 1); }
+#kalimba.plucked .kp-glow   { animation: kp-glow-flash 320ms ease-out; }
+@keyframes kp-tease      { 0% { transform: translateY(0); } 50% { transform: translateY(-1.2px); } 100% { transform: translateY(0); } }
+@keyframes kp-glow-flash { 0% { opacity: 0.30; } 50% { opacity: 0.95; } 100% { opacity: 0.55; } }
+body.motion-reduced #kalimba.plucked .kp-tines rect,
+body.motion-reduced #kalimba.plucked .kp-glow { animation: none; }
+body.stargazer #kalimba { opacity: 0.55; }
+
+/* ---- lyre-frame (5-string lyre) ----
+   at top:124 left:212 between the ink stamp and the tide-flutes area.
+   5 gut strings tremble via body.wind-gust (lf-tremor) staggered 80ms
+   per string so the tremor travels. click forces a swing regardless. */
+#lyre-frame {
+  position: fixed;
+  left: 212px;
+  top: 124px;
+  width: 54px; height: 38px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#lyre-frame:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(220, 192, 130, 0.5)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.ly-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ly-strings line { transition: transform 380ms ease; transform-origin: 50% 0%; transform-box: fill-box; }
+#lyre-frame.gusting .ly-strings line { animation: lf-tremor 1.2s ease-in-out infinite; }
+#lyre-frame.gusting .ly-strings line:nth-child(1) { animation-delay: 0.00s; }
+#lyre-frame.gusting .ly-strings line:nth-child(2) { animation-delay: 0.08s; }
+#lyre-frame.gusting .ly-strings line:nth-child(3) { animation-delay: 0.16s; }
+#lyre-frame.gusting .ly-strings line:nth-child(4) { animation-delay: 0.24s; }
+#lyre-frame.gusting .ly-strings line:nth-child(5) { animation-delay: 0.32s; }
+@keyframes lf-tremor {
+  0%, 100% { transform: scaleX(1.000); }
+  50%      { transform: scaleX(0.985); }
+}
+#lyre-frame.struck .ly-svg { animation: lf-swing 480ms cubic-bezier(.3, .8, .3, 1); transform-origin: 50% 100%; }
+@keyframes lf-swing { 0% { transform: rotate(0deg); } 25% { transform: rotate(-1.6deg); } 75% { transform: rotate(1.6deg); } 100% { transform: rotate(0deg); } }
+body.motion-reduced #lyre-frame.gusting .ly-strings line,
+body.motion-reduced #lyre-frame.struck .ly-svg { animation: none; }
+body.stargazer #lyre-frame { opacity: 0.55; }
+
+/* ---- rain-drum (clay djembe) ----
+   at top:212 left:280 on a small wooden stand. the drum-head ellipse
+   shifts down 2.4px and back via the rd-beat keyframe when
+   body.rain-day or body.forecast-rain fires (1s poll flips .raining);
+   click forces a one-shot strike via the same keyframe (660ms). */
+#rain-drum {
+  position: fixed;
+  left: 280px;
+  top: 212px;
+  width: 48px; height: 46px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#rain-drum:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(168, 90, 48, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.rd-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.rd-head { transition: transform 660ms cubic-bezier(.3, .8, .3, 1); transform-origin: 50% 100%; transform-box: fill-box; }
+#rain-drum.raining .rd-head { animation: rd-beat 1.4s ease-in-out infinite; }
+@keyframes rd-beat {
+  0%, 60%, 100% { transform: translateY(0) scaleY(1); }
+  30%           { transform: translateY(2.4px) scaleY(0.96); }
+}
+#rain-drum.struck .rd-head { animation: rd-beat 660ms cubic-bezier(.3, .8, .3, 1); }
+body.motion-reduced #rain-drum.raining .rd-head,
+body.motion-reduced #rain-drum.struck .rd-head { animation: none; }
+body.stargazer #rain-drum { opacity: 0.55; }
+
+/* ---- music-box ----
+   at top:212 left:336. cylinder spin keyframe (mb-cyl 0→360 over 800ms)
+   + comb-teeth oscillate keyframe (mb-teeth-pluck 1.4px down/up). both
+   run together via .playing — one play-cycle per click. */
+#music-box {
+  position: fixed;
+  left: 336px;
+  top: 212px;
+  width: 54px; height: 22px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#music-box:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(255, 217, 160, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.mb-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#music-box .mb-cyl { transform-origin: 50% 50%; transform-box: fill-box; transition: transform 800ms ease; }
+#music-box .mb-teeth line { transform-origin: 50% 0%; }
+#music-box.playing .mb-cyl { transform: rotate(360deg); }
+#music-box.playing .mb-teeth line { animation: mb-teeth-pluck 800ms ease-out; }
+@keyframes mb-teeth-pluck {
+  0%, 100% { transform: translateY(0); opacity: 1; }
+  40%      { transform: translateY(1.4px); opacity: 0.75; }
+  60%      { transform: translateY(-0.4px); opacity: 0.95; }
+}
+body.motion-reduced #music-box.playing .mb-cyl,
+body.motion-reduced #music-box.playing .mb-teeth line { animation: none; }
+body.stargazer #music-box { opacity: 0.55; }
+
+/* ---- bronze-bell ----
+   at top:124 right:160, clear of the cattail-torch. bb-tilt keyframe
+   (480ms, rotate ±3deg) on the bell svg paired with a clapper translation
+   (1.6px sideways). the inner clapper ball gets its own keyframe so it
+   reads as "clapper hitting the bell wall". */
+#bronze-bell {
+  position: fixed;
+  right: 160px;
+  top: 124px;
+  width: 30px; height: 46px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#bronze-bell:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(255, 200, 110, 0.5)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.bb-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#bronze-bell .bb-svg  { transform-origin: 50% 0%; }
+#bronze-bell.ringing .bb-svg          { animation: bb-tilt 480ms cubic-bezier(.3, .8, .3, 1); }
+#bronze-bell.ringing .bb-clapper-ball { animation: bb-clapper 480ms cubic-bezier(.3, .8, .3, 1); transform-origin: 50% 0%; }
+@keyframes bb-tilt    { 0% { transform: rotate(0deg); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } 100% { transform: rotate(0deg); } }
+@keyframes bb-clapper { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-1.6px); } }
+body.motion-reduced #bronze-bell.ringing .bb-svg,
+body.motion-reduced #bronze-bell.ringing .bb-clapper-ball { animation: none; }
+body.stargazer #bronze-bell { opacity: 0.55; }
+
+/* 1100ms ease resize transitions — same as devlog #34-37 top-shelf pieces.
+   zoomed/page-resizes the .kp-tine/.rd-body/etc sub-shapes reflow smoothly. */
+#kalimba, #lyre-frame, #rain-drum, #music-box, #bronze-bell {
+  transition: bottom 1100ms ease, left 1100ms ease, right 1100ms ease, top 1100ms ease;
+}
+
+/* ---- devlog #38 stat wraps on the bottom:148 row ----
+   stacking above the bottom:130 devlog #37 row, the bottom:112 devlog #36
+   row, the bottom:96 devlog #35 row, the bottom:80 devlog #30 row, and
+   the bottom:30 firefly row. the 16vw ladder (8, 24, 40, 56, 72 vw)
+   matches the existing pattern so the band reads as a row, not scattered. */
+.kalimba-stat-wrap,
+.lyre-stat-wrap,
+.raindrum-stat-wrap,
+.musicbox-stat-wrap,
+.bronzebell-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+}
+.kalimba-stat-wrap     { bottom: 148px; left: 8vw; }
+.lyre-stat-wrap        { bottom: 148px; left: 24vw; }
+.raindrum-stat-wrap    { bottom: 148px; left: 40vw; }
+.musicbox-stat-wrap    { bottom: 148px; left: 56vw; }
+.bronzebell-stat-wrap  { bottom: 148px; left: 72vw; }
+.kalimba-stat-wrap #kalimba-stat,
+.lyre-stat-wrap #lyre-stat,
+.raindrum-stat-wrap #raindrum-stat,
+.musicbox-stat-wrap #musicbox-stat,
+.bronzebell-stat-wrap #bronzebell-stat { color: var(--moss); margin-left: 4px; }
+body.motion-reduced .kalimba-stat-wrap,
+body.motion-reduced .lyre-stat-wrap,
+body.motion-reduced .raindrum-stat-wrap,
+body.motion-reduced .musicbox-stat-wrap,
+body.motion-reduced .bronzebell-stat-wrap { opacity: 0.7; }
+body.stargazer .kalimba-stat-wrap,
+body.stargazer .lyre-stat-wrap,
+body.stargazer .raindrum-stat-wrap,
+body.stargazer .musicbox-stat-wrap,
+body.stargazer .bronzebell-stat-wrap { opacity: 0.5; }

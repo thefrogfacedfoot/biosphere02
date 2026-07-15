@@ -11674,3 +11674,213 @@ if (inkStampEl) {
     setTimeout(() => inkStampEl.classList.remove("stamped"), 460);
   });
 }
+
+/* ============================================================
+   feature: devlog #38 — kalimba, lyre-frame, rain-drum, music-box,
+   bronze-bell
+   five small music & sound pieces. none are creatures, none spawn
+   new windows, none add fresh dependency trees. each one latches onto
+   a system already running rather than spawning fresh dependencies:
+   - kalimba: pure-DOM click + amber highlight beneath the current
+     tine. click cycles 17-tine index; persists {next, count} as two
+     separate keys.
+   - lyre-frame: latches onto body.wind-gust via 1s poll; .gusting
+     applies the lf-tremor keyframe to 5 strings (staggered 80ms).
+     click forces an immediate swing regardless of wind.
+   - rain-drum: latches onto body.rain-day / body.forecast-rain via
+     1s poll; .raining applies the rd-beat keyframe to the drum
+     head cyclically. click forces an immediate strike regardless.
+   - music-box: pure-DOM click + a single .playing keyframe (cylinder
+     spin + comb oscillate) running 800ms; click cycles through 4
+     curated tune names and persists {next, count}.
+   - bronze-bell: pure-DOM click + a single bb-tilt keyframe (480ms);
+     bell rotates ±3deg and the inner clapper ball translates sideways.
+   counter keys (each follows biosphere02.<name>.v1):
+     biosphere02.kalimba.v1           — next plumpled tine (0..16)
+     biosphere02.kalimba.count.v1     — pluck count
+     biosphere02.lyre.v1              — hum count
+     biosphere02.raindrum.v1          — strike count
+     biosphere02.musicbox.v1          — { next, count } as JSON
+     biosphere02.bronzebell.v1        — ring count
+   ============================================================ */
+
+/* ---- 1) kalimba (#kalimba) ----
+   17 metal tines emitted by buildKpTines() so a returning user sees
+   the same tine layout regardless of reload. click cycles the index,
+   updates kp-glow x, and fires the kp-tease + kp-glow-flash keyframe
+   pair. */
+const KP_IDX_KEY = "biosphere02.kalimba.v1";
+const KP_COUNT_KEY = "biosphere02.kalimba.count.v1";
+const KP_TINE_COUNT = 17;
+const kpEl = document.getElementById("kalimba");
+const kpGlow = document.getElementById("kp-glow");
+const kpStatEl = document.getElementById("kalimba-stat");
+let kpIdx = 0;
+let kpCount = 0;
+try { kpIdx = +(localStorage.getItem(KP_IDX_KEY) || 0) || 0; } catch {}
+try { kpCount = +(localStorage.getItem(KP_COUNT_KEY) || 0) || 0; } catch {}
+function buildKpTines() {
+  if (!kpEl) return;
+  const host = kpEl.querySelector(".kp-tines");
+  if (!host) return;
+  // 17 tines from x=2 to x=50, gap 2.83 each
+  for (let i = 0; i < KP_TINE_COUNT; i++) {
+    const x = 2 + i * (48 / (KP_TINE_COUNT - 1));
+    const r = document.createElementNS(SVG_NS, "rect");
+    r.setAttribute("x", x.toFixed(2));
+    r.setAttribute("y", "2");
+    r.setAttribute("width", "2.4");
+    r.setAttribute("height", "12.2");
+    r.setAttribute("rx", "0.4");
+    r.setAttribute("fill", "#c5a36a");
+    host.appendChild(r);
+  }
+}
+function renderKp() {
+  if (kpGlow) {
+    const xPx = 2 + kpIdx * (48 / (KP_TINE_COUNT - 1)) - 1;
+    kpGlow.setAttribute("x", xPx.toFixed(2));
+  }
+  if (kpStatEl) kpStatEl.textContent = kpCount;
+}
+buildKpTines();
+renderKp();
+if (kpEl) {
+  kpEl.addEventListener("click", () => {
+    kpIdx = (kpIdx + 1) % KP_TINE_COUNT;
+    kpCount++;
+    try { localStorage.setItem(KP_IDX_KEY, String(kpIdx)); } catch {}
+    try { localStorage.setItem(KP_COUNT_KEY, String(kpCount)); } catch {}
+    renderKp();
+    kpEl.classList.remove("plucked");
+    void kpEl.offsetWidth;
+    kpEl.classList.add("plucked");
+    setTimeout(() => kpEl.classList.remove("plucked"), 320);
+  });
+}
+
+/* ---- 2) lyre-frame (#lyre-frame) ----
+   on body.wind-gust, .gusting class is set/cleared via 1s poll so the
+   5 strings apply the lf-tremor keyframe (staggered 80ms per string).
+   click forces a swing via .struck regardless. counter increments
+   only on user-issued click, not on every wind-gust event. */
+const LY_KEY = "biosphere02.lyre.v1";
+const lyEl = document.getElementById("lyre-frame");
+const lyStatEl = document.getElementById("lyre-stat");
+let lyCount = 0;
+try { lyCount = +(localStorage.getItem(LY_KEY) || 0) || 0; } catch {}
+function renderLyStat() { if (lyStatEl) lyStatEl.textContent = lyCount; }
+renderLyStat();
+function applyLyWind() {
+  if (!lyEl) return;
+  lyEl.classList.toggle("gusting", document.body.classList.contains("wind-gust"));
+}
+applyLyWind();
+setInterval(applyLyWind, 1000);
+if (lyEl) {
+  lyEl.addEventListener("click", () => {
+    lyCount++;
+    try { localStorage.setItem(LY_KEY, String(lyCount)); } catch {}
+    renderLyStat();
+    lyEl.classList.remove("struck");
+    void lyEl.offsetWidth;
+    lyEl.classList.add("struck");
+    setTimeout(() => lyEl.classList.remove("struck"), 480);
+  });
+}
+
+/* ---- 3) rain-drum (#rain-drum) ----
+   on body.rain-day OR body.forecast-rain (both already set by the
+   forecast poll), .raining is toggled by 1s poll so the drum head
+   applies rd-beat in a 1.4s loop. click forces a one-shot strike
+   regardless of rain state. counter increments only on user-click;
+   the auto-strike during a rain-day does NOT inflate the counter. */
+const RD_KEY = "biosphere02.raindrum.v1";
+const rdEl = document.getElementById("rain-drum");
+const rdStatEl = document.getElementById("raindrum-stat");
+let rdCount = 0;
+try { rdCount = +(localStorage.getItem(RD_KEY) || 0) || 0; } catch {}
+function renderRdStat() { if (rdStatEl) rdStatEl.textContent = rdCount; }
+renderRdStat();
+function applyRdRain() {
+  if (!rdEl) return;
+  const b = document.body.classList;
+  rdEl.classList.toggle("raining", b.contains("rain-day") || b.contains("forecast-rain"));
+}
+applyRdRain();
+setInterval(applyRdRain, 1000);
+if (rdEl) {
+  rdEl.addEventListener("click", () => {
+    rdCount++;
+    try { localStorage.setItem(RD_KEY, String(rdCount)); } catch {}
+    renderRdStat();
+    rdEl.classList.remove("struck");
+    void rdEl.offsetWidth;
+    rdEl.classList.add("struck");
+    setTimeout(() => rdEl.classList.remove("struck"), 700);
+  });
+}
+
+/* ---- 4) music-box (#music-box) ----
+   pure-DOM click. cycles through 4 curated tune names. each click
+   adds .playing for 800ms, which both spins the cylinder (mb-cyl
+   rotate 360deg) and oscillates the comb teeth (mb-teeth-pluck
+   1.4px down/up). persists {next, count} as JSON. */
+const MB_KEY = "biosphere02.musicbox.v1";
+const MB_TUNES = [
+  { name: "spinning wheel" },
+  { name: "rain on tile" },
+  { name: "evening bells" },
+  { name: "celestial sphere" },
+];
+const mbEl = document.getElementById("music-box");
+const mbStatEl = document.getElementById("musicbox-stat");
+let mbIdx = 0;
+let mbCount = 0;
+try {
+  const p = JSON.parse(localStorage.getItem(MB_KEY) || "{}");
+  mbIdx = +(p.next) || 0;
+  mbCount = +(p.count) || 0;
+} catch {}
+function saveMb() {
+  try { localStorage.setItem(MB_KEY, JSON.stringify({ next: mbIdx, count: mbCount })); } catch {}
+}
+function renderMbStat() { if (mbStatEl) mbStatEl.textContent = mbCount; }
+renderMbStat();
+if (mbEl) {
+  mbEl.addEventListener("click", () => {
+    mbCount++;
+    mbIdx = (mbIdx + 1) % MB_TUNES.length;
+    saveMb();
+    renderMbStat();
+    mbEl.classList.remove("playing");
+    void mbEl.offsetWidth;
+    mbEl.classList.add("playing");
+    setTimeout(() => mbEl.classList.remove("playing"), 800);
+    if (mbCount === 1) toast(`music box · ${MB_TUNES[mbIdx].name}`, 2200);
+  });
+}
+
+/* ---- 5) bronze-bell (#bronze-bell) ----
+   pure-DOM click + bb-tilt keyframe (480ms, rotate ±3deg) on the bell
+   svg paired with a clapper translation (1.6px sideways). the inner
+   clapper ball gets its own keyframe so it reads as "clapper hitting
+   the bell wall". counter persists to biosphere02.bronzebell.v1. */
+const BB_KEY = "biosphere02.bronzebell.v1";
+const bbEl = document.getElementById("bronze-bell");
+const bbStatEl = document.getElementById("bronzebell-stat");
+let bbCount = 0;
+try { bbCount = +(localStorage.getItem(BB_KEY) || 0) || 0; } catch {}
+function renderBbStat() { if (bbStatEl) bbStatEl.textContent = bbCount; }
+renderBbStat();
+if (bbEl) {
+  bbEl.addEventListener("click", () => {
+    bbCount++;
+    try { localStorage.setItem(BB_KEY, String(bbCount)); } catch {}
+    renderBbStat();
+    bbEl.classList.remove("ringing");
+    void bbEl.offsetWidth;
+    bbEl.classList.add("ringing");
+    setTimeout(() => bbEl.classList.remove("ringing"), 480);
+  });
+}
