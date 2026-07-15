@@ -2511,6 +2511,608 @@ function drawFish(t) {
     scheduleFish();
   }, next);
 })();
+
+/* ============================================================
+   feature: devlog #36 — wax-tablet brass seal
+   top-shelf · cycles 18 day-glyph impressions on click. the wax-tablet's
+   seal stamp pulses up, leaves a fresh imprint, and the glyph rotates
+   forward. counter persists.
+   key: biosphere02.waxtablet.v1 (index) / .stamp.v1 (count)
+   ============================================================ */
+const WT_GLYPHS = [
+  // 18 chars that read as a day's seal — primarily emoji + stroke characters
+  // that don't need a custom font. picks are stable across reloads because
+  // we persist the index.
+  "✦", "❋", "✺", "✸", "❈", "✻", "❉", "✽",
+  "♆", "♇", "♁", "♃", "♄", "♅", "♀", "♂",
+  "𓂃", "𓇋",
+];
+const WT_INDEX_KEY = "biosphere02.waxtablet.v1";
+const WT_COUNT_KEY = "biosphere02.waxtablet.stamp.v1";
+const wtEl = document.getElementById("wax-tablet");
+const wtGlyph = wtEl ? wtEl.querySelector(".wt-glyph") : null;
+let wtIndex = (() => { try { return +localStorage.getItem(WT_INDEX_KEY) || 0; } catch { return 0; } })();
+let wtCount = (() => { try { return +localStorage.getItem(WT_COUNT_KEY) || 0; } catch { return 0; } })();
+function renderWt() {
+  if (wtGlyph) wtGlyph.textContent = WT_GLYPHS[wtIndex % WT_GLYPHS.length];
+  const stat = document.getElementById("waxtablet-stat");
+  if (stat) stat.textContent = wtCount;
+}
+renderWt();
+if (wtEl) {
+  wtEl.addEventListener("click", () => {
+    wtIndex++;
+    wtCount++;
+    try { localStorage.setItem(WT_INDEX_KEY, String(wtIndex)); } catch {}
+    try { localStorage.setItem(WT_COUNT_KEY, String(wtCount)); } catch {}
+    renderWt();
+    // flashing the seal gives a clear click feedback even without audio
+    wtEl.classList.add("stamping");
+    setTimeout(() => wtEl.classList.remove("stamping"), 380);
+    if (wtCount === 1) {
+      toast("the seal holds · the wax records", 2400);
+    }
+  });
+}
+
+/* ============================================================
+   feature: devlog #36 — hollow bamboo water clock
+   a vertical tube with bubbles rising from the bottom up to the node
+   ring near the top. bubble cadence is derived from --pond-h via
+   getComputedStyle() at spawn time: same coupling tide-whistle and
+   tide-flutes use, so the clock "ticks faster at high tide". counter
+   persists. cadence is gated by visible tab + reduced-motion so an
+   idle background tab doesn't bank up bubbles.
+   key: biosphere02.bamboowaterclock.v1 (count)
+   ============================================================ */
+const BWC_KEY = "biosphere02.bamboowaterclock.v1";
+const bwcEl = document.getElementById("bamboo-water-clock");
+const bwcBubblesHost = document.getElementById("bwc-bubbles");
+let bwcTicks = (() => { try { return +localStorage.getItem(BWC_KEY) || 0; } catch { return 0; } })();
+function renderBwcCount() {
+  const stat = document.getElementById("bamboowaterclock-stat");
+  if (stat) stat.textContent = bwcTicks;
+}
+renderBwcCount();
+let _bwcTimer = null;
+function bwcBubblePeriodMs() {
+  // read --pond-h from :root; map 17vh -> 1100ms, 19vh -> 620ms linearly.
+  const root = getComputedStyle(document.documentElement).getPropertyValue("--pond-h").trim();
+  const m = root.match(/^([\d.]+)vh$/);
+  if (!m) return 900;
+  const vh = parseFloat(m[1]);
+  // linear interpolation
+  const t = Math.max(0, Math.min(1, (vh - 17) / 2));
+  return Math.round(1100 - t * 480);
+}
+function spawnBwcBubble() {
+  if (!bwcBubblesHost || isMotionReduced() || document.hidden) return;
+  const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  c.setAttribute("cx", "15");
+  c.setAttribute("cy", "0");
+  // tiny x drift so bubbles don't ride a perfect vertical line
+  const drift = (Math.random() - 0.5) * 1.2;
+  c.setAttribute("transform", `translate(${drift.toFixed(2)} 0)`);
+  // bubble size varies so a tick reads as a soft variation rather than a clock
+  const r = 0.9 + Math.random() * 0.9;
+  c.setAttribute("r", r.toFixed(2));
+  c.style.setProperty("--bwc-dur", bwcBubblePeriodMs() + "ms");
+  bwcBubblesHost.appendChild(c);
+  setTimeout(() => c.remove(), bwcBubblePeriodMs() + 80);
+}
+function bwcTick() {
+  bwcTicks++;
+  try { localStorage.setItem(BWC_KEY, String(bwcTicks)); } catch {}
+  renderBwcCount();
+  spawnBwcBubble();
+  _bwcTimer = setTimeout(bwcTick, bwcBubblePeriodMs());
+}
+function startBwcLoop() {
+  if (_bwcTimer) clearTimeout(_bwcTimer);
+  _bwcTimer = null;
+  if (isMotionReduced()) return;
+  // first tick in 700ms so an idle page doesn't show a bubble mid-load
+  _bwcTimer = setTimeout(bwcTick, 700);
+}
+function stopBwcLoop() {
+  if (_bwcTimer) clearTimeout(_bwcTimer);
+  _bwcTimer = null;
+}
+startBwcLoop();
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) stopBwcLoop();
+  else startBwcLoop();
+});
+
+/* ============================================================
+   feature: devlog #36 — beach-comb brass finder
+   click cycles 6 found items (ammonite · cowrie · sliver of flint ·
+   sea-glass · copper coin · shark's tooth). each is a real ocean/shore
+   thing with a one-line note. the bc-find bead flashes briefly on click
+   for feedback. counter persists.
+   key: biosphere02.beachcomb.v1
+   ============================================================ */
+const BC_FINDS = [
+  { name: "ammonite",        hue: "#7a5a8a", desc: "an ammonite · spiraled · jurassic · 8mm across · told by the chambered math inside" },
+  { name: "cowrie",          hue: "#d4a98a", desc: "a tiger cowrie · porcelain teeth still smooth · small enough to slip in a pocket" },
+  { name: "flint sliver",    hue: "#a8957a", desc: "a sliver of flint · struck steel along it once and got the smell you don't forget" },
+  { name: "sea-glass",       hue: "#6ab4a8", desc: "a frosted sea-glass bead · pale mint · rolled for years by wave and stone" },
+  { name: "copper coin",     hue: "#c0533f", desc: "a salt-worn copper coin · the dates washed away · green at the rim" },
+  { name: "shark's tooth",   hue: "#e8e0c0", desc: "a small shark's tooth · black enamel · you wouldn't see it unless you looked for it" },
+];
+const BC_KEY = "biosphere02.beachcomb.v1";
+const bcEl = document.getElementById("beach-comb");
+const bcFind = bcEl ? bcEl.querySelector(".bc-find") : null;
+let bcIndex = (() => { try { return +localStorage.getItem(BC_KEY) || 0; } catch { return 0; } })();
+
+function renderBc() {
+  const find = BC_FINDS[bcIndex % BC_FINDS.length];
+  if (bcFind) bcFind.setAttribute("fill", find.hue);
+  const stat = document.getElementById("beachcomb-stat");
+  if (stat) stat.textContent = bcIndex;
+}
+renderBc();
+if (bcEl) {
+  bcEl.addEventListener("click", () => {
+    const find = BC_FINDS[bcIndex % BC_FINDS.length];
+    bcIndex++;
+    try { localStorage.setItem(BC_KEY, String(bcIndex)); } catch {}
+    renderBc();
+    bcEl.classList.add("combing");
+    setTimeout(() => bcEl.classList.remove("combing"), 380);
+    toast(`${find.desc}`, 3200);
+  });
+}
+
+/* ============================================================
+   feature: devlog #36 — cattail-spike binding torch
+   a tied bundle of dried cattail heads on a wooden stick. auto-lights
+   whenever the body has dawn/dusk/night class; click cycles forced-on /
+   forced-off / auto via a data-attr slot. a 1s interval polls the
+   body class and force state so the lit/unlit state stays correct
+   even on sky-lock changes. counter "rods lit" increments on each
+   user-issued transition (auto-relight in an idle tab does not).
+   key: biosphere02.cattailtorch.v1
+   ============================================================ */
+const CT_KEY = "biosphere02.cattailtorch.v1";
+const ctEl = document.getElementById("cattail-torch");
+const ctEmbers = ctEl ? ctEl.querySelector(".ct-embers") : null;
+let ctCount = (() => { try { return +localStorage.getItem(CT_KEY) || 0; } catch { return 0; } })();
+
+function renderCtCount() {
+  const stat = document.getElementById("cattailtorch-stat");
+  if (stat) stat.textContent = ctCount;
+}
+renderCtCount();
+function ctShouldBeLit() {
+  if (ctEl && ctEl.dataset.forced === "on") return true;
+  if (ctEl && ctEl.dataset.forced === "off") return false;
+  const b = document.body.classList;
+  return b.contains("dawn") || b.contains("dusk") || b.contains("night");
+}
+function applyCtLit() {
+  if (!ctEl) return;
+  ctEl.classList.toggle("lit", ctShouldBeLit());
+}
+applyCtLit();
+// poll correctness every second — the day cycle has its own 60s poll so
+// this is cheap and ensures sky-lock changes flip the torch within ~1s.
+setInterval(applyCtLit, 1000);
+function spawnCtEmbers() {
+  if (!ctEmbers || isMotionReduced()) return;
+  // small burst of 2-3 embers per ignition
+  const n = 2 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < n; i++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", "18");
+    c.setAttribute("cy", "22");
+    c.setAttribute("r", (0.8 + Math.random() * 0.6).toFixed(2));
+    // inline-var drives the horizontal drift on the keyframe
+    const dx = (Math.random() - 0.5) * 18;
+    c.style.setProperty("--ct-dx", dx.toFixed(1) + "px");
+    c.style.animationDelay = (Math.random() * 200).toFixed(0) + "ms";
+    c.style.animationDuration = (1500 + Math.random() * 600).toFixed(0) + "ms";
+    ctEmbers.appendChild(c);
+    setTimeout(() => c.remove(), 2200);
+  }
+}
+if (ctEl) {
+  // first stat-write should also be a user-issued event, so the first click
+  // in torch-night counts as the first rod lit. the auto-lit initial state
+  // does not increment ctCount, matching candle-stub's structural rule.
+  ctEl.addEventListener("click", () => {
+    const wasLit = ctShouldBeLit();
+    // cycle: auto -> forced-on -> forced-off -> auto
+    const cur = ctEl.dataset.forced || "auto";
+    const next = cur === "auto" ? "on" : cur === "on" ? "off" : "auto";
+    ctEl.dataset.forced = next;
+    const nowLit = ctShouldBeLit();
+    applyCtLit();
+    if (nowLit && !wasLit) {
+      ctCount++;
+      try { localStorage.setItem(CT_KEY, String(ctCount)); } catch {}
+      renderCtCount();
+      spawnCtEmbers();
+    } else if (cur === "on" && next === "off") {
+      // user explicitly doused, count a "douse" too so the counter ticks both ways
+      ctCount++;
+      try { localStorage.setItem(CT_KEY, String(ctCount)); } catch {}
+      renderCtCount();
+    }
+  });
+}
+
+/* ============================================================
+   feature: devlog #37 — shrine-stone, offering bowl, incense sticks,
+   oil lamp, prayer bead mala
+   five small shrine/altar pieces arranged in a top:184+ row below the
+   recent cattail-torch. each piece latches onto a system already
+   running rather than spawning fresh dependencies:
+   - shrine-stone: tints moss from body.season-* (no js poll); faint
+     green halo on body.dusk / *.night via a 1s poll + .dusk/.night
+     classes. click pulses the stone.
+   - offering-bowl: cycles 10 curated offerings via toast, persists
+     next-offer index so a returning user sees a different offering.
+   - incense-sticks: auto-lights at dawn/dusk/night on the same 1s
+     poll the candle-stub and cattail-torch use; click cycles
+     forced-on/off/auto via dataset.forced.
+   - oil-lamp: same auto-light pattern; visually distinct from
+     candle-stub (brass post + reservoir + chain wick + longer
+     flame) so a viewer reads "lit oil" not "burned wax".
+   - prayer-mala: anchors current bead to --moon-phase-frac on first
+     load (if the css var is set; otherwise random), click advances;
+     circuit counter increments on wrap.
+   counter keys (each follows biosphere02.<name>.v1):
+     biosphere02.shrinestone.v1   — vows laid
+     biosphere02.offeringbowl.v1  — offerings laid + next-offer index
+     biosphere02.incense.v1       — sticks lit
+     biosphere02.oillamp.v1       — lamps lit
+     biosphere02.mala.v1          — { next, circuits } as JSON
+   ============================================================ */
+
+/* ---- shared helper used by shrine-stone, incense, oil-lamp ----
+   we reuse the existing isMoodDark() defined in the candle-stub
+   block (function declarations hoist across the script, so devlog
+   #37 can call it even though it is textually defined ~8000 lines
+   later). no need to redeclare a near-identical helper here. */
+
+/* ---- 1) shrine-stone (#shrine-stone) ----
+   click pulses the stone and increments a "vows laid" counter. the
+   .dusk / .night classes are written by a 1s poll so a sky-lock change
+   flips the green-halo animation within ~1s without a separate
+   transition. */
+
+/* ---- 1) shrine-stone (#shrine-stone) ----
+   click pulses the stone and increments a "vows laid" counter. the
+   .dusk / .night classes are written by a 1s poll so a sky-lock change
+   flips the green-halo animation within ~1s without a separate
+   transition. */
+const SS_KEY = "biosphere02.shrinestone.v1";
+const ssEl = document.getElementById("shrine-stone");
+const ssStatEl = document.getElementById("shrinestone-stat");
+let ssCount = (() => { try { return +localStorage.getItem(SS_KEY) || 0; } catch { return 0; } })();
+function renderSsStat() { if (ssStatEl) ssStatEl.textContent = ssCount; }
+renderSsStat();
+function applySsMoodClass() {
+  if (!ssEl) return;
+  const b = document.body.classList;
+  ssEl.classList.toggle("dusk",  b.contains("dusk"));
+  ssEl.classList.toggle("night", b.contains("night"));
+}
+applySsMoodClass();
+setInterval(applySsMoodClass, 1000);
+if (ssEl) {
+  ssEl.addEventListener("click", () => {
+    ssCount++;
+    try { localStorage.setItem(SS_KEY, String(ssCount)); } catch {}
+    renderSsStat();
+    ssEl.classList.remove("pulsing");
+    void ssEl.offsetWidth;
+    ssEl.classList.add("pulsing");
+    setTimeout(() => ssEl.classList.remove("pulsing"), 400);
+    if (ssCount === 1) toast("a vow laid · the moss remembers", 2200);
+  });
+}
+
+/* ---- 2) offering bowl (#offering-bowl) ----
+   brass footed bowl. click rotates a 10-entry offering list and
+   persists the next index. the visible offering is selected via the
+   .active class on each .ob-find child group, so only one shape is
+   visible at a time (no per-frame work). */
+const OB_KEY = "biosphere02.offeringbowl.v1";
+const OB_FINDS = [
+  { id: "acorn",       desc: "an acorn · brown cap · smooth shell · would grow if you buried it" },
+  { id: "coin",        desc: "a copper coin · green at the rim · dates long washed away" },
+  { id: "sage",        desc: "a sage leaf · silver-green · burned it would calm a room" },
+  { id: "pine",        desc: "a pine needle · 4cm · dropped last winter · still supple" },
+  { id: "pebble",      desc: "a smooth river pebble · grey-blue · left over from high water" },
+  { id: "salt",        desc: "a pinch of grey salt · set here after the storm" },
+  { id: "sand-dollar", desc: "a sand dollar · cream · came in on the tide at first light" },
+  { id: "kelp",        desc: "a short frond of kelp · brought up from the deep-water line" },
+  { id: "feather",     desc: "a short sea-bird feather · pale cream · blown here in last night's wind" },
+  { id: "chip",        desc: "a thin wood shaving · curls in on itself · someone had a sharp knife here" },
+];
+function loadObState() {
+  try {
+    const v = JSON.parse(localStorage.getItem(OB_KEY) || "null");
+    return v && typeof v === "object" ? v : { next: 0, count: 0 };
+  } catch { return { next: 0, count: 0 }; }
+}
+function saveObState() {
+  try { localStorage.setItem(OB_KEY, JSON.stringify(obState)); } catch {}
+}
+const obState = loadObState();
+const obEl = document.getElementById("offering-bowl");
+const obStatEl = document.getElementById("offeringbowl-stat");
+function renderObFinding() {
+  if (!obEl) return;
+  const f = OB_FINDS[obState.next % OB_FINDS.length];
+  obEl.querySelectorAll(".ob-find").forEach(el => {
+    el.classList.toggle("active", el.classList.contains(f.id));
+  });
+}
+function renderObStat() { if (obStatEl) obStatEl.textContent = obState.count; }
+renderObFinding();
+renderObStat();
+let _obLastClick = 0;
+if (obEl) {
+  obEl.addEventListener("click", () => {
+    const now = Date.now();
+    if (now - _obLastClick < 220) return;
+    _obLastClick = now;
+    const f = OB_FINDS[obState.next % OB_FINDS.length];
+    obState.next++;
+    obState.count++;
+    saveObState();
+    renderObFinding();
+    renderObStat();
+    obEl.classList.remove("placed");
+    void obEl.offsetWidth;
+    obEl.classList.add("placed");
+    setTimeout(() => obEl.classList.remove("placed"), 480);
+    if (obState.count === 1) {
+      toast("the bowl holds what you leave it", 2400);
+      setTimeout(() => toast(f.desc, 2800), 700);
+    } else {
+      toast(f.desc, 2800);
+    }
+  });
+}
+
+/* ---- 3) incense sticks (#incense-sticks) ----
+   two thin sticks resting diagonally on a brass sand tray. follows
+   the candle-stub + cattail-torch auto-light + forced-cycle pattern
+   (same isMoodDark + 1s poll + dataset.forced machine). distinct from
+   the candle/cattail/flame visuals: ember-at-the-tip rather than a
+   flame or a torch-burst. smoke particles spawn via createElementNS
+   on each user-issued ignite. smoke appends into .is-smoke host. */
+const IS_KEY = "biosphere02.incense.v1";
+const isEl = document.getElementById("incense-sticks");
+const isSmokeHost = isEl ? isEl.querySelector(".is-smoke") : null;
+const isStatEl = document.getElementById("incense-stat");
+let isCount = (() => { try { return +localStorage.getItem(IS_KEY) || 0; } catch { return 0; } })();
+function renderIsStat() { if (isStatEl) isStatEl.textContent = isCount; }
+renderIsStat();
+function isShouldBeLit() {
+  if (isEl && isEl.dataset.forced === "on") return true;
+  if (isEl && isEl.dataset.forced === "off") return false;
+  return isMoodDark();
+}
+function applyIsLit() {
+  if (!isEl) return;
+  isEl.classList.toggle("lit", isShouldBeLit());
+}
+applyIsLit();
+setInterval(applyIsLit, 1000);
+function spawnIsSmoke() {
+  if (!isSmokeHost || isMotionReduced()) return;
+  const n = 2 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < n; i++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", "50");
+    c.setAttribute("cy", "15");
+    c.setAttribute("r", (0.7 + Math.random() * 0.6).toFixed(2));
+    const dx = (Math.random() - 0.5) * 8;
+    c.style.setProperty("--is-dx", dx.toFixed(1) + "px");
+    c.style.animationDelay = (Math.random() * 280).toFixed(0) + "ms";
+    c.style.animationDuration = (3400 + Math.random() * 1400).toFixed(0) + "ms";
+    isSmokeHost.appendChild(c);
+    setTimeout(() => c.remove(), 5000);
+  }
+}
+if (isEl) {
+  isEl.addEventListener("click", () => {
+    const wasLit = isShouldBeLit();
+    const cur = isEl.dataset.forced || "auto";
+    const next = cur === "auto" ? "on" : cur === "on" ? "off" : "auto";
+    isEl.dataset.forced = next;
+    const nowLit = isShouldBeLit();
+    applyIsLit();
+    if (nowLit && !wasLit) {
+      isCount++;
+      try { localStorage.setItem(IS_KEY, String(isCount)); } catch {}
+      renderIsStat();
+      spawnIsSmoke();
+    } else if (cur === "on" && next === "off") {
+      isCount++;
+      try { localStorage.setItem(IS_KEY, String(isCount)); } catch {}
+      renderIsStat();
+    }
+  });
+}
+
+/* ---- 4) oil lamp (#oil-lamp) ----
+   brass post + reservoir + chain wick + flame. follows the same
+   isMoodDark + 1s poll + dataset.forced cycle as candle-stub,
+   incense, and cattail-torch. soft amber ember particles append
+   into the ol-svg group on each user-issued ignite. */
+const OL_KEY = "biosphere02.oillamp.v1";
+const olEl = document.getElementById("oil-lamp");
+const olStatEl = document.getElementById("oillamp-stat");
+let olCount = (() => { try { return +localStorage.getItem(OL_KEY) || 0; } catch { return 0; } })();
+function renderOlStat() { if (olStatEl) olStatEl.textContent = olCount; }
+renderOlStat();
+function olShouldBeLit() {
+  if (olEl && olEl.dataset.forced === "on") return true;
+  if (olEl && olEl.dataset.forced === "off") return false;
+  return isMoodDark();
+}
+function applyOlLit() {
+  if (!olEl) return;
+  olEl.classList.toggle("lit", olShouldBeLit());
+}
+applyOlLit();
+setInterval(applyOlLit, 1000);
+function spawnOlEmber() {
+  if (!olEl || isMotionReduced()) return;
+  const olSvg = olEl.querySelector("svg.ol-svg");
+  if (!olSvg) return;
+  const n = 1 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < n; i++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", "16");
+    c.setAttribute("cy", "14");
+    c.setAttribute("r", (0.6 + Math.random() * 0.4).toFixed(2));
+    const dx = (Math.random() - 0.5) * 4;
+    c.style.setProperty("--ol-dx", dx.toFixed(1) + "px");
+    c.style.animationDelay = (Math.random() * 220).toFixed(0) + "ms";
+    c.style.animationDuration = (1700 + Math.random() * 700).toFixed(0) + "ms";
+    olSvg.appendChild(c);
+    setTimeout(() => c.remove(), 2600);
+  }
+}
+if (olEl) {
+  olEl.addEventListener("click", () => {
+    const wasLit = olShouldBeLit();
+    const cur = olEl.dataset.forced || "auto";
+    const next = cur === "auto" ? "on" : cur === "on" ? "off" : "auto";
+    olEl.dataset.forced = next;
+    const nowLit = olShouldBeLit();
+    applyOlLit();
+    if (nowLit && !wasLit) {
+      olCount++;
+      try { localStorage.setItem(OL_KEY, String(olCount)); } catch {}
+      renderOlStat();
+      spawnOlEmber();
+    } else if (cur === "on" && next === "off") {
+      olCount++;
+      try { localStorage.setItem(OL_KEY, String(olCount)); } catch {}
+      renderOlStat();
+    }
+  });
+}
+
+/* ---- 5) prayer bead mala (#prayer-mala) ----
+   27 wood-bead U-shape hanging from a small hook. beads generated and
+   drawn into #pm-beads once on first run; subsequent renders toggle
+   the .pm-current class on existing groups (no DOM rebuilds). click
+   advances one bead; on wrap the "circuits completed" counter ticks.
+   cooldown: 240ms minimum between clicks. */
+const MALA_KEY = "biosphere02.mala.v1";
+const MALA_COOLDOWN_MS = 240;
+const MALA_BEAD_COUNT = 27;
+const MALA_GURU_INDEX = 13;
+const pmEl = document.getElementById("prayer-mala");
+const pmBeadsHost = document.getElementById("pm-beads");
+const pmStatEl = document.getElementById("mala-stat");
+function loadMalaState() {
+  try {
+    const v = JSON.parse(localStorage.getItem(MALA_KEY) || "null");
+    return v && typeof v === "object" ? v : { next: null, circuits: 0 };
+  } catch { return { next: null, circuits: 0 }; }
+}
+function saveMalaState(s) {
+  try { localStorage.setItem(MALA_KEY, JSON.stringify(s)); } catch {}
+}
+function malaInitialBeadFromMoon() {
+  // the moon-journal block writes --moon-phase-frac on :root; if it's
+  // present, use it (so the mala ticks with the actual phase). fall
+  // back to a deterministic day-seed otherwise so first-time visitors
+  // on different days land on different beads (rather than always bead 1).
+  const f = getComputedStyle(document.documentElement).getPropertyValue("--moon-phase-frac").trim();
+  const v = parseFloat(f);
+  if (!isNaN(v)) return Math.floor(v * MALA_BEAD_COUNT) % MALA_BEAD_COUNT;
+  return Math.floor(Date.now() / 86400000) % MALA_BEAD_COUNT;
+}
+const mala = loadMalaState();
+if (mala.next === null || mala.next === undefined || mala.next < 0) {
+  mala.next = malaInitialBeadFromMoon();
+  saveMalaState(mala);
+}
+function malaPositions() {
+  // U-shape: 6 beads down the left, 15 along the bottom curve, 6 beads
+  // up the right. cy = 14 + i*5 (top-to-bottom for left column); the
+  // bottom row arcs slightly upward toward the middle (sin envelope)
+  // so the mala reads as hanging under gravity rather than as a perfect
+  // rectangular loop.
+  const W = 38, cx = W / 2;
+  const top = 14, botY = 60, radius = 16;
+  const out = [];
+  for (let i = 0; i < 6; i++) out.push({ x: cx - radius, y: top + i * 5 });
+  for (let i = 0; i < 15; i++) {
+    const t = i / 14;
+    const x = cx - radius + t * (2 * radius);
+    const arc = Math.sin(t * Math.PI) * 6;
+    out.push({ x, y: botY - arc });
+  }
+  for (let i = 0; i < 6; i++) out.push({ x: cx + radius, y: botY - 5 * i });
+  return out;
+}
+function buildMala() {
+  if (!pmBeadsHost) return;
+  pmBeadsHost.innerHTML = "";
+  const positions = malaPositions();
+  for (let i = 0; i < positions.length; i++) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.dataset.idx = i;
+    g.setAttribute("transform", `translate(${positions[i].x.toFixed(2)} ${positions[i].y.toFixed(2)})`);
+    // class lives on the group so SVG fill inheritance flows down to
+    // the circle inside. CSS targets ".pm-bead", ".pm-guru" and
+    // ".pm-current circle" — assigning class to <g> matches that
+    // selector set exactly. assign pm-current on the very first build
+    // so a fresh visit shows the highlighted bead at mala.next.
+    const baseCls = i === MALA_GURU_INDEX ? "pm-guru" : "pm-bead";
+    g.setAttribute("class", i === mala.next ? baseCls + " pm-current" : baseCls);
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("r", i === MALA_GURU_INDEX ? "2.6" : "2.1");
+    g.appendChild(c);
+    pmBeadsHost.appendChild(g);
+  }
+}
+function renderMala() {
+  if (!pmBeadsHost) return;
+  pmBeadsHost.querySelectorAll("g").forEach(g => {
+    const idx = +g.dataset.idx;
+    const isCurrent = idx === mala.next;
+    const baseCls = idx === MALA_GURU_INDEX ? "pm-guru" : "pm-bead";
+    g.setAttribute("class", isCurrent ? baseCls + " pm-current" : baseCls);
+  });
+}
+function renderMalaStat() { if (pmStatEl) pmStatEl.textContent = mala.circuits; }
+buildMala();
+renderMala();
+renderMalaStat();
+let _pmLastClick = 0;
+if (pmEl) {
+  pmEl.addEventListener("click", () => {
+    const now = Date.now();
+    if (now - _pmLastClick < MALA_COOLDOWN_MS) return;
+    _pmLastClick = now;
+    mala.next++;
+    if (mala.next >= MALA_BEAD_COUNT) {
+      mala.next = 0;
+      mala.circuits++;
+      toast("a full circuit · count it", 2200);
+    }
+    saveMalaState(mala);
+    renderMala();
+    renderMalaStat();
+    pmEl.classList.remove("advancing");
+    void pmEl.offsetWidth;
+    pmEl.classList.add("advancing");
+    setTimeout(() => pmEl.classList.remove("advancing"), 340);
+  });
+}
 // one fish shortly after load so the pond doesn't sit still for a full minute
 setTimeout(() => { if (pondW > 0) spawnFish(); }, 12_000);
 

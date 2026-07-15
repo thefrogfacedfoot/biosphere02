@@ -2926,9 +2926,175 @@ body.stargazer #ferns { opacity: 0.55; }
 #mushroom-log,
 #tide-whistle,
 #rain-spout,
-#kelp {
+#kelp,
+/* devlog #36 — four new top-shelf pieces share the same wobble cost. they
+   live up at top:64 mostly so --pond-h doesn't move them anyway, but the
+   transition is included so resize reflow stays smooth. */
+#wax-tablet,
+#bamboo-water-clock,
+#beach-comb,
+#cattail-torch {
   transition: bottom 1100ms ease, left 1100ms ease, right 1100ms ease, top 1100ms ease;
 }
+
+/* ==== devlog #36 — wax-tablet brass seal, hollow bamboo water clock,
+      beach-comb brass finder, cattail-spike binding torch ==== */
+
+/* ---- wax-tablet brass seal (top-shelf · 18 day-glyphs cycle) ----
+   positioned at top:64 left:170 so it reads as the next shelf piece after
+   the moon-journal (which ends at x=166). the seal "stamp" pulses up on
+   click and the wax -glyph text rotates through 18 stroke characters
+   (drawn as either unicode shapes or simple stroke paths). */
+#wax-tablet {
+  position: fixed;
+  left: 170px;
+  top: 64px;
+  width: 50px; height: 72px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#wax-tablet:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(255, 217, 160, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.wt-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.wt-glyph { transition: opacity 240ms ease; }
+.wt-wax.shine { transition: opacity 240ms ease; }
+#wax-tablet.stamping .wt-glyph { opacity: 0.4; transition: opacity 80ms ease; }
+#wax-tablet.stamping .wt-seal { animation: wt-stamp 360ms cubic-bezier(.2, .8, .3, 1); }
+@keyframes wt-stamp {
+  0%   { transform: translateY(0); }
+  35%  { transform: translateY(2.2px); }
+  100% { transform: translateY(0); }
+}
+#wax-tablet.stamping .wt-wax { filter: brightness(1.18); }
+body.motion-reduced #wax-tablet.stamping .wt-seal { animation: none; }
+body.motion-reduced .wt-glyph { transition: none; }
+body.stargazer #wax-tablet { opacity: 0.55; }
+
+/* ---- hollow bamboo water clock (top:64 left:236 · bubbles rise) ----
+   a vertical tube. a small bubble rises from the bottom of the water to
+   the top of the tube then pops, at a cadence derived from --pond-h.
+   slower than tide-flutes because we're rendering one bubble, not five
+   tones; rate range: ~1100ms at low tide / ~620ms at high tide. */
+#bamboo-water-clock {
+  position: fixed;
+  left: 236px;
+  top: 64px;
+  width: 30px; height: 80px;
+  z-index: 3;
+  cursor: default;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+.bwc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.bwc-water { transition: y 1100ms ease, height 1100ms ease; }
+.bwc-peek { transition: opacity 240ms ease; }
+.bwc-bubbles circle {
+  fill: rgba(190, 230, 250, 0.6);
+  stroke: rgba(190, 230, 250, 0.25);
+  stroke-width: 0.3;
+  filter: drop-shadow(0 0 1.5px rgba(190, 230, 250, 0.5));
+  animation: bwc-rise-burst var(--bwc-dur, 1100ms) cubic-bezier(.3, .2, .6, 1) forwards;
+}
+@keyframes bwc-rise-burst {
+  0%   { transform: translate(0, 44px) scale(0.55); opacity: 0; }
+  12%  { opacity: 0.85; }
+  90%  { opacity: 0.55; }
+  100% { transform: translate(0, -52px) scale(1.2); opacity: 0; }
+}
+body.motion-reduced .bwc-bubbles circle { animation: none !important; display: none; }
+body.stargazer #bamboo-water-clock { opacity: 0.55; }
+
+/* ---- beach-comb brass finder (top:64 left:288 · 6 found items) ----
+   reads as a comb-with-find; click cycles tides in a small "found item"
+   marker between two teeth. counter persists. */
+#beach-comb {
+  position: fixed;
+  left: 288px;
+  top: 64px;
+  width: 80px; height: 46px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease, filter 200ms ease;
+}
+#beach-comb:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(200, 180, 110, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.bc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+/* a brief flash on the find bead so the user sees the click feedback */
+#beach-comb.combing .bc-find { animation: bc-combing 360ms ease-out; }
+@keyframes bc-combing {
+  0%   { transform: scale(0.6); opacity: 0.4; }
+  50%  { transform: scale(1.8); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+body.motion-reduced #beach-comb.combing .bc-find { animation: none; }
+body.stargazer #beach-comb { opacity: 0.55; }
+
+/* ---- cattail-spike binding torch (top:124 right:90 · dusk/night auto-lit) ----
+   modeled on the candle-stub css: lit state has a flame + ember particles,
+   unlit has nothing visible. the .forced-on class keeps it lit across day
+   moods; .forced-off keeps it dim across dusk. a 1s interval polls the
+   body class and force-state, same cadence as the candle-stub. */
+#cattail-torch {
+  position: fixed;
+  top: 124px;
+  right: 90px;
+  width: 36px; height: 76px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease;
+}
+#cattail-torch:hover { transform: translateY(-2px); }
+.ct-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ct-flame, .ct-flame-hover { transition: opacity 400ms ease, fill 600ms ease; opacity: 0; }
+#cattail-torch.lit .ct-flame-hover { opacity: 0.55; }
+#cattail-torch.lit .ct-flame { opacity: 1; fill: rgba(255, 200, 110, 0.95); }
+.ct-embers circle {
+  fill: rgba(255, 217, 160, 0.9);
+  filter: drop-shadow(0 0 3px rgba(255, 180, 80, 0.85));
+  animation: ct-ember-rise linear forwards;
+  will-change: transform, opacity;
+}
+@keyframes ct-ember-rise {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.95; }
+  90%  { opacity: 0.5; }
+  100% { transform: translate(var(--ct-dx, 8px), -50px) scale(0.4); opacity: 0; }
+}
+body.stargazer #cattail-torch { opacity: 0.55; }
+body.motion-reduced .ct-embers circle { animation: none; display: none; }
+body.motion-reduced #cattail-torch .ct-flame,
+body.motion-reduced #cattail-torch .ct-flame-hover { transition: none; }
+
+/* ---- devlog #36 stat wraps on the bottom:112px row ----
+   the 112px row sits above the existing 96px (devlog #35), 80px (devlog #30),
+   64px (devlog #31), 48px (devlog #32), 32px (devlog #33), 14px (devlog #34)
+   rows so all 25+ counters share one band without overlap. the 4 stats use
+   the same vw-step ladder (top: 11vw, 26vw, 41vw, 57vw — the 73vw slot is
+   unused). */
+.waxtablet-stat-wrap,
+.cattailtorch-stat-wrap,
+.beachcomb-stat-wrap,
+.bamboowaterclock-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+}
+.waxtablet-stat-wrap        { bottom: 112px; left: 11vw; }
+.cattailtorch-stat-wrap     { bottom: 112px; left: 26vw; }
+.beachcomb-stat-wrap        { bottom: 112px; left: 41vw; }
+.bamboowaterclock-stat-wrap { bottom: 112px; left: 57vw; }
+.waxtablet-stat-wrap #waxtablet-stat,
+.cattailtorch-stat-wrap #cattailtorch-stat,
+.beachcomb-stat-wrap #beachcomb-stat,
+.bamboowaterclock-stat-wrap #bamboowaterclock-stat { color: var(--moss); margin-left: 4px; }
+body.stargazer .waxtablet-stat-wrap,
+body.stargazer .cattailtorch-stat-wrap,
+body.stargazer .beachcomb-stat-wrap,
+body.stargazer .bamboowaterclock-stat-wrap { opacity: 0.5; }
 
 /* ==== devlog #34 — moon-journal, mushroom-log, tide-whistle, rain-spout, kelp ==== */
 
@@ -5966,3 +6132,208 @@ body.stargazer .memoryjar-stat-wrap,
 body.stargazer .tidecompass-stat-wrap,
 body.stargazer .knotrope-stat-wrap,
 body.stargazer .inkstamp-stat-wrap { opacity: 0.5; }
+
+/* ==== devlog #37 — shrine & altar pieces (top:184-216 shelf row) ==== */
+
+/* ---- shared row wobble for the new shelf ----
+   matches the bottom-shore shelf easing so resize/mood changes
+   flicker the new pieces identically to the recent shelf pieces. */
+#shrine-stone,
+#offering-bowl,
+#incense-sticks,
+#oil-lamp,
+#prayer-mala {
+  transition: bottom 1100ms ease, left 1100ms ease, right 1100ms ease, top 1100ms ease;
+}
+
+/* ---- shrine-stone: tall mossy basalt ---- */
+#shrine-stone {
+  position: fixed;
+  left: 80px;
+  top: 184px;
+  width: 28px; height: 78px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#shrine-stone:hover { filter: drop-shadow(0 0 8px rgba(143, 212, 154, 0.5)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); transform: translateY(-1px); }
+.ss-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ss-moss { transition: fill 1100ms ease; fill: #6cb37e; }
+/* season-tint the moss without a js poll */
+body.season-spring .ss-moss { fill: #b6cf86 !important; }
+body.season-summer .ss-moss { fill: #6cb37e !important; }
+body.season-autumn .ss-moss { fill: #a8823e !important; }
+body.season-winter .ss-moss { fill: #5a7a8a !important; }
+/* faint green halo on dusk/night, gentle breath rather than one-shot */
+#shrine-stone.dusk, #shrine-stone.night {
+  filter: drop-shadow(0 0 14px rgba(143, 212, 154, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  animation: ss-breathe 3.4s ease-in-out infinite alternate;
+}
+@keyframes ss-breathe {
+  0%   { filter: drop-shadow(0 0 6px rgba(143, 212, 154, 0.25)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+  100% { filter: drop-shadow(0 0 18px rgba(143, 212, 154, 0.65)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+}
+#shrine-stone.pulsing { animation: ss-pulse 380ms cubic-bezier(.3, .8, .3, 1); }
+@keyframes ss-pulse {
+  0%   { transform: translateY(0) scale(1); }
+  50%  { transform: translateY(-3px) scale(1.04); }
+  100% { transform: translateY(0) scale(1); }
+}
+body.motion-reduced #shrine-stone.dusk,
+body.motion-reduced #shrine-stone.night { animation: none; }
+body.motion-reduced #shrine-stone.pulsing { animation: none; }
+body.stargazer #shrine-stone { opacity: 0.55; }
+
+/* ---- offering bowl: brass hemispherical bowl on a wooden foot ---- */
+#offering-bowl {
+  position: fixed;
+  left: 128px;
+  top: 212px;
+  width: 52px; height: 36px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#offering-bowl:hover { transform: translateY(-1.5px); filter: drop-shadow(0 0 8px rgba(255, 217, 160, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.ob-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ob-inside { transition: opacity 220ms ease; }
+.ob-find { transition: opacity 220ms ease; opacity: 0; }
+.ob-find.active { opacity: 1; }
+#offering-bowl.placed { animation: ob-place 460ms cubic-bezier(.3, .8, .3, 1); }
+@keyframes ob-place {
+  0%   { transform: translateY(0); }
+  35%  { transform: translateY(2px); }
+  100% { transform: translateY(0); }
+}
+body.motion-reduced #offering-bowl.placed { animation: none; }
+body.stargazer #offering-bowl { opacity: 0.55; }
+
+/* ---- incense sticks: two thin sticks on a brass sand tray ---- */
+#incense-sticks {
+  position: fixed;
+  left: 192px;
+  top: 212px;
+  width: 60px; height: 30px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#incense-sticks:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(255, 200, 110, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.is-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.is-ember-a, .is-ember-b { transition: opacity 220ms ease; opacity: 0; }
+#incense-sticks.lit .is-ember-a,
+#incense-sticks.lit .is-ember-b { opacity: 1; animation: is-glow 0.34s ease-in-out infinite alternate; }
+@keyframes is-glow {
+  0%   { fill: rgba(255, 180, 80, 0.7); }
+  100% { fill: rgba(255, 220, 130, 1); }
+}
+.is-smoke circle {
+  fill: rgba(220, 220, 230, 0.5);
+  filter: blur(2px);
+  animation: is-smoke-rise 5.6s cubic-bezier(.3, .2, .6, 1) forwards;
+}
+@keyframes is-smoke-rise {
+  0%   { transform: translate(0,0) scale(0.6); opacity: 0; }
+  14%  { opacity: 0.65; }
+  100% { transform: translate(var(--is-dx, 0px), -42px) scale(2.2); opacity: 0; }
+}
+body.wind-gust .is-smoke circle { animation-duration: 3.6s; }
+body.motion-reduced .is-smoke circle { animation: none; display: none; }
+body.motion-reduced #incense-sticks.lit .is-ember-a,
+body.motion-reduced #incense-sticks.lit .is-ember-b { animation: none; }
+body.stargazer #incense-sticks { opacity: 0.55; }
+
+/* ---- oil lamp: brass post + reservoir + chain wick + flame ----
+   same .lit class pattern as candle-stub; the flicker keyframe has a
+   slightly slower 0.40s cadence vs cs-flicker's 0.34s so oil reads as
+   a steadier ambient light. */
+#oil-lamp {
+  position: fixed;
+  right: 84px;
+  top: 184px;
+  width: 32px; height: 82px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#oil-lamp:hover { filter: drop-shadow(0 0 9px rgba(255, 200, 110, 0.6)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); transform: translateY(-1px); }
+.ol-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ol-flame, .ol-flame-hover { transition: opacity 600ms ease, fill 600ms ease, transform 240ms ease; opacity: 0; transform-origin: 16px 14px; }
+#oil-lamp.lit .ol-flame { opacity: 1; fill: rgba(255, 210, 120, 0.96); animation: ol-flicker 0.40s ease-in-out infinite alternate; }
+#oil-lamp.lit .ol-flame-hover { opacity: 0.6; }
+@keyframes ol-flicker {
+  from { transform: scaleY(0.92) scaleX(1.06) translateY(0); }
+  to   { transform: scaleY(1.10) scaleX(0.92) translateY(-0.6px); }
+}
+body.wind-gust #oil-lamp.lit .ol-flame { transform: scaleY(1.06) scaleX(0.84) translateX(2.6px); }
+body.wind-gust #oil-lamp.lit .ol-flame-hover { transform: translateX(2.6px); }
+body.motion-reduced #oil-lamp.lit .ol-flame,
+body.motion-reduced #oil-lamp.lit .ol-flame-hover { animation: none; }
+body.stargazer #oil-lamp { opacity: 0.55; }
+
+/* ---- prayer bead mala: 27 wood-bead U-curve with one highlighted ---- */
+#prayer-mala {
+  position: fixed;
+  right: 160px;
+  top: 188px;
+  width: 38px; height: 82px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#prayer-mala:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(220, 200, 130, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.pm-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pm-bead, .pm-guru { transition: fill 220ms ease, transform 220ms ease; }
+.pm-bead { fill: #6e4a26; }
+.pm-guru { fill: #a8823e; }
+.pm-current circle { fill: #ffd9a0; transform-box: fill-box; transform-origin: center; transform: scale(1.8); filter: drop-shadow(0 0 4px rgba(255, 217, 160, 0.7)); }
+#prayer-mala.advancing { animation: pm-tug 320ms ease-out; }
+@keyframes pm-tug {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-1.5px); }
+  100% { transform: translateY(0); }
+}
+body.motion-reduced #prayer-mala.advancing { animation: none; }
+body.stargazer #prayer-mala { opacity: 0.55; }
+
+/* ---- devlog #37 stat wraps on the bottom:130 row ----
+   stacking above devlog #36's bottom:112 row. the 16vw ladder matches
+   the existing pattern so the band reads as a row, not scattered. */
+.shrinestone-stat-wrap,
+.offeringbowl-stat-wrap,
+.incense-stat-wrap,
+.oillamp-stat-wrap,
+.prayer-mala-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+}
+.shrinestone-stat-wrap  { bottom: 130px; left: 8vw; }
+.offeringbowl-stat-wrap { bottom: 130px; left: 24vw; }
+.incense-stat-wrap      { bottom: 130px; left: 40vw; }
+.oillamp-stat-wrap      { bottom: 130px; left: 56vw; }
+.prayer-mala-stat-wrap  { bottom: 130px; left: 72vw; }
+.shrinestone-stat-wrap #shrinestone-stat,
+.offeringbowl-stat-wrap #offeringbowl-stat,
+.incense-stat-wrap #incense-stat,
+.oillamp-stat-wrap #oillamp-stat,
+.prayer-mala-stat-wrap #mala-stat { color: var(--moss); margin-left: 4px; }
+body.motion-reduced .shrinestone-stat-wrap,
+body.motion-reduced .offeringbowl-stat-wrap,
+body.motion-reduced .incense-stat-wrap,
+body.motion-reduced .oillamp-stat-wrap,
+body.motion-reduced .prayer-mala-stat-wrap { opacity: 0.7; }
+body.stargazer .shrinestone-stat-wrap,
+body.stargazer .offeringbowl-stat-wrap,
+body.stargazer .incense-stat-wrap,
+body.stargazer .oillamp-stat-wrap,
+body.stargazer .prayer-mala-stat-wrap { opacity: 0.5; }

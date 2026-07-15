@@ -1060,6 +1060,283 @@
   <span id="inkstamp-stat">0</span>
 </div>
 
+<!-- devlog #36 — wax-tablet brass seal (top:64, left:170 — top-shelf piece)
+     a small dark crimson wax tablet with a brass seal stamp resting on it.
+     click seals today's stamp (rotates through 18 day-glyphs). counter
+     persists. state keeps the last glyph index so a returning user picks
+     up where they left off rather than starting from char 0 again. -->
+<div id="wax-tablet" title="seal today's stamp" aria-label="a wax tablet and brass seal">
+  <svg class="wt-svg" viewBox="0 0 50 72" aria-hidden="true">
+    <ellipse class="wt-shadow" cx="25" cy="68" rx="20" ry="2.5" fill="rgba(0,0,0,0.32)"/>
+    <!-- wooden plank beneath wax -->
+    <rect x="3" y="56" width="44" height="6" rx="1" fill="#3a2415"/>
+    <rect x="3" y="56" width="44" height="1.4" fill="#5a3a26"/>
+    <!-- wax tablet: a flat dark crimson rectangle with sheen -->
+    <rect class="wt-wax" x="6" y="22" width="38" height="34" rx="2" fill="#8a1c2a"/>
+    <rect class="wt-wax hi" x="8" y="24" width="34" height="30" rx="1" fill="#a82a3a"/>
+    <rect class="wt-wax shine" x="14" y="26" width="12" height="2" fill="rgba(255,220,180,0.18)"/>
+    <!-- the impression: a glyph drawn into the wax (rotates on click) -->
+    <text class="wt-glyph" x="25" y="46" text-anchor="middle" font-size="12"
+          font-family="Georgia, serif" fill="#3a0a14" font-style="italic">✦</text>
+    <!-- the brass seal stamp resting on the right edge -->
+    <g class="wt-seal">
+      <rect x="34" y="14" width="3" height="10" rx="1" fill="#a8864a" stroke="#7a5a32" stroke-width="0.4"/>
+      <ellipse class="wt-seal-head" cx="35" cy="11" rx="6" ry="3.6" fill="#c5a36a" stroke="#7a5a32" stroke-width="0.5"/>
+      <ellipse cx="35" cy="11" rx="5" ry="2.6" fill="#dcc28c"/>
+      <line x1="31" y1="11" x2="39" y2="11" stroke="#a8864a" stroke-width="0.5"/>
+    </g>
+  </svg>
+</div>
+
+<!-- devlog #36 — hollow bamboo water clock (top:64, left:236)
+     a vertical bamboo tube with a bubble that rises on each tick; tick rate
+     is modulated by --pond-h via getComputedStyle() (slow at low tide, fast at
+     high tide — same coupling tide-whistle and tide-flutes already use). the
+     water line in the tube is drawn flat; counter: ticks. -->
+<div id="bamboo-water-clock" title="watch the bubble rise" aria-label="a hollow bamboo water clock">
+  <svg class="bwc-svg" viewBox="0 0 30 80" aria-hidden="true">
+    <ellipse class="bwc-shadow" cx="15" cy="78" rx="11" ry="1.5" fill="rgba(0,0,0,0.32)"/>
+    <!-- wooden base ring -->
+    <rect x="6" y="72" width="18" height="4" rx="1" fill="#3a2415"/>
+    <rect x="6" y="72" width="18" height="1.2" fill="#5a3a26"/>
+    <!-- the bamboo tube (a hollow chamber with a curve at top) -->
+    <path class="bwc-tube" d="M8 8 Q8 4 12 4 L18 4 Q22 4 22 8 L22 72 L8 72 Z"
+          fill="rgba(150,180,140,0.18)" stroke="#7a6238" stroke-width="0.7"/>
+    <!-- internal bamboo node ring near the top (where the bubble exits) -->
+    <line x1="8" y1="14" x2="22" y2="14" stroke="#7a6238" stroke-width="0.5" stroke-linecap="round"/>
+    <!-- the water level inside the tube -->
+    <rect class="bwc-water" x="9" y="56" width="12" height="16" fill="rgba(160,210,230,0.42)"/>
+    <!-- bubbles host (js appends here as they rise from the bottom up to the node ring) -->
+    <g class="bwc-bubbles" id="bwc-bubbles"></g>
+    <!-- the static "next bubble" peeking near the top of the tube -->
+    <circle class="bwc-peek" cx="15" cy="10" r="1.6" fill="rgba(190,230,250,0.5)"/>
+  </svg>
+</div>
+
+<!-- devlog #36 — beach-comb brass finder (top:64, left:288)
+     a wooden-handled beach comb with fine brass teeth resting on the shore.
+     click cycles through 6 curated found items (ammonite, cowrie, sliver of
+     flint, sea-glass, copper coin, shark's tooth), each surfaced by toast.
+     counter persists. -->
+<div id="beach-comb" title="run the comb" aria-label="a beach comb and brass teeth">
+  <svg class="bc-svg" viewBox="0 0 80 46" aria-hidden="true">
+    <ellipse class="bc-shadow" cx="40" cy="44" rx="30" ry="2" fill="rgba(0,0,0,0.32)"/>
+    <!-- wooden handle -->
+    <rect x="2" y="14" width="22" height="12" rx="2" fill="#5a3a26" stroke="#2a1a0a" stroke-width="0.5"/>
+    <rect x="2" y="14" width="22" height="1.4" fill="#7a4a30"/>
+    <!-- the comb head: brass backing with fine teeth -->
+    <rect class="bc-brass" x="24" y="10" width="54" height="20" rx="1" fill="#a8864a" stroke="#7a5a32" stroke-width="0.5"/>
+    <rect class="bc-brass hi" x="26" y="12" width="50" height="2" fill="#dcc28c"/>
+    <!-- brass teeth (12 thin spikes pointing down) -->
+    <g class="bc-teeth">
+      <line x1="28" y1="30" x2="28" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="32" y1="30" x2="32" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="36" y1="30" x2="36" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="40" y1="30" x2="40" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="44" y1="30" x2="44" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="48" y1="30" x2="48" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="52" y1="30" x2="52" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="56" y1="30" x2="56" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="60" y1="30" x2="60" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="64" y1="30" x2="64" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="68" y1="30" x2="68" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+      <line x1="72" y1="30" x2="72" y2="40" stroke="#a8864a" stroke-width="0.9" stroke-linecap="round"/>
+    </g>
+    <!-- a single kombu finding wedged between two teeth -->
+    <circle class="bc-find" cx="44" cy="36" r="1.6" fill="#7a5a8a"/>
+  </svg>
+</div>
+
+<!-- devlog #36 — cattail-spike binding torch (top:124, right:90 — upper shelf,
+     past the lighthouse foot). a tied bundle of dried cattail heads on a
+     wooden stick, wickable; auto-lights at dusk/night via body class check.
+     click toggles forced-on/off so a forced-on torch stays lit across day
+     moods. ember particles + faint smoke. counter: rods lit. -->
+<div id="cattail-torch" title="light the cattails" aria-label="a cattail-spike binding torch">
+  <svg class="ct-svg" viewBox="0 0 36 76" aria-hidden="true">
+    <ellipse class="ct-shadow" cx="18" cy="73" rx="10" ry="1.5" fill="rgba(0,0,0,0.32)"/>
+    <!-- the wooden stick -->
+    <line x1="18" y1="74" x2="18" y2="36" stroke="#3a2415" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- the binding string at the head — wrapped three times -->
+    <line x1="14" y1="42" x2="22" y2="42" stroke="#7a5a32" stroke-width="0.6"/>
+    <line x1="14" y1="40" x2="22" y2="40" stroke="#7a5a32" stroke-width="0.6"/>
+    <line x1="14" y1="38" x2="22" y2="38" stroke="#7a5a32" stroke-width="0.6"/>
+    <!-- the bound cattail heads (a tighter cluster) -->
+    <g class="ct-heads">
+      <ellipse cx="14" cy="34" rx="1.6" ry="5" fill="#5a3820"/>
+      <ellipse cx="18" cy="30" rx="1.7" ry="6.4" fill="#6a4a24"/>
+      <ellipse cx="22" cy="34" rx="1.6" ry="5" fill="#5a3820"/>
+      <ellipse cx="11" cy="38" rx="1.2" ry="3.6" fill="#5a3820"/>
+      <ellipse cx="25" cy="38" rx="1.2" ry="3.6" fill="#5a3820"/>
+    </g>
+    <!-- ember glow + flame (lit) -->
+    <ellipse class="ct-flame-hover" cx="18" cy="20" rx="4.5" ry="9" fill="rgba(255,200,110,0)" filter="blur(2.2px)"/>
+    <path class="ct-flame" d="M18 30 Q14 26 18 18 Q22 26 18 30 Z" fill="rgba(255,200,110,0)"/>
+    <!-- ember sparks host: small circles appended on click -->
+    <g class="ct-embers"></g>
+  </svg>
+</div>
+
+<!-- devlog #36 — stat wraps on the bottom:112px row (above devlog #35's 96px
+     row). four new stat counters share a horizontal band; positions match the
+     vw-step ladder established by the other counter rows. -->
+<div class="waxtablet-stat-wrap" aria-hidden="true">
+  <span>seals</span>
+  <span id="waxtablet-stat">0</span>
+</div>
+<div class="cattailtorch-stat-wrap" aria-hidden="true">
+  <span>rods lit</span>
+  <span id="cattailtorch-stat">0</span>
+</div>
+<div class="beachcomb-stat-wrap" aria-hidden="true">
+  <span>finds</span>
+  <span id="beachcomb-stat">0</span>
+</div>
+<div class="bamboowaterclock-stat-wrap" aria-hidden="true">
+  <span>ticks</span>
+  <span id="bamboowaterclock-stat">0</span>
+</div>
+
+<!-- devlog #37 — shrine & altar pieces (top:184 row, leans contemplative).
+     five small objects arranged left-to-right below the cattail-torch
+     (top:124 right:90) and well clear of the lighthouse (right:32 +
+     width:50). positions picked so the menhir at left:80 has room to
+     grow vertically (the existing stones are mostly 30-50px tall; a
+     78px vertical stone at top:184-262 reads as its own silhouette
+     rather than crowding the moonflower or the cairn). the brass
+     offering bowl sits to the right of the menhir, the incense tray
+     after that, the oil lamp and prayer-mala hang on the right end.
+     each piece's stat counter lives on a fresh bottom:130 row above
+     the devlog #36 bottom:112 row and the devlog #35 bottom:96 row. -->
+
+<!-- devlog #37 — mossy shrine-stone. a tall upright basalt with three
+     moss patches near the top and a faint etched runic at chest height.
+     moss tint is sourced from body.season-* via css so it hitches to
+     the palette already in use — no js poll, no extra css variables. -->
+<div id="shrine-stone" title="lay a vow" aria-label="a mossy shrine stone">
+  <svg class="ss-svg" viewBox="0 0 28 78" aria-hidden="true">
+    <ellipse class="ss-shadow" cx="14" cy="74" rx="9" ry="2.5" fill="rgba(0,0,0,0.32)"/>
+    <path d="M6 12 Q4 8 6 4 L22 4 Q24 8 22 12 L23 70 L5 70 Z" fill="#3a3024"/>
+    <path d="M6 12 Q4 8 6 4 L14 4 L14 70 L5 70 Z" fill="#4a3e30"/>
+    <path class="ss-moss" d="M8 14 Q12 11 16 14 Q14 17 10 17 Z"/>
+    <path class="ss-moss" d="M16 19 Q19 16 22 19 Q20 22 17 22 Z"/>
+    <path class="ss-moss" d="M6 24 Q9 22 12 25 Q10 28 7 27 Z"/>
+    <line x1="13" y1="46" x2="15" y2="46" stroke="#1a1408" stroke-width="0.6" stroke-linecap="round"/>
+    <line x1="11" y1="48" x2="17" y2="48" stroke="#1a1408" stroke-width="0.6"/>
+    <line x1="13" y1="50" x2="15" y2="50" stroke="#1a1408" stroke-width="0.6"/>
+  </svg>
+</div>
+
+<!-- devlog #37 — brass offering bowl on a wooden foot. click rotates
+     through 10 curated offerings; each is greeted with a one-line
+     toast description. persists next-offer index so a returning user
+     lands on a different offering than the last seen one. -->
+<div id="offering-bowl" title="leave an offering" aria-label="a brass offering bowl">
+  <svg class="ob-svg" viewBox="0 0 52 36" aria-hidden="true">
+    <ellipse class="ob-shadow" cx="26" cy="34" rx="20" ry="2.5" fill="rgba(0,0,0,0.32)"/>
+    <ellipse cx="26" cy="30" rx="14" ry="2.4" fill="#3a2415"/>
+    <ellipse cx="26" cy="29.5" rx="14" ry="2.4" fill="#4a3020"/>
+    <path d="M10 22 Q10 14 26 14 Q42 14 42 22 Q42 28 26 28 Q10 28 10 22 Z" fill="#a8864a"/>
+    <path d="M10 22 Q10 14 26 14 Q42 14 42 22" fill="none" stroke="#7a5a32" stroke-width="0.7"/>
+    <ellipse class="ob-inside" cx="26" cy="20" rx="13" ry="4.5" fill="#5a4022"/>
+    <g class="ob-findings">
+      <circle class="ob-find acorn"        cx="26" cy="20" r="2.4" fill="#7a4a18"/>
+      <circle class="ob-find coin"         cx="26" cy="20" r="2.2" fill="#c0533f"/>
+      <ellipse class="ob-find sage"        cx="26" cy="20" rx="3.2" ry="1.0" fill="#7fae7a"/>
+      <line class="ob-find pine" x1="22" y1="20" x2="30" y2="20" stroke="#3d5a3a" stroke-width="0.8" stroke-linecap="round"/>
+      <circle class="ob-find pebble"      cx="26" cy="20" r="2.0" fill="#a39c8e"/>
+      <circle class="ob-find salt"        cx="26" cy="20" r="2.0" fill="#e8ebf0"/>
+      <circle class="ob-find sand-dollar" cx="26" cy="20" r="2.4" fill="#e8dcc0"/>
+      <path class="ob-find kelp" d="M22 19 L24 20 L22 21 L26 20 L24 21 L28 21 Z" fill="#4a6a5a"/>
+      <ellipse class="ob-find feather"    cx="26" cy="20" rx="3.4" ry="1.0" fill="#f7e1c0"/>
+      <path class="ob-find chip" d="M23 19 L26 17 L29 19 L27 21 Z" fill="#9c6a3a"/>
+    </g>
+    <line x1="14" y1="22" x2="38" y2="22" stroke="#7a5a32" stroke-width="0.4" opacity="0.5"/>
+  </svg>
+</div>
+
+<!-- devlog #37 — two thin incense sticks resting diagonally on a brass
+     sand tray. ember visibility at the tip is the lit-state signal;
+     click cycles forced-on/off/auto via dataset.forced, mirroring the
+     candle-stub and the recent cattail-torch pattern. counter increments
+     only on user-issued ignitions — auto-relight does not inflate. -->
+<div id="incense-sticks" title="light the incense" aria-label="incense sticks on a sand tray">
+  <svg class="is-svg" viewBox="0 0 60 30" aria-hidden="true">
+    <ellipse class="is-shadow" cx="30" cy="28" rx="22" ry="2" fill="rgba(0,0,0,0.32)"/>
+    <rect class="is-tray" x="6" y="20" width="48" height="6" rx="1" fill="#a8864a" stroke="#7a5a32" stroke-width="0.5"/>
+    <rect class="is-sand" x="8" y="22" width="44" height="3" fill="#9a7a4a"/>
+    <line x1="12" y1="18" x2="50" y2="14" stroke="#5a3a20" stroke-width="0.9"/>
+    <line x1="12" y1="20" x2="50" y2="16" stroke="#5a3a20" stroke-width="0.9"/>
+    <circle class="is-ember-a" cx="50" cy="14" r="1.4" fill="rgba(255,180,80,0)"/>
+    <circle class="is-ember-b" cx="50" cy="16" r="1.4" fill="rgba(255,180,80,0)"/>
+    <g class="is-smoke"></g>
+  </svg>
+</div>
+
+<!-- devlog #37 — small oil-lamp votive on a brass post. visually distinct
+     from the existing candle-stub (a wax stub on a rock): the oil lamp
+     has a brass post + brass reservoir + chain wick + elongated flame,
+     drawn so a viewer reads "lit oil" not "burned wax" within 0.4s.
+     follows the candle-stub + cattail-torch pattern: isMoodDark() check +
+     1s-interval poll; click cycles forced-on/off/auto via dataset.forced. -->
+<div id="oil-lamp" title="light the lamp" aria-label="an oil lamp on a brass post">
+  <svg class="ol-svg" viewBox="0 0 32 82" aria-hidden="true">
+    <ellipse class="ol-shadow" cx="16" cy="79" rx="10" ry="1.5" fill="rgba(0,0,0,0.32)"/>
+    <rect x="11" y="74" width="10" height="6" rx="0.6" fill="#3a2415"/>
+    <rect x="11" y="74" width="10" height="1.2" fill="#5a3a26"/>
+    <line x1="16" y1="74" x2="16" y2="34" stroke="#a8864a" stroke-width="1.6"/>
+    <path d="M8 34 Q8 30 16 30 Q24 30 24 34 Q24 40 16 40 Q8 40 8 34 Z" fill="#a8864a"/>
+    <ellipse cx="16" cy="32" rx="6" ry="1.4" fill="#dcc28c"/>
+    <line x1="16" y1="32" x2="16" y2="22" stroke="#3a2a1a" stroke-width="0.5"/>
+    <ellipse class="ol-flame-hover" cx="16" cy="14" rx="6" ry="10" fill="rgba(255,200,110,0)" filter="blur(2.4px)"/>
+    <path class="ol-flame" d="M16 24 Q12 18 16 8 Q20 18 16 24 Z" fill="rgba(255,200,110,0)"/>
+  </svg>
+</div>
+
+<!-- devlog #37 — 27 wood-bead prayer mala hanging in a U-shape from a
+     small hook at top:188 right:160. one bead highlighted as the
+     current. click advances the highlight; when the highlight reaches
+     bead 27 and the user clicks again, it wraps to 1 and increments
+     the "circuits completed" counter. initial bead on first load is
+     anchored to --moon-phase-frac so a returning user lands on a
+     different bead than yesterday. visible across all moods. bead
+     groups are emitted by js on first run so the layout stays stable
+     across reloads; re-renders toggle .pm-current on existing groups. -->
+<div id="prayer-mala" title="advance a bead" aria-label="a prayer bead mala">
+  <svg class="pm-svg" viewBox="0 0 38 82" aria-hidden="true">
+    <line x1="19" y1="0" x2="19" y2="6" stroke="#3a2a1a" stroke-width="0.7"/>
+    <circle cx="19" cy="6" r="1.2" fill="#3a2a1a"/>
+    <g class="pm-beads" id="pm-beads"></g>
+    <line x1="19" y1="76" x2="19" y2="80" stroke="#c0533f" stroke-width="0.7"/>
+    <circle cx="19" cy="80" r="1.0" fill="#c0533f"/>
+  </svg>
+</div>
+
+<!-- devlog #37 — five stat counters share the new bottom:130 row,
+     stacking above the bottom:112 devlog #36 row, the bottom:96 devlog
+     #35 row, and the bottom:80 devlog #30 row. placements follow the
+     existing 16vw ladder so the band reads as a row, not scattered. -->
+<div class="shrinestone-stat-wrap" aria-hidden="true">
+  <span>vows</span>
+  <span id="shrinestone-stat">0</span>
+</div>
+<div class="offeringbowl-stat-wrap" aria-hidden="true">
+  <span>offerings</span>
+  <span id="offeringbowl-stat">0</span>
+</div>
+<div class="incense-stat-wrap" aria-hidden="true">
+  <span>sticks lit</span>
+  <span id="incense-stat">0</span>
+</div>
+<div class="oillamp-stat-wrap" aria-hidden="true">
+  <span>lamps lit</span>
+  <span id="oillamp-stat">0</span>
+</div>
+<div class="prayer-mala-stat-wrap" aria-hidden="true">
+  <span>circuits</span>
+  <span id="mala-stat">0</span>
+</div>
+
 <!-- welcome page (full-screen splash, first visit only — dismissable forever) -->
 <div id="welcome-page" class="welcome-page" hidden>
   <div class="welcome-card">
@@ -1579,7 +1856,26 @@
       <span class="tctrl"><button data-act="min">—</button><button data-act="max">▢</button><button data-act="close">×</button></span>
     </div>
     <div class="content">
-            <article class="logentry">
+      <article class="logentry">
+        <h3>devlog #37 — <span class="logdate">jul 21</span></h3>
+        <p>five small shrine &amp; altar pieces, sharing the v1-keying and body-class coupling of the recent batches. none are creatures, none spawn new windows, none add fresh dependency trees. each piece latches onto a system already running: the shrine-stone tints its moss from <code>body.season-*</code> via css and gains a faint green halo on body.dusk/night — no js poll. the offering-bowl cycles a curated 10-entry list through the existing toast helper and persists next-offer index so a returning user lands on a different offering than yesterday. the incense-tray, oil-lamp, and (already-in-code) candle-stub/cattail-torch share one <code>isMoodDark()</code> + 1s-interval poll pattern, so all four flip within 1s of each other on a sky-lock change. the prayer-mala anchors its current bead to the same <code>--moon-phase-frac</code> the moon-journal reads, so a returning user resumes at a different bead than yesterday.</p>
+        <p><strong>shrine-stone 🪨.</strong> a tall upright basalt with three moss patches near the top and a faint etched runic mark at chest height, at top:184 left:80. the stone-shaft fill is a two-tone facet (#3a3024 + #4a3e30) so a vertical seam reads as a quartz-like mineral rather than a flat silhouette. the moss patches are <code>ss-moss</code> paths colored per <code>body.season-*</code> (spring=light olive, summer=deep green, autumn=bronze-green, winter=faded blue-green) via a one-line css rule per season — no js poll. on body.dusk or body.night the stone gains a soft green halo via the <code>#shrine-stone.dusk</code> + <code>#shrine-stone.night</code> classes written by a 1s poll (consistent with the candle-stub pattern). click pulses the stone up 3px and back via the <code>ss-pulse</code> keyframe (380ms, cubic-bezier (0.3, 0.8)) and persists <code>biosphere02.shrinestone.v1</code>. counter: vows laid. ↦ dropped alternates: an explicit moss-erase that reveals a glowing rune underneath, like the moss-runestone. the moss-runestone is an interactive carving surface; the shrine-stone reads as already-inscribed; without an erase-to-reveal mechanic the moss stays put and the rune reads as part of the stone from day 1.</p>
+        <p><strong>brass offering bowl 🪙.</strong> a small brass footed bowl on a wooden foot at top:212 left:128, with one of 10 curated offerings visible inside the bowl at all times. the bowl rim is a half-ellipse path with a brass side highlight; the inside is a darker oval (#5a4022) where the offering sits. the offering pool: acorn, copper coin, sage leaf, pine needle, smooth pebble, salt crystal, sand dollar, kelp frond, sea-glass-and-feather (cream feather), wood shaving — each toasted with a one-line description. click rotates the visible offering by one step in the list and emits the matching toast. <code>biosphere02.offeringbowl.v1</code> persists the next-offer index. counter: offerings laid. ↦ what changed in revision: a per-season 10-offering pool (40 entries) would have been more literal but reads as a museum drawer. one ordered 10-entry pool across all seasons reads as a small journal of curated offerings — curation density matters more than catalog coverage.</p>
+        <p><strong>incense sticks 🪔.</strong> two thin wooden sticks resting diagonally on a brass sand tray at top:212 left:192 — same auto-light pattern as the candle-stub and the cattail-torch: <code>isMoodDark()</code> + 1s-interval poll flips <code>.lit</code> when the body class is dawn/dusk/night, click cycles forced-on → forced-off → auto via <code>dataset.forced</code>. ember visibility is the lit-state signal (two <code>is-ember-a/b</code> circles at the two stick tips, both opacity 0 by default and 1 on .lit, with a 0.34s alternate <code>is-glow</code> keyframe for a soft flicker). smoke particles are appended via createElementNS on each user-issued ignite with randomized <code>--is-dx</code> drift (window ±4px) and duration variance 3400..4800ms. counter "sticks lit" persists to <code>biosphere02.incense.v1</code> and increments only on user-issued ignitions; auto-relight does not inflate, mirroring the cattail-torch/candle-stub discipline. ↦ subtle distinction: incense has two sticks and a user click ignites both. the counter increments 1 per click rather than 2; counting by stick would inflate twice as fast as the candle-stub for the same human action.</p>
+        <p><strong>oil-lamp votive 🪔.</strong> a small brass oil lamp on a wooden plinth at top:184 right:84 — a brass post rising from the plinth to a brass reservoir bowl, then a chain-wick rising from the reservoir tip to a longer amber flame. visually distinct from the candle-stub (which sits on a rock): the oil-lamp has the brass post + chain-wick + elongated flame as separate visual elements, so the flame reads as "lit oil" rather than "burned wax" within 0.4s. follows the same isMoodDark() + 1s-interval poll + dataset.forced cycle as candle-stub + cattail-torch + incense — same architecture, four features. ember particles spawn via createElementNS on user-issued ignite with randomized <code>--ol-dx</code> in -2..+2 px; the flicker keyframe <code>ol-flicker</code> animates scaleY 0.92..1.10 with a slightly slower 0.40s cadence than <code>cs-flicker</code> (0.34s) so oil reads as a steadier ambient light. counter "lamps lit" persists to <code>biosphere02.oillamp.v1</code>, user-issued only. ↦ dropped: a 30-second "fade-in" on first auto-light at dusk. candle-stub's lit-state is instant. a 4-second warm-up reads as a glitch to a user who arrived at exactly dusk — fading transitions frame a moment of light as "the flicker is broken," not "the wick is catching."</p>
+        <p><strong>prayer bead mala 📿.</strong> a string of 27 wooden beads hanging in a U-shape from a small hook at top:188 right:160, with one bead highlighted as the current. click advances the highlight by one bead. when the highlight reaches bead 27 and the user clicks again, it wraps to bead 1 and increments a "circuits completed" counter. initial bead on first load is anchored to <code>--moon-phase-frac</code> via getComputedStyle — the same numeric the moon-journal samples — so a returning user lands on a different bead than yesterday. cooldown: 240ms minimum between clicks so a rapid-fire triple-tap doesn't burn through a full circuit in 0.8s. <code>biosphere02.mala.v1</code> persists <code>{ next, circuits }</code> as a JSON object so the two counters travel together. counter: circuits completed. ↦ structural note: the first draft had 108 beads (a "full mala"), but at a 2.1px bead radius and an 80px viewBox, a 108-bead U-shape packed tighter than a real one. 27 beads is half a mala and gives a circuit length of ~7 seconds at the 240ms cooldown — short enough to feel rewarding, long enough to feel like a count of something.</p>
+        <p>↦ structural coupling across all five pieces: the candle-stub / cattail-torch / incense-tray / oil-lamp auto-light quartet shares one isMoodDark() helper and one 1s-interval poll pattern; the four features flip within 1s of each other when day-rollover or a sky-lock change fires. a sky-lock change (settings → Sky: Night) immediately updates <code>body.classList.contains("dawn" | "dusk" | "night")</code> on the next 1s tick — no separate handler needed. the prayer-mala's --moon-phase-frac poll runs only on first load (the synodic moon doesn't tick fast enough for a 1s poll to add anything), so once the initial bead is set the mala costs zero per frame. the offering-bowl's offering index increments only on click, so idle pages don't drift through the offering list. the shrine-stone's moss tint is sourced from a single body.season-* class check via css, not a js poll, so adding a future feature that mutates season class updates all five moss-color ties at once with no handler edits. five additions, five systems, none doing per-frame work outside the visible interaction window. the cost is five SVG nodes plus five stat-wrap divs, totaling roughly 2.5kb of DOM, against a baseline scene that already has ~80 svg nodes from existing features — under construction by construction.</p>
+      </article>
+      <article class="logentry">
+        <h3>devlog #36 — <span class="logdate">jul 14</span></h3>
+        <p>four small top-shelf pieces, all on the theme of <em>small objects and found things</em>. none are creatures (sixteen plus the luna moth is plenty), none are new windows, none add fresh dependency trees. each one latches onto a system already running: the wax-tablet cycles a glyph and persists an index; the bamboo water clock reads <code>--pond-h</code> the same way tide-whistle and tide-flutes do; the cattail torch borrows the candle-stub's dawn/dusk/night auto-light pattern; the beach-comb cycles a curated list of six shore finds through the toast helper. counter follows the established <code>biosphere02.&lt;name&gt;.v1</code> convention with no cross-references, so a future feature named "torch" tomorrow can't collide with the "rods lit" counter.</p>
+        <p><strong>wax-tablet brass seal 🔥.</strong> a small wooden plank with a dark crimson wax tablet and a brass seal stamp resting on its right edge. placed at top:64 left:170 so it lives one shelf-piece to the right of the moon-jurnal which ends at x=166. the seal stamp head is a brass ellipse with a horizontal cross-stroke for that real-wax-seal feel. click pulses the seal down 2.2px via <code>wt-stamp</code> keyframe (360ms) and rotates the wax-tablet glyph through 18 entries — first 8 are star-shapes (✦ ❋ ✺ ✸ ❈ ✻ ❉ ✽), next 8 are planetary alchemical symbols (♆ ♇ ♁ ♃ ♄ ♅ ♀ ♂), last 2 are egyptian hieroglyphs (𓂃 𓇋). mixed scripts on purpose so the wax-tablet reads as a multi-era ledger rather than a serial numbered page. index and count both persist independently so a returning user resumes the cycle on the next glyph rather than starting at index 0 again. counter: seals. ↦ the dropped idea: adding a separate <code>force-dark</code> wax body class so the wax-tablet looked "drier" after a long stretch of clicks. without a screen of older impressions to compare, "fresh wax" reads as the new state — stale wax is a metaphor rather than a property you'd visibly distinguish on a one-tablet scale.</p>
+        <p><strong>hollow bamboo water clock 🪵.</strong> a vertical bamboo tube at top:64 left:236, water level in the bottom third, node ring near the top where bubbles "exit." the <code>bwc-tube</code> path follows a real bamboo node shape (squared shoulders at the top, flat bottom). the inner <code>bwc-water</code> rect is colored rgba(160,210,230,0.42) so it reads as pale pond water rather than a glass-tube-with-liquid. bubble rate is derived from <code>--pond-h</code> via getComputedStyle(): 17vh → 1100ms, 19vh → 620ms, linearly interpolated. by construction the clock tracks the actual tide cycle without a separate scheduler. synthesis: a single bubble spawned via createElementNS, with a randomized drift of ±0.6px and a randomized radius between 0.9 and 1.8 so successive ticks feel like a soft variation rather than a metronome. visibility-driven idle: setTimeout pauses when <code>document.hidden</code> is true, restarts on the visibilitychange event firing, mirroring the rain-spout's self-idempotency pattern from devlog #34. counter: ticks. ↦ why a single bubble, not a stream: a dense stream of bubbles reads as a fish-tank. one bubble per tick reads as a quiet clock — the user can keep tab open all afternoon and never feel like something is happening too fast.</p>
+        <p><strong>beach-comb brass finder 🐚.</strong> a wooden-handled brass-tooth comb at top:64 left:288, one small "found-item" bead nestled between two teeth. placed on the same shelf row as the other three pieces, ~50px to the right of the water clock. click advances the find through 6 curated shore objects (ammonite, tiger cowrie, sliver of flint, frosted sea-glass bead, salt-worn copper coin, shark's tooth) — all real shoreline finds you'd plausibly surface in a single morning's combing. each is published via toast with a one-line description beyond just the name (e.g. "a tiger cowrie · porcelain teeth still smooth · small enough to slip in a pocket"). the find bead flashes on click via <code>bc-combing</code> keyframe (360ms, scale 0.6→1.8→1, opacity 0.4→1→1) for visible click feedback without audio. counter: finds. ↦ a deferred thought: descriptions named specific eras (jurassic, etc.) where appropriate rather than keeping every find generic, because provenance makes a find feel "kept" rather than "described." no curation drift without intent.</p>
+        <p><strong>cattail-spike binding torch 🔥.</strong> a tied bundle of dried cattail heads on a wooden stick at top:124 right:90, distinct from the existing candle-stub (which is wax on a rock). positioned ~60px above the top shelf so it doesn't crowd the moon-journal and trilogy of wax/water/comb, and well clear of the lighthouse at right:32 + width:50. follows the candle-stub architecture exactly: a <code>ct-flame</code> path + a <code>ct-flame-hover</code> blurred halo ellipse, both opacity 0 until the body's dawn/dusk/night classes fire a 1s-interval poll. ember particles spawn via createElementNS on each user-issued ignition with randomized <code>--ct-dx</code> in -9..+9 px. click cycles forced-on → forced-off → auto via a <code>dataset.forced</code> slot, mirroring the candle-stub pattern with the same offset transitions. counter "rods lit" increments only on user-issued transitions, NOT on each auto-relight — so an idle visit at dusk doesn't inflate the counter. ↦ a structural note: a forced-on torch stays lit across day moods (the user explicitly said "keep going"), a forced-off torch stays dim across dusk (the user explicitly said "dark for now"). the 1s poll handles the sky-lock edge case where a user changes Sky in settings; without that poll the torch would stay in its previous forced state until the next mood transition.</p>
+        <p>↦ one shared structural note across all four: nothing here spawns creatures (sixteen is plenty on purpose). each feature has its own <code>biosphere02.&lt;name&gt;.v1</code> localStorage key with no cross-references, so a future feature named "beach" tomorrow can't collide. the bamboo water clock's <code>--pond-h</code> poll runs only on tick time, not on a 1s interval, so the clock costs zero when no bubbles are present. the cattail torch's ember burst runs only on a user-issued ignition, so the auto-lit initial state doesn't spawn a free ember ring on page load. the wax-tablet's <code>wt-stamp</code> keyframe runs only on click, never on hover. the beach-comb's <code>bc-combing</code> keyframe runs only on click, never on hover. four additions, four systems, none of them doing per-frame work outside the visible interaction window. the cost is the four SVG nodes (one per <code>div</code>) plus four stat-wrap divs, totaling ~3.5kb of DOM, against a baseline scene that already has ~80 svg nodes from existing features — under construction by construction.</p>
+      </article>
+      <article class="logentry">
         <h3>devlog #34 — <span class="logdate">aug 2</span></h3>
         <p>five more shoreline additions, all small, each latched onto a different existing system rather than spawning a fresh dependency. the discipline is the same as the last few batches: read signals that already exist, do something with them, persist state in a fresh localStorage key with a v1 suffix. no edits to existing js handlers beyond reading shared globals like <code>--pond-h</code>, <code>forecastFor()</code>, <code>body.wind-gust</code>.</p>
         <p><strong>moon-journal 🍂.</strong> a small wood-bound ledger on the lower-left shore, between the moonflower and the cairn. the page shows today's moon phase, computed on first load from the same synodic math the existing <code>setMoon()</code> uses. click cycles through eight SVG paths written into <code>.mj-shadow-overlay</code> — new, waxing crescent, first quarter, waxing gibbous, full, waning gibbous, last quarter, waning crescent. the overlay path covers the lit hemisphere on the shadow side, so a phase change is a single <code>d</code> attribute update and a css transition (320ms) cross-fades the new shape. counter: pages read. ↦ what i considered and dropped: a 1s poll of <code>--moon-phase-frac</code> so the journal updated live. the page is a book of static pages — sampling the live phase once at init is correct, and a poll would have read like "the journal is broken, sometimes it doesn't move."</p>
