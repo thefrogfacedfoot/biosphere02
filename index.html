@@ -1970,6 +1970,361 @@
   <span id="firefly-dance-stat">0</span>
 </div>
 
+<!-- devlog #39 — echo drum, ice-bubbles wand, smoke rune writer,
+     aurora needle, shadow cloth theater. five new shoreline pieces,
+     each latched onto a different existing system rather than spawning
+     fresh dependency trees. the discipline is the same as the last
+     few batches: read signals that already exist, do something with
+     them, persist state in a fresh localStorage key with a v1 suffix.
+     no edits to existing js handlers beyond reading shared globals
+     like pond/pond-h, body classes, and a single lazy AudioContext
+     borrowed from the existing instrument pool. -->
+
+<!-- a small frame drum on the left shore between the ferns and the
+     bench. click strikes the skin and emits a low percussion plus a
+     water-ring pulse that expands outward. if the click lands inside
+     a 4-second "tide reflection window" the rings return as three
+     staggered echoes — i.e. hall-of-mirrors over the pond. counter:
+     drum strikes. -->
+<div id="echo-drum" title="strike the drum" aria-label="an echo drum">
+  <svg class="ed-svg" viewBox="0 0 50 26" aria-hidden="true">
+    <ellipse class="ed-shadow" cx="25" cy="24" rx="20" ry="2.2" fill="rgba(0,0,0,0.34)"/>
+    <ellipse cx="25" cy="14" rx="20" ry="6" fill="#3a2415"/>
+    <ellipse cx="25" cy="13" rx="20" ry="6" fill="#4a3020"/>
+    <ellipse class="ed-skin" cx="25" cy="10" rx="18" ry="5" fill="#e8dcc0" stroke="#3a2415" stroke-width="0.9"/>
+    <ellipse cx="22" cy="9" rx="6" ry="1.4" fill="rgba(255, 240, 210, 0.32)"/>
+    <g class="ed-ropes" stroke="#cab3a0" stroke-width="0.6" fill="none" opacity="0.85">
+      <path d="M7 14 Q7 22 25 22 Q43 22 43 14"/>
+      <path d="M9.5 16.5 Q9.5 24 25 24 Q40.5 24 40.5 16.5"/>
+      <path d="M12 18 Q12 25 25 25 Q38 25 38 18"/>
+    </g>
+    <ellipse cx="25" cy="24" rx="14" ry="0.9" fill="rgba(0,0,0,0.55)"/>
+  </svg>
+  <div class="ed-rings-host" id="ed-rings-host" aria-hidden="true"></div>
+</div>
+
+<!-- a small frost-grey wand on the right shore, between the tide-stake
+     and the lighthouse foot. distinct from the existing bubble-wand
+     (left:632) which is summer bubbles: this one only functions on
+     winter / cold mood days. click on those days releases 2-4 perfectly
+     spherical ice bubbles that hover mid-air for ~30 seconds before
+     crumbling into frost flecks. click any bubble early to pop it.
+     counter: ice bubbles broken. -->
+<div id="ice-bubbles" title="blow an ice bubble" aria-label="a frozen bubble wand">
+  <svg class="ibw-svg" viewBox="0 0 18 56" aria-hidden="true">
+    <ellipse class="ibw-shadow" cx="9" cy="54" rx="6" ry="1.1" fill="rgba(0,0,0,0.32)"/>
+    <rect class="ibw-base" x="3" y="48" width="12" height="2" rx="0.6" fill="#8a96a4"/>
+    <line class="ibw-stem" x1="9" y1="48" x2="9" y2="14" stroke="#9aa6b4" stroke-width="1.3" stroke-linecap="round"/>
+    <circle class="ibw-loop" cx="9" cy="9" r="5" fill="rgba(220, 232, 245, 0.18)" stroke="#cfe0ee" stroke-width="1.1"/>
+    <line x1="9" y1="9" x2="9" y2="3.5" stroke="#cfe0ee" stroke-width="0.8"/>
+    <line x1="9" y1="9" x2="13" y2="11" stroke="#cfe0ee" stroke-width="0.8"/>
+    <line x1="9" y1="9" x2="9" y2="14.5" stroke="#cfe0ee" stroke-width="0.8"/>
+    <line x1="9" y1="9" x2="5" y2="11" stroke="#cfe0ee" stroke-width="0.8"/>
+    <circle cx="9" cy="9" r="0.9" fill="#cfe0ee"/>
+  </svg>
+</div>
+<div id="ice-bubbles-host" aria-hidden="true"></div>
+
+<!-- a small brass pipe with a beeswax tip just above the listening
+     conch. click emits a curling 8-second smoke rune, picked from a
+     curated pool of 8 (triangle, wave, eye, feather, branch, eye-cross,
+     loop, dot-cluster) — 8s is long enough to read but short enough
+     to not crowd the shore. smoke bends sharply with body.wind-gust
+     so the rune "knows the wind" the same way the resin censer smoke
+     does. counter: runes inscribed. -->
+<div id="smoke-rune-writer" title="write a smoke rune" aria-label="a brass smoke-rune writer">
+  <svg class="srw-svg" viewBox="0 0 28 40" aria-hidden="true">
+    <ellipse class="srw-shadow" cx="14" cy="38" rx="10" ry="1.4" fill="rgba(0,0,0,0.32)"/>
+    <rect x="11" y="20" width="6" height="18" rx="0.6" fill="#a8864a"/>
+    <rect x="11" y="20" width="6" height="18" rx="0.6" fill="rgba(255, 220, 150, 0.18)"/>
+    <polygon class="srw-tip" points="8,20 20,20 14,11" fill="#d9a05b"/>
+    <polygon points="9,18 19,18 14,12" fill="#c08a4a"/>
+    <circle cx="14" cy="10.5" r="0.9" fill="#3a1808"/>
+    <line x1="11" y1="24" x2="17" y2="24" stroke="#8a6a32" stroke-width="0.4"/>
+    <line x1="11" y1="28" x2="17" y2="28" stroke="#8a6a32" stroke-width="0.4"/>
+    <line x1="11" y1="32" x2="17" y2="32" stroke="#8a6a32" stroke-width="0.4"/>
+  </svg>
+  <div class="srw-runes-host" id="srw-runes-host" aria-hidden="true"></div>
+</div>
+
+<!-- a brass sextant-like instrument with a tilting needle, parked on
+     the upper-right back-of-shore. distinct from the existing
+     #magnetometer (the brass cylinder at left:418 with the Kp needle
+     slaved to NOAA SWPC live data): this one is a much simpler
+     quietly-tilting brass compass whose needle responds to local
+     aurora-peak windows via the existing body class system. click
+     "locks the bearing" and emits an expanding arc + faint chime.
+     counter: bearings locked. -->
+<div id="aurora-needle" title="lock auroral bearing" aria-label="a brass aurora needle">
+  <svg class="an-svg" viewBox="0 0 50 56" aria-hidden="true">
+    <ellipse class="an-shadow" cx="25" cy="54" rx="16" ry="1.8" fill="rgba(0,0,0,0.34)"/>
+    <line x1="25" y1="54" x2="25" y2="40" stroke="#3a2415" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="25" cy="40" r="3" fill="#5a4a32"/>
+    <circle cx="25" cy="22" r="19" fill="#2a1e10"/>
+    <circle cx="25" cy="22" r="17.5" fill="#5a4a32"/>
+    <circle cx="25" cy="22" r="16" fill="#1a1408"/>
+    <circle cx="25" cy="22" r="15" fill="#241c12"/>
+    <g stroke="#c8b08c" stroke-width="0.7" stroke-linecap="round">
+      <line x1="25" y1="8" x2="25" y2="10.5"/>
+      <line x1="25" y1="33.5" x2="25" y2="36"/>
+      <line x1="11" y1="22" x2="13.5" y2="22"/>
+      <line x1="36.5" y1="22" x2="39" y2="22"/>
+      <line x1="14.7" y1="14.7" x2="16.4" y2="16.4"/>
+      <line x1="33.6" y1="27.6" x2="35.3" y2="29.3"/>
+      <line x1="35.3" y1="14.7" x2="33.6" y2="16.4"/>
+      <line x1="16.4" y1="27.6" x2="14.7" y2="29.3"/>
+    </g>
+    <text x="25" y="9.4" font-size="3.1" font-family="Georgia, serif" fill="#ffd9a0" opacity="0.55" text-anchor="middle">AURORA</text>
+    <g class="an-needle" style="transform-origin: 25px 22px;">
+      <polygon points="23.4,22 26.6,22 25,7" fill="#a8864a"/>
+      <polygon points="23.4,22 26.6,22 25,37" fill="#5a4a32"/>
+      <circle cx="25" cy="22" r="1.8" fill="#2a1e10"/>
+      <circle cx="25" cy="22" r="0.7" fill="#cfe0ee"/>
+    </g>
+  </svg>
+  <div class="an-pulse-host" id="an-pulse-host" aria-hidden="true"></div>
+</div>
+
+<!-- a small cloth theater pinned between the third cattail bunch
+     (left:66vw) and the left side of the pond. six silhouette puppets
+     (bird, fish, fox, moth, leaf, wave) cycle on click via a flip
+     keyframe (scaleX 1 → 0 → 1, 380ms) so each cast reads as "drawn
+     in" / "drawn out." the cloth is pinned with two visible twine
+     lines that look like they hook the cattails. works in any mood;
+     reads best at dusk when shadow contrast is highest. counter:
+     silhouettes cast. -->
+<div id="shadow-theater" title="cast a silhouette" aria-label="a small shadow-cloth theater">
+  <svg class="st-svg" viewBox="0 0 70 56" aria-hidden="true">
+    <line x1="3" y1="6" x2="18" y2="14" stroke="#6a5030" stroke-width="0.7"/>
+    <line x1="67" y1="6" x2="52" y2="14" stroke="#6a5030" stroke-width="0.7"/>
+    <line x1="6.5" y1="14" x2="6.5" y2="20" stroke="#3a2415" stroke-width="0.7"/>
+    <line x1="63.5" y1="14" x2="63.5" y2="20" stroke="#3a2415" stroke-width="0.7"/>
+    <ellipse class="st-shadow" cx="35" cy="50" rx="20" ry="2.4" fill="rgba(0,0,0,0.30)"/>
+    <rect class="st-cloth" x="14" y="14" width="42" height="34" rx="1.4" fill="rgba(238, 232, 204, 0.94)"/>
+    <rect class="st-cloth-edge" x="14" y="14" width="42" height="0.6" fill="rgba(120, 90, 60, 0.45)"/>
+    <rect class="st-cloth-edge" x="14" y="47.4" width="42" height="0.6" fill="rgba(120, 90, 60, 0.45)"/>
+    <line x1="14" y1="22" x2="56" y2="22" stroke="rgba(170, 140, 100, 0.30)" stroke-width="0.4"/>
+    <line x1="14" y1="40" x2="56" y2="40" stroke="rgba(170, 140, 100, 0.30)" stroke-width="0.4"/>
+    <!-- the puppet wrapper stays empty until renderStPuppet() runs (load +
+         every click). the .st-puppet class on the wrapper is required for
+         the casting flip-keyframe to apply. -->
+    <g class="st-puppet" id="st-current-puppet" fill="#1a1408"></g>
+    <line x1="22" y1="48" x2="22" y2="54" stroke="#3a2415" stroke-width="0.8"/>
+    <line x1="48" y1="48" x2="48" y2="54" stroke="#3a2415" stroke-width="0.8"/>
+  </svg>
+</div>
+
+<!-- devlog #39 — stat-wrap band on the new bottom:166px row (just above
+     the existing bottom:148 devlog #38 row). five wraps, evenly spaced
+     across the same vw positions the previous harps used. -->
+<div class="echodrum-stat-wrap" aria-hidden="true">
+  <span>strikes</span>
+  <span id="echo-drum-stat">0</span>
+</div>
+<div class="icebubbles-stat-wrap" aria-hidden="true">
+  <span>ice bubbles</span>
+  <span id="ice-bubbles-stat">0</span>
+</div>
+<div class="smokerune-stat-wrap" aria-hidden="true">
+  <span>runes</span>
+  <span id="smoke-rune-stat">0</span>
+</div>
+<div class="auroraneedle-stat-wrap" aria-hidden="true">
+  <span>bearings</span>
+  <span id="aurora-needle-stat">0</span>
+</div>    <div class="shadowtheater-stat-wrap" aria-hidden="true">
+      <span>silhouettes</span>
+      <span id="shadow-theater-stat">0</span>
+    </div>
+
+    <!-- devlog #40 — petrified acorn (left-shore gravel at left:168), dusk gnat
+         swarm (over the right cattails at top:32vh left:32vw), glass dewdrop
+         (upper-right back shore at top:240 right:92, regenerates 60s after a
+         pop), haiku slip (above the dock zone at top:168 left:30vw, cycles six
+         three-line haikus via a foreignObject + a .hs-text fading transition). -->
+    <div id="petrified-acorn" title="crack the acorn" aria-label="a petrified acorn">
+      <svg viewBox="0 0 30 28" class="pa-svg" aria-hidden="true">
+        <ellipse class="pa-shadow" cx="15" cy="26" rx="7" ry="1.4" fill="rgba(0,0,0,0.32)"/>
+        <ellipse class="pa-shell" cx="15" cy="22" rx="9" ry="5.4" fill="#4a2e1c"/>
+        <ellipse class="pa-grain-1" cx="12" cy="20" rx="0.6" ry="1.4" fill="#3a2210" opacity="0.6"/>
+        <ellipse class="pa-grain-2" cx="17" cy="22" rx="0.5" ry="1.2" fill="#3a2210" opacity="0.6"/>
+        <ellipse class="pa-grain-3" cx="14" cy="24" rx="0.5" ry="1" fill="#3a2210" opacity="0.5"/>
+        <ellipse class="pa-cap" cx="15" cy="11.6" rx="9.4" ry="6.2" fill="#5e3a22"/>
+        <path class="pa-cap-tip" d="M9 8 L15 4 L21 8 L20.6 11 L9 11 Z" fill="#6a4428"/>
+        <ellipse class="pa-cap-stem" cx="15" cy="4" rx="1.2" ry="1.4" fill="#3a2210"/>
+        <circle class="pa-agate" cx="15" cy="22" r="2.2" fill="#a83048"/>
+        <circle class="pa-agate-vein" cx="15.4" cy="22.4" r="0.4" fill="#5a1018" opacity="0.7"/>
+        <circle class="pa-agate-glint" cx="14.2" cy="21.2" r="0.6" fill="#ffc8b8"/>
+      </svg>
+    </div>
+
+    <div id="dusk-gnat-swarm" title="stir the gnats" aria-label="a small cloud of midges">
+      <svg viewBox="0 0 64 64" class="dgs-svg" aria-hidden="true">
+        <circle class="dgs-gnat dgs-g1" cx="32" cy="32" r="1.1" fill="#1f1f1f"/>
+        <circle class="dgs-gnat dgs-g2" cx="36" cy="28" r="0.9" fill="#1f1f1f"/>
+        <circle class="dgs-gnat dgs-g3" cx="29" cy="33" r="1.0" fill="#1f1f1f"/>
+        <circle class="dgs-gnat dgs-g4" cx="33" cy="36" r="0.8" fill="#1f1f1f"/>
+        <circle class="dgs-gnat dgs-g5" cx="30" cy="29" r="1.0" fill="#1f1f1f"/>
+        <circle class="dgs-gnat dgs-g6" cx="35" cy="33" r="0.9" fill="#1f1f1f"/>
+        <circle class="dgs-gnat dgs-g7" cx="31" cy="34" r="0.8" fill="#1f1f1f"/>
+      </svg>
+    </div>
+
+    <div id="glass-dewdrop" title="pop the dewdrop" aria-label="a glass bead of morning dew">
+      <svg viewBox="0 0 18 18" class="gdd-svg" aria-hidden="true">
+        <circle class="gdd-bead-shadow" cx="9" cy="15.6" rx="3" ry="0.4" fill="rgba(0,0,0,0.32)"/>
+        <circle class="gdd-bead" cx="9" cy="9" r="5" fill="rgba(220, 240, 255, 0.35)" stroke="rgba(190, 220, 245, 0.55)" stroke-width="0.4"/>
+        <circle class="gdd-glint-a" cx="7.2" cy="7.2" r="1.4" fill="rgba(255, 255, 255, 0.72)"/>
+        <circle class="gdd-glint-b" cx="10.8" cy="10.8" r="0.7" fill="rgba(255, 255, 255, 0.45)"/>
+      </svg>
+    </div>
+
+    <div id="haiku-slip" title="read another slip" aria-label="a pinned haiku slip">
+      <svg viewBox="0 0 100 84" class="hs-svg" aria-hidden="true">
+        <rect class="hs-paper-shadow" x="6" y="6" width="88" height="68" rx="1.4" fill="rgba(0,0,0,0.30)"/>
+        <rect class="hs-paper" x="6" y="6" width="88" height="68" rx="1.4" fill="#f0e6d2"/>
+        <rect class="hs-paper-edge" x="6" y="6" width="88" height="68" rx="1.4" fill="none" stroke="#9a8866" stroke-width="0.4"/>
+        <line class="hs-fold" x1="50" y1="6" x2="50" y2="74" stroke="#a89868" stroke-width="0.3" stroke-dasharray="1.4 1.0" opacity="0.6"/>
+        <circle class="hs-pin-shine" cx="49.4" cy="5.4" r="0.5" fill="#e0c0a0"/>
+        <circle class="hs-pin" cx="50" cy="6" r="1.8" fill="#9a3a3a"/>
+        <foreignObject x="9" y="14" width="82" height="58">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="hs-text" id="haiku-text">the pond's respiration —<br/>stones throw back<br/>the night</div>
+        </foreignObject>
+      </svg>
+    </div>
+
+    <!-- devlog #40 stat-wrap band on the bottom:184px row (one row above the
+         bottom:166 devlog #39 row). four wraps at 16vw spacing — 8, 24, 40, 56
+         — match the existing band pattern so this row reads as the newest kid
+         above the others rather than scattered. -->
+    <div class="petrifiedacorn-stat-wrap" aria-hidden="true">
+      <span>cracks</span>
+      <span id="petrified-acorn-stat">0</span>
+    </div>
+    <div class="duskgnatswarm-stat-wrap" aria-hidden="true">
+      <span>dispersions</span>
+      <span id="dusk-gnat-swarm-stat">0</span>
+    </div>
+    <div class="glassdewdrop-stat-wrap" aria-hidden="true">
+      <span>beads popped</span>
+      <span id="glass-dewdrop-stat">0</span>
+    </div>
+    <div class="haikuslip-stat-wrap" aria-hidden="true">
+      <span>slips read</span>
+      <span id="haiku-slip-stat">0</span>
+    </div>
+
+    <!-- devlog #41 — tin-whistle (top:96 right:300), iron-keys (top:240 right:300),
+         lichen-mandala (left:96 bottom:240), tally-stick (top:128 left:8),
+         paper-boat (left:96 bottom:200). five small objects and found
+         things, no creatures, no new windows. each latches onto a body-class
+         system that already runs. -->
+
+    <div id="tin-whistle" title="play the whistle" aria-label="a tin whistle on a leather lanyard">
+      <svg class="tw2-svg" viewBox="0 0 36 60" aria-hidden="true">
+        <line class="tw2-string" x1="6" y1="0" x2="6" y2="6" stroke="#5a4022" stroke-width="0.8"/>
+        <ellipse class="tw2-lanyard-knot" cx="6" cy="6" rx="2" ry="1.4" fill="#5a4022"/>
+        <rect class="tw2-tube" x="13" y="8" width="10" height="50" rx="1.4" fill="#cab3a0" stroke="#7a6a52" stroke-width="0.5"/>
+        <rect class="tw2-shine" x="14" y="10" width="1.2" height="44" rx="0.8" fill="#e8dcc0" opacity="0.55"/>
+        <ellipse class="tw2-mouthpiece" cx="18" cy="56" rx="4.6" ry="1.4" fill="#7a6a52"/>
+        <line class="tw2-band" x1="13" y1="14" x2="23" y2="14" stroke="#7a6a52" stroke-width="0.4"/>
+        <line class="tw2-band" x1="13" y1="20" x2="23" y2="20" stroke="#7a6a52" stroke-width="0.4"/>
+        <line class="tw2-band" x1="13" y1="26" x2="23" y2="26" stroke="#7a6a52" stroke-width="0.4"/>
+        <line class="tw2-band" x1="13" y1="32" x2="23" y2="32" stroke="#7a6a52" stroke-width="0.4"/>
+        <line class="tw2-band" x1="13" y1="40" x2="23" y2="40" stroke="#7a6a52" stroke-width="0.4"/>
+        <line class="tw2-band" x1="13" y1="46" x2="23" y2="46" stroke="#7a6a52" stroke-width="0.4"/>
+        <circle class="tw2-hole" cx="18" cy="14" r="0.9" fill="#1a1408"/>
+        <circle class="tw2-hole" cx="18" cy="20" r="0.9" fill="#1a1408"/>
+        <circle class="tw2-hole" cx="18" cy="26" r="0.9" fill="#1a1408"/>
+        <circle class="tw2-hole" cx="18" cy="32" r="0.9" fill="#1a1408"/>
+        <circle class="tw2-hole" cx="18" cy="40" r="0.9" fill="#1a1408"/>
+        <circle class="tw2-hole" cx="18" cy="46" r="0.9" fill="#1a1408"/>
+      </svg>
+    </div>
+    <div class="tin-whistle-stat-wrap" aria-hidden="true">
+      <span>tin whistles</span>
+      <span id="tin-whistle-stat">0</span>
+    </div>
+
+    <div id="iron-keys" title="jingle the keyring" aria-label="a ring of three antique keys on a brass hook">
+      <svg class="ik-svg" viewBox="0 0 36 48" aria-hidden="true">
+        <line x1="18" y1="0" x2="18" y2="6" stroke="#3a2a1a" stroke-width="0.6"/>
+        <ellipse class="ik-hook" cx="18" cy="6" rx="2.6" ry="1.2" fill="#a8864a"/>
+        <g class="ik-cluster">
+          <circle cx="18" cy="14" r="3.4" fill="none" stroke="#7a6a52" stroke-width="1.2"/>
+          <g class="ik-key k1" style="transform: translate(-7px, 16px);">
+            <circle cx="0" cy="0" r="1.4" fill="#7a6a52"/>
+            <rect x="-1" y="0" width="2" height="14" fill="#7a6a52"/>
+            <rect x="-3" y="13" width="6" height="3" fill="#7a6a52"/>
+          </g>
+          <g class="ik-key k2" style="transform: translate(0px, 18px);">
+            <circle cx="0" cy="0" r="1.4" fill="#a8864a"/>
+            <rect x="-1" y="0" width="2" height="16" fill="#a8864a"/>
+            <rect x="-2" y="14" width="6" height="3" fill="#a8864a"/>
+            <rect x="1" y="11" width="2" height="3" fill="#a8864a"/>
+          </g>
+          <g class="ik-key k3" style="transform: translate(7px, 16px);">
+            <circle cx="0" cy="0" r="1.4" fill="#7a6a52"/>
+            <rect x="-1" y="0" width="2" height="13" fill="#7a6a52"/>
+            <rect x="-3" y="11" width="6" height="2.6" fill="#7a6a52"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="iron-keys-stat-wrap" aria-hidden="true">
+      <span>keyrings jingled</span>
+      <span id="iron-keys-stat">0</span>
+    </div>
+
+    <div id="lichen-mandala" title="grow the colony" aria-label="a concentric-ring lichen colony on a flat stone">
+      <svg class="lm-svg" viewBox="0 0 50 30" aria-hidden="true">
+        <ellipse class="lm-stone-shadow" cx="25" cy="27" rx="22" ry="2" fill="rgba(0,0,0,0.32)"/>
+        <ellipse class="lm-stone" cx="25" cy="22" rx="22" ry="6" fill="#7a6e58"/>
+        <ellipse class="lm-stone-hi" cx="25" cy="20.5" rx="20" ry="4.6" fill="#9a8e76"/>
+        <g class="lm-rings" id="lm-rings">
+          <circle class="lm-ring" cx="25" cy="22" r="2.4" fill="#7fae86" opacity="0.92"/>
+          <circle class="lm-ring" cx="25" cy="22" r="4.6" fill="#6a9670" opacity="0.75"/>
+          <circle class="lm-ring" cx="25" cy="22" r="7"   fill="#516e54" opacity="0.6"/>
+          <circle class="lm-ring" cx="25" cy="22" r="9.6" fill="#3d5840" opacity="0.45"/>
+        </g>
+      </svg>
+    </div>
+    <div class="lichen-mandala-stat-wrap" aria-hidden="true">
+      <span>lichen steps</span>
+      <span id="lichen-mandala-stat">0</span>
+    </div>
+
+    <div id="tally-stick" title="carve a tick" aria-label="a short driftwood tally stick">
+      <svg class="ts-svg" viewBox="0 0 14 80" aria-hidden="true">
+        <ellipse class="ts-shadow" cx="7" cy="78" rx="6" ry="1.2" fill="rgba(0,0,0,0.32)"/>
+        <rect class="ts-wood" x="3" y="2" width="8" height="76" rx="1.6" fill="#3a261a"/>
+        <line class="ts-grain-l" x1="5" y1="2" x2="5" y2="76" stroke="#5a3a26" stroke-width="0.4"/>
+        <line class="ts-grain-r" x1="9" y1="2" x2="9" y2="76" stroke="#5a3a26" stroke-width="0.4"/>
+        <line class="ts-cap" x1="3" y1="6" x2="11" y2="6" stroke="#1a1408" stroke-width="0.6"/>
+        <g class="ts-ticks" id="ts-ticks"></g>
+      </svg>
+    </div>
+    <div class="tally-stick-stat-wrap" aria-hidden="true">
+      <span>ticks carved</span>
+      <span id="tally-stick-stat">0</span>
+    </div>
+
+    <div id="paper-boat" title="launch the boat" aria-label="a small folded paper boat">
+      <svg class="pb-svg" viewBox="0 0 40 22" aria-hidden="true">
+        <ellipse class="pb-shadow" cx="20" cy="20" rx="14" ry="1.2" fill="rgba(0,0,0,0.32)"/>
+        <line class="pb-fold-line" x1="3" y1="14" x2="37" y2="14" stroke="#a0a8b0" stroke-width="0.3"/>
+        <path class="pb-hull-back" d="M3 14 L37 14 L34 18 L6 18 Z" fill="#dddee2" stroke="#5a6a72" stroke-width="0.4"/>
+        <path class="pb-hull-front" d="M3 14 L37 14 L30 8 L10 8 Z" fill="#edeeef" stroke="#5a6a72" stroke-width="0.4"/>
+        <path class="pb-sail" d="M20 13 L20 4 L28 11 Z" fill="#c0533f" opacity="0.92"/>
+        <line class="pb-mast" x1="20" y1="13.5" x2="20" y2="4" stroke="#5a4022" stroke-width="0.5"/>
+        <circle class="pb-flag" cx="20" cy="4" r="0.7" fill="#ffd9a0"/>
+      </svg>
+    </div>
+    <div class="paper-boat-stat-wrap" aria-hidden="true">
+      <span>boats launched</span>
+      <span id="paper-boat-stat">0</span>
+    </div>
+
 <main id="desktop">
 
   <!-- WINDOW: about -->
@@ -2018,6 +2373,24 @@
         <p><strong>oil-lamp votive 🪔.</strong> a small brass oil lamp on a wooden plinth at top:184 right:84 — a brass post rising from the plinth to a brass reservoir bowl, then a chain-wick rising from the reservoir tip to a longer amber flame. visually distinct from the candle-stub (which sits on a rock): the oil-lamp has the brass post + chain-wick + elongated flame as separate visual elements, so the flame reads as "lit oil" rather than "burned wax" within 0.4s. follows the same isMoodDark() + 1s-interval poll + dataset.forced cycle as candle-stub + cattail-torch + incense — same architecture, four features. ember particles spawn via createElementNS on user-issued ignite with randomized <code>--ol-dx</code> in -2..+2 px; the flicker keyframe <code>ol-flicker</code> animates scaleY 0.92..1.10 with a slightly slower 0.40s cadence than <code>cs-flicker</code> (0.34s) so oil reads as a steadier ambient light. counter "lamps lit" persists to <code>biosphere02.oillamp.v1</code>, user-issued only. ↦ dropped: a 30-second "fade-in" on first auto-light at dusk. candle-stub's lit-state is instant. a 4-second warm-up reads as a glitch to a user who arrived at exactly dusk — fading transitions frame a moment of light as "the flicker is broken," not "the wick is catching."</p>
         <p><strong>prayer bead mala 📿.</strong> a string of 27 wooden beads hanging in a U-shape from a small hook at top:188 right:160, with one bead highlighted as the current. click advances the highlight by one bead. when the highlight reaches bead 27 and the user clicks again, it wraps to bead 1 and increments a "circuits completed" counter. initial bead on first load is anchored to <code>--moon-phase-frac</code> via getComputedStyle — the same numeric the moon-journal samples — so a returning user lands on a different bead than yesterday. cooldown: 240ms minimum between clicks so a rapid-fire triple-tap doesn't burn through a full circuit in 0.8s. <code>biosphere02.mala.v1</code> persists <code>{ next, circuits }</code> as a JSON object so the two counters travel together. counter: circuits completed. ↦ structural note: the first draft had 108 beads (a "full mala"), but at a 2.1px bead radius and an 80px viewBox, a 108-bead U-shape packed tighter than a real one. 27 beads is half a mala and gives a circuit length of ~7 seconds at the 240ms cooldown — short enough to feel rewarding, long enough to feel like a count of something.</p>
         <p>↦ structural coupling across all five pieces: the candle-stub / cattail-torch / incense-tray / oil-lamp auto-light quartet shares one isMoodDark() helper and one 1s-interval poll pattern; the four features flip within 1s of each other when day-rollover or a sky-lock change fires. a sky-lock change (settings → Sky: Night) immediately updates <code>body.classList.contains("dawn" | "dusk" | "night")</code> on the next 1s tick — no separate handler needed. the prayer-mala's --moon-phase-frac poll runs only on first load (the synodic moon doesn't tick fast enough for a 1s poll to add anything), so once the initial bead is set the mala costs zero per frame. the offering-bowl's offering index increments only on click, so idle pages don't drift through the offering list. the shrine-stone's moss tint is sourced from a single body.season-* class check via css, not a js poll, so adding a future feature that mutates season class updates all five moss-color ties at once with no handler edits. five additions, five systems, none doing per-frame work outside the visible interaction window. the cost is five SVG nodes plus five stat-wrap divs, totaling roughly 2.5kb of DOM, against a baseline scene that already has ~80 svg nodes from existing features — under construction by construction.</p>
+      </article>
+      <article class="logentry">
+        <h3>devlog #40 — <span class="logdate">jul 30</span></h3>
+        <p><strong>petrified acorn 🪨.</strong> a small brown fossil seed at left-shore left:168. click fires pa-shell-shake + pa-cap-lift + pa-appear keyframes (700ms chained) — the cap lifts and rotates to -22deg, the red agate within scales from 0.4→1.15→1. the .cracked class persists via <code>biosphere02.petrifiedacorn.open.v1</code> so reload doesn't reset the reveal. <em>second click</em> re-triggers the keyframes via remove + rAF add so a bead that's already cracked still wobbles rather than no-op. body.aurora-peak sets a drop-shadow filter on the agate so it faintly glows red on auroral nights. counter: cracks.</p>
+        <p><strong>dusk gnat swarm 🦟.</strong> seven small midges hovering above the right cattails at top:32vh left:32vw. each gnat has its own <code>@keyframes dgs-drift-N</code> lazy 6-7s figure-eight micro-loop, so the cloud moves in a non-rigid fabric rather than a unified translation. click removes .drifting, adds .dispersing; per-gnat CSS custom props <code>--dgs-dx/--dgs-dy</code> (set by app.js at boot <em>and</em> re-assigned each click for a unique pattern) fly each gnat to its own angle via dgs-disperse 1500ms forwards. after 1500ms .drifting re-applies. opacity 0.4 on body.day, full on body.night / .dusk / aurora-peak — the swarm feels sparse in daylight and dense at dusk, which matches the visual humour. counter: dispersions.</p>
+        <p><strong>glass dewdrop 💧.</strong> a tiny glass bead at top:240 right:92. click pops it: <code>.popped</code> fades opacity 220ms, a <code>.gdd-halo</code> element is spawned at the bead's center coordinate (rendered fixed with -6px margin to center precisely on the bead) and removed after 800ms. the regen gate is a 60-second timestamp via <code>biosphere02.glassdewdrop.last.v1</code> — fully in app.js, no body class involved since regen is per-pop rather than environmental. clicks during the 60-second window are ignored (no counter inflation). the .gdd-bead's <code>gdd-pendulum</code> keyframe runs 4.5s ease-in-out infinite rotate(-4 → 4 → -4) so the bead feels still-anchored while the page still moves. counter: beads popped.</p>
+        <p><strong>haiku slip 📝.</strong> a small cream paper pinned with a red-tack at top:168 left:30vw, just above the dock zone. an <code>&lt;foreignObject&gt;</code> in the SVG hosts a <code>&lt;div id="haiku-text"&gt;</code> with three italic serif lines so the layout stays inside the SVG bounds while the text is real text. click cycles through 6 haikus (water, moon, heron, moonflower, grandfather's pocket-watch, lantern going out) via a 220ms .fading opacity transition + innerHTML swap. the persisted index via <code>biosphere02.haikuslip.idx.v1</code> reads back the same poem the user was reading on reload mid-cycle. body.night deepens the ink color so the text reads warmer against the paper. counter: slips read.</p>
+        <p>↦ shared structural note across all four: each feature has its own v1 localStorage key with no edits to any existing js. the acorn additionally has a 1-byte open-key, the dewdrop has a millisecond-timestamp regen-key, the haiku slip has an integer idx-key — three different persistence shapes, each matched to the feature's actual replay logic rather than one-fits-all. audio routes through the devlog #39 <code>_featureCtxRef</code> pool shared with the previous five instruments — adding four more oscillators doesn't require a second pool. the dusk-gnat-swarm is the only css-only one of the four: its drift motion is purely keyframes, no js per-frame work outside the visible interaction window. the glass dewdrop's halopulse element is appended to <code>document.body</code> rather than the dewdrop's parent (it sits outside the dewdrop's bounding box for most of the keyframe), so removing the dewdrop doesn't accidentally remove the halo. four additions, four systems, total added DOM cost ~3.2kb against a baseline scene that already has ~85 svg nodes.</p>
+      </article>
+      <article class="logentry">
+        <h3>devlog #39 — <span class="logdate">jul 28</span></h3>
+        <p>five new shoreline pieces, none of them creatures (sixteen plus the luna moth is plenty), none opening new windows, none adding fresh dependency trees. each one latches onto a system already running rather than spawning fresh dependencies: the echo drum is pure-dom + the existing pond ripple-pulse pattern; the ice bubbles reads <code>body.season-winter</code> from the existing isMoodCold pattern the bundle shares; the smoke rune writer reads <code>body.wind-gust</code> via css (no js poll); the aurora needle reads <code>body.aurora-peak</code> + <code>body.aurora-storm</code> from the existing aurora-forecast logic; the shadow cloth theater is pure-dom (no body-class dependence, just cycle-on-click). all five counters persist to <code>biosphere02.&lt;name&gt;.v1</code> with no cross-references, so a future feature named "drum" tomorrow cannot collide with the existing rain-drum counter, and one named "rune" cannot collide with ours. a shared lazy <code>_featureCtxRef</code> AudioContext pool sits behind all five — separate from the existing instrument pools so a stuck context keeps only the new features silent, never the established ones.</p>
+        <p><strong>echo drum 🥁.</strong> a small frame drum at left:96px on the lower-left shore (between the ferns and the dock-end). viewBox 50x26: a 6px-tall 32-wide skin ellipse, rope tethers around the frame, a small shadow ellipse under the rim. click fires the <code>ed-struck</code> keyframe (380ms, scaleY squash 0.86 → 1.06 → 1) on the skin + a deep 140hz sine thud + a follow-up 120hz at 80ms. <em>tide reflection window</em>: a separate <code>biosphere02.echodrum.window.v1</code> stores the last-strike wall-clock; if a second click lands &lt;4s after the first, js schedules 3 staggered echo rings via <code>ed-ring-expand</code> keyframe at scales 0.72 / 0.50 / 0.34, staggered 540/1180/2080ms after the strike. each <code>.ed-ring</code> is a 28px circle that grows to ~110% over 1.6s and fades to 0 — the visual is "the pond returning your strike as smaller and smaller rings." counter: strikes. ↦ dropped idea: tying the reflection-time to <em>high</em> tide specifically so echoes work "only when the tide is up". a per-tide-window poll would be the 8th such poll across the codebase, and reading "right now the tide is …" via attribute changed the design from "drum beats echo across the pond" to "the tide produces drum echoes" which is the wrong attribution — the echoes come from the pond surface, not the tide.</p>
+        <p><strong>ice-bubbles wand 🧊.</strong> a frost-grey standing wand at right:96px, opposite the existing summer bubble-wand at left:632px. the wand has a small base disc + grey stem + a pale-blue loop with ice-crystal cross marks. <em>gated entirely on cold mood days:</em> the handler reads <code>body.classList.contains("season-winter") || "motion-cold" || "cold"</code> at click time via a small <code>ibIsColdDay()</code> helper; if false the click toasts a one-line "the wand is dormant outside the cold" instead of spawning bubbles, so the counter never inflates from a non-feature day. on a cold day, click spawns 2-4 perfectly spherical <code>.ice-bubble</code> divs into <code>#ice-bubbles-host</code> with randomized dx values per keyframe stop (6/30/70/92/100% in the css), each drifting upward on the <code>ice-bubble-float</code> 30s keyframe. counter increments on <em>pop</em>, not on spawn — a 12-second bubble always counts the pop regardless of whether the user explicitly popped it or it auto-faded (we only increment on explicit pop). pop fires <code>ice-bubble-pop</code> 420ms keyframe + 4 frost-fleck children with random dx/dy/rot on <code>ice-fleck-fly</code> 760ms keyframe (they drift out from the pop point and vanish), plus a 2400hz sine tink. counter: ice bubbles broken. ↦ why 30s animation but only counts on pop: a bubble that <em>drifts lazily without ever being touched</em> isn't user action. counting it would inflate the counter on a passive tab; gating on pop is honest "what did you actually do."</p>
+        <p><strong>smoke rune writer 🪶.</strong> a brass pipe with beeswax tip at top:108 left:70 — opposite shore from the resin censer (top:308 right:130) and well clear of the wind-vane (top:64). viewBox 28x40: a horizontal disc base, a 6-px wide 18-px tall brass pipe with three engraved horizontal lines, a beeswax tip drawn as two overlapping polygon halves, a small ember dot at the wick. click fires the <code>srw-ignite</code> keyframe (380ms) on the .srw-tip (fill flash #d9a05b → #ffe2a4 → back). then picks one of 8 curated <code>d</code>-attribute path strings from <code>SR_RUNES</code> (triangle, wave, eye, feather, branch, crossed arrows, loop coil, dot cluster) and emits a <code>.smoke-rune</code> div into <code>#srw-runes-host</code>. the rune is 26x60 with an inline svg child using a single <code>.sr-stroke</code> path (stroke: rgba(220,220,220,0.55), linecap round). 8-second <code>smoke-rune-rise</code> keyframe drives opacity 0 → 0.55 → 0.78 → 0.45 → 0 with a translateY ramp 0 → -8px → -28px → -54px → -86px and a subtle rotate -2° → -5°. <em>wind-coupling for free:</em> <code>body.wind-gust .srw-runes-host { transform: skewX(-14deg) translateX(18px); transition: transform 1.4s }</code> — the entire smoke cluster skews when a gust rolls through, no js poll, just a css property waiting on the body class. counter: runes inscribed. ↦ why 8 runes rather than 12: 8 reads as a small curated vocabulary (8 runes of the old futhark minus the sparrows). 12 reads as "we ran out of ideas twice."</p>
+        <p><strong>aurora needle 🧭.</strong> a brass sextant-like instrument at top:88 right:64 — a wide-angle plane on the right-shore back area, clear of the magnetometer at left:418 and the in-shore tide-stake at right:408. viewBox 50x56: an oval drop-shadow + a slim wooden post (two-pixel stroke from y=54 to y=40) supporting a 19-radius brass case (4 stacked circles, dark inner dial). eight tick marks at compass points + a center label "AURORA" in Georgia serif at the top. the <code>.an-needle</code> is a brass/gold two-prong needle (pointing up to y=7, pointing down to y=37) anchored at the dial center with <code>transform-origin: 25px 22px</code>. idle = 7s sine-sway between ±22° via the <code>an-tilt</code> keyframe. on <code>body.aurora-peak</code> the duration drops to 3.4s; on <code>body.aurora-storm</code> the loop is replaced by the <code>an-shake</code> 0.18s linear jitter — the brass "knows" the storm is up regardless of whether you read the magnetometer's Kp readout. click applies <code>.locked</code> for ~760ms which freezes the needle at a recorded bearing (the bearing is <code>Math.round(Math.sin(Date.now()/1100) * 22)</code>, deterministic-ish at any particular click time), persists to <code>biosphere02.auroraneedle.angle.v1</code> so a returning user resumes at a different bearing, and emits a 44-px expanding arc via <code>an-pulse-expand</code> 1.2s keyframe + a soft 880hz sine chime. counter: bearings locked. ↦ structural note: this needle is the only on-shore instrument that latches onto <code>body.aurora-peak</code>; the magnetometer already latches onto live Kp via NOAA SWPC. two instruments reading different sources (one deterministic per-day hash, one live network fetch) means the brass-needle in-shore behaves differently from the brass-cylinder back-shore during the same evening — by construction a user can spot the difference, which is the point.</p>
+        <p><strong>shadow cloth theater 🎭.</strong> a small pale-cream cloth pinned between the third cattail bunch at left:62vw and the pond edge — sits just below the waterline at <code>bottom: calc(38px + var(--pond-h) + 8px)</code> — with two visible twine lines (each a 0.7-stroke line from a cloth pin to the cattail head) and two ground stake pins (0.8-stroke vertical lines). viewBox 70x56: a 42x34 cream <code>.st-cloth</code> rect (rx 1.4, fill rgba(238, 232, 204, 0.94)) with two thin <code>.st-cloth-edge</code> strip rects along the top/bottom + two faint horizontal paper-lines. <code>.st-puppet</code> is a single svg:&lt;g&gt; whose <code>innerHTML</code> is rebuilt each click from one of 6 curated silhouettes drawn as small svg <code>path</code> strings: bird (V-winging), fish (oval + tail fin), fox (head + body + curled tail), moth (wide bell wings), leaf (almond with central vein), wave (three humps). click rebuilds <code>.st-puppet</code> after 230ms (mid-<code>st-flip</code> keyframe at 50% = scaleX 0.05), so the new puppet appears on the second half of the flip — eye reads "drawn in / drawn out." persists <code>biosphere02.shadowtheater.puppet.v1</code> as the puppet index + <code>biosphere02.shadowtheater.v1</code> as the cast count. a 380hz triangle-wave click feedback at low gain (0.06 peak) listens for the "thwump" of a child drawing the cloth. counter: silhouettes cast. ↦ why six puppets rather than four or eight: six reads as "a small number that fits visibly inside 22x14 without crowding the cloth edges." four reads as "a hand handful of silhouettes, possibly sparse"; eight would have to be smaller, hurting the doll-theater feel.</p>
+        <p>↦ one quiet structural note: nothing here is a creature on purpose (sixteen plus the luna moth is plenty, sixteen being one shy of "no more"). each feature has its own <code>biosphere02.&lt;name&gt;.v1</code> localStorage key with no cross-references — a future feature named "drum" tomorrow cannot collide with the existing rain-drum counter, and one named "rune" cannot collide with ours. the echo drum's <em>tide-reflection window</em> uses a separate <code>biosphere02.echodrum.window.v1</code> key (wall-clock ms of last strike) so reload mid-streak reads back correctly — a naive load would reset the window to 0 and the first post-reload strike would not echo. ice-bubbles' cold-day gate is a one-line <code>ibIsColdDay()</code> helper that reads three body classes without a poll, so a sky-lock change flips the available-state within 0 frames rather than after a 1s interval. smoke-runes' wind-gust coupling is purely css — a single <code>body.wind-gust .srw-runes-host { transform: skewX(-14deg) …}</code> rule that takes the <code>wind-gust</code> class change in the same frame it lands, no js reading. aurora-needle's peak/storm coupling is css-keyframe-only — durations and shake-keyframes ride the existing aurora-day forecasting poll that already broadcasts the body class for the existing aurora layer. shadow-theater is the only pure-dom one of the five; it doesn't share reads with anything but offers an honest "drawn-in silhouette" reward on its own. five additions, five systems, none of them doing per-frame work outside the visible interaction window. the cost is five SVG nodes plus five stat-wrap divs, totaling roughly 3.4kb of DOM, against a baseline scene that already has ~80 svg nodes — under construction by construction.</p>
       </article>
       <article class="logentry">
         <h3>devlog #36 — <span class="logdate">jul 14</span></h3>

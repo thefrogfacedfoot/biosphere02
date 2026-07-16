@@ -11884,3 +11884,810 @@ if (bbEl) {
     setTimeout(() => bbEl.classList.remove("ringing"), 480);
   });
 }
+
+/* ============================================================
+   devlog #39 — echo drum, ice bubbles, smoke rune writer,
+                 aurora needle, shadow cloth theater
+
+   five new shoreline pieces, none of them creatures (16 is
+   plenty), none of them opening new windows, none of them
+   adding fresh dependency trees. each one latches onto a
+   system already running: the echo drum reads the shared
+   pond-h stroke-pulses that already exist via the existing
+   addRipple(); the ice bubbles reads body.season-winter
+   (the same isMoodCold() helper used elsewhere); the smoke
+   rune writer reads body.wind-gust via css (no js poll, the
+   smoke bends via the existing skewX transform on .srw-
+   runes-host); the aurora needle reads body.aurora-peak +
+   body.aurora-storm (the same aurora-day forecast logic
+   the existing aurora layer uses); the shadow cloth theater
+   is pure-dom (no body-class dependence, reads best at dusk
+   but works in any mood).
+
+   each counter follows the established biosphere02.<name>.v1
+   convention with no cross-references — a future feature
+   named "drum" tomorrow cannot collide with the raindrum
+   counter, and a feature named "rune" cannot collide with
+   our rune one. audio is a shared lazy AudioContext pool
+   (_featureCtxRef) separate from the existing instrument
+   pools so a stuck pool doesn't keep the new features
+   silent. none of the five do per-frame work outside the
+   visible interaction window.
+
+   ============================================================ */
+
+// ---------- shared audio pool for the devlog #39 features
+let _featureCtxRef = null;
+function getFeatureAudioCtx() {
+  if (typeof window === "undefined") return null;
+  if (_featureCtxRef && _featureCtxRef.state !== "closed") return _featureCtxRef;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    _featureCtxRef = new Ctx();
+  } catch { _featureCtxRef = null; }
+  return _featureCtxRef;
+}
+function playFeatureSine(freq, dur, peakGain, decayShape) {
+  if (typeof settings !== "undefined" && settings && settings.mute) return;
+  const ctx = getFeatureAudioCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended" && typeof ctx.resume === "function") {
+    try { ctx.resume(); } catch {}
+  }
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const g   = ctx.createGain();
+  osc.type = decayShape === "square" ? "square" : (decayShape === "triangle" ? "triangle" : "sine");
+  osc.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peakGain, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g).connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + dur + 0.05);
+}
+
+// ---------- 1) echo drum (#echo-drum) ----------
+const ED_KEY         = "biosphere02.echodrum.v1";
+const ED_WINDOW_KEY  = "biosphere02.echodrum.window.v1";
+const edEl           = document.getElementById("echo-drum");
+const edRingsHost    = document.getElementById("ed-rings-host");
+const edStatEl       = document.getElementById("echo-drum-stat");
+let   edStrikes      = (() => { try { return +localStorage.getItem(ED_KEY) || 0; } catch { return 0; } })();
+let   _edLastStrike  = (() => { try { return +(localStorage.getItem(ED_WINDOW_KEY) || 0); } catch { return 0; } })();
+function renderEdStat() { if (edStatEl) edStatEl.textContent = String(edStrikes); }
+renderEdStat();
+function edSpawnRing(x, y, delayMs, scaleMul) {
+  if (!edRingsHost) return;
+  const r = document.createElement("div");
+  r.className = "ed-ring";
+  r.style.left = x + "px";
+  r.style.top  = y + "px";
+  // size multipliers so echoes read smaller than the original strike
+  const s = scaleMul == null ? 1 : scaleMul;
+  r.style.width  = (28 * s) + "px";
+  r.style.height = (28 * s) + "px";
+  r.style.animationDuration = (1.6 * s) + "s";
+  r.style.animationDelay = (delayMs || 0) + "ms";
+  edRingsHost.appendChild(r);
+  setTimeout(() => r.remove(), Math.ceil((1.6 + 0.2) * s * 1000 + (delayMs || 0)));
+  return r;
+}
+function edStrike(e) {
+  if (!edEl) return;
+  // both read AND write use Date.now() — performance.now() is monotonic from
+  // page-load (small numbers) while Date.now() is wallclock (≈1.7e12). using
+  // the same clock in both directions is what makes the 4-second tide-
+  // reflection window actually return a real comparison (the bug we'd have
+  // shipped was performance.now() reading against Date.now() values from
+  // localStorage → always-true or always-false depending on prior saves).
+  const now = Date.now();
+  const withinWindow = _edLastStrike > 0 && (now - _edLastStrike) < 4000;
+  _edLastStrike = now;
+  try { localStorage.setItem(ED_WINDOW_KEY, String(now)); } catch {}
+  // Bump counter + dump rendered stat
+  edStrikes++;
+  try { localStorage.setItem(ED_KEY, String(edStrikes)); } catch {}
+  renderEdStat();
+  // Keyframe squash on the skin
+  edEl.classList.remove("struck");
+  void edEl.offsetWidth;
+  edEl.classList.add("struck");
+  setTimeout(() => edEl.classList.remove("struck"), 420);
+  // Origin: clientX/Y center of the drum; fallback to click point
+  const rect = edEl.getBoundingClientRect();
+  const ox = e && e.clientX ? e.clientX : (rect.left + rect.width / 2);
+  const oy = e && e.clientY ? e.clientY : (rect.top + rect.height / 2);
+  edSpawnRing(ox, oy, 0, 1);
+  // Audio: a deep thud + a tap-tap-tap envelope
+  playFeatureSine(140, 0.40, 0.18, "sine");
+  setTimeout(() => playFeatureSine(120, 0.32, 0.10, "sine"), 80);
+  // Tide-reflection window: if 4s inside an existing streak, emit 3 echoes
+  if (withinWindow) {
+    setTimeout(() => edSpawnRing(ox, oy, 0, 0.72), 540);
+    setTimeout(() => { edSpawnRing(ox, oy, 0, 0.50); playFeatureSine(102, 0.28, 0.06, "sine"); }, 1180);
+    setTimeout(() => { edSpawnRing(ox, oy, 0, 0.34); playFeatureSine(96,  0.24, 0.04, "sine"); }, 2080);
+  }
+  if (edStrikes === 1 && typeof toast === "function") toast("the drum knows the pond", 2100);
+  if (typeof gLog === "function" && edStrikes % 25 === 0) gLog("drum", `${edStrikes} strikes given`, "echo drum");
+}
+if (edEl) edEl.addEventListener("click", edStrike);
+
+// ---------- 2) ice bubbles (#ice-bubbles) ----------
+const IB_KEY        = "biosphere02.icebubbles.v1";
+const ibwEl         = document.getElementById("ice-bubbles");
+const ibHost        = document.getElementById("ice-bubbles-host");
+const ibStatEl      = document.getElementById("ice-bubbles-stat");
+let   ibBroken      = (() => { try { return +localStorage.getItem(IB_KEY) || 0; } catch { return 0; } })();
+function renderIbStat() { if (ibStatEl) ibStatEl.textContent = String(ibBroken); }
+renderIbStat();
+function ibIsColdDay() {
+  if (typeof document === "undefined") return false;
+  const b = document.body;
+  if (b.classList.contains("season-winter")) return true;
+  if (b.classList.contains("motion-cold"))   return true;
+  return false;
+}
+function ibSpawn() {
+  if (!ibwEl || !ibHost) return;
+  if (!ibIsColdDay()) {
+    if (typeof toast === "function") toast("the wand is dormant outside the cold", 1700);
+    return;
+  }
+  const rect = ibwEl.getBoundingClientRect();
+  const ox = rect.left + rect.width / 2;
+  const oy = rect.top + 8;
+  const count = 2 + Math.floor(Math.random() * 3); // 2..4
+  for (let i = 0; i < count; i++) {
+    const b = document.createElement("div");
+    b.className = "ice-bubble";
+    b.style.left = (ox + (Math.random() * 14 - 7)) + "px";
+    b.style.top  = (oy + (Math.random() * 6  - 3)) + "px";
+    // randomized dx values; the keyframes use them at 6/30/70/92/100%
+    const dx6   = (Math.random() * 14 - 7)  | 0;
+    const dx30  = (Math.random() * 24 - 12) | 0;
+    const dx70  = (Math.random() * 36 - 18) | 0;
+    const dx92  = (Math.random() * 52 - 26) | 0;
+    const dx100 = (Math.random() * 72 - 36) | 0;
+    b.style.setProperty("--ib-dx-0",   "0px");
+    b.style.setProperty("--ib-dx-6",   dx6 + "px");
+    b.style.setProperty("--ib-dx-30",  dx30 + "px");
+    b.style.setProperty("--ib-dx-70",  dx70 + "px");
+    b.style.setProperty("--ib-dx-92",  dx92 + "px");
+    b.style.setProperty("--ib-dx-100", dx100 + "px");
+    const dur = 28 + Math.random() * 7;
+    b.style.animationDuration = dur + "s";
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      ibBroken++;
+      try { localStorage.setItem(IB_KEY, String(ibBroken)); } catch {}
+      renderIbStat();
+      // small tink on pop
+      playFeatureSine(2400, 0.12, 0.10, "sine");
+      // a small frost-fleck burst at the pop point
+      for (let f = 0; f < 4; f++) {
+        const fleck = document.createElement("div");
+        fleck.className = "ice-fleck";
+        fleck.style.left = b.style.left;
+        fleck.style.top  = b.style.top;
+        fleck.style.setProperty("--fl-dx",    ((Math.random() * 16 - 8) | 0) + "px");
+        fleck.style.setProperty("--fl-dy",    ((Math.random() * 14 - 4) | 0) + "px");
+        fleck.style.setProperty("--fl-rot",   ((Math.random() * 60 - 30) | 0) + "deg");
+        ibHost.appendChild(fleck);
+        setTimeout(() => fleck.remove(), 800);
+      }
+      b.classList.add("popped");
+      setTimeout(() => b.remove(), 480);
+      if (ibBroken === 1 && typeof toast === "function") toast("a thin shell · cold things ring", 1900);
+      if (typeof gLog === "function" && ibBroken % 25 === 0) gLog("ice", `${ibBroken} ice bubbles broken`, "ice wand");
+    }, { once: true });
+    ibHost.appendChild(b);
+    // auto-cleanup if the user never pops
+    setTimeout(() => { if (b.parentNode) b.remove(); }, dur * 1000 + 200);
+  }
+}
+if (ibwEl) {
+  ibwEl.addEventListener("click", () => {
+    ibwEl.classList.remove("blowing");
+    void ibwEl.offsetWidth;
+    ibwEl.classList.add("blowing");
+    setTimeout(() => ibwEl.classList.remove("blowing"), 420);
+    ibSpawn();
+  });
+}
+
+// ---------- 3) smoke rune writer (#smoke-rune-writer) ----------
+const SR_KEY       = "biosphere02.smokerune.v1";
+const srwEl        = document.getElementById("smoke-rune-writer");
+const srwHost      = document.getElementById("srw-runes-host");
+const srStatEl     = document.getElementById("smoke-rune-stat");
+let   srInscribed  = (() => { try { return +localStorage.getItem(SR_KEY) || 0; } catch { return 0; } })();
+function renderSrStat() { if (srStatEl) srStatEl.textContent = String(srInscribed); }
+renderSrStat();
+const SR_RUNES = [
+  // 1. triangle (peak)
+  "M0 -28 L16 12 L-16 12 Z",
+  // 2. wave (two arcs)
+  "M-28 0 Q-14 -18 0 0 Q14 18 28 0",
+  // 3. simple eye / almond
+  "M-22 0 Q0 -16 22 0 Q0 16 -22 0 Z M-6 0 A6 6 0 0 0 6 0 A6 6 0 0 0 -6 0 Z",
+  // 4. feather / leaf
+  "M0 -30 Q14 -10 0 30 Q-14 -10 0 -30 Z M0 -22 L0 22",
+  // 5. branch + offshoots
+  "M-26 18 L26 -18 M-10 -2 L-22 10 M6 4 L18 16 M0 -12 L-8 -20 M-2 -8 L8 -8",
+  // 6. crossed arrows
+  "M-26 -18 L26 18 M26 -18 L-26 18 M-26 -18 L-22 -22 L-30 -22 L-26 -18 M26 18 L22 22 L30 22 L26 18 M26 -18 L22 -22 L30 -22 L26 -18 M-26 18 L-22 22 L-30 22 L-26 18",
+  // 7. loop / coil
+  "M0 -22 a14 14 0 1 0 0.001 0 Z M0 -22 a8 8 0 1 1 -0.001 0 Z",
+  // 8. dot cluster (3 dots in a small triangle)
+  "M-4 8 m -3 0 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 M8 -2 m -3 0 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 M-2 -10 m -3 0 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0",
+];
+function srSpawn() {
+  if (!srwEl || !srwHost) return;
+  const idx = Math.floor(Math.random() * SR_RUNES.length);
+  const pathD = SR_RUNES[idx];
+  const rect  = srwEl.getBoundingClientRect();
+  const ox = rect.left + rect.width / 2;
+  const oy = rect.top + 6;
+  const wrap = document.createElement("div");
+  wrap.className = "smoke-rune";
+  wrap.style.left = ox + "px";
+  wrap.style.top  = oy + "px";
+  // randomized drift per keyframe stop
+  wrap.style.setProperty("--sr-dx-0",   "0px");
+  wrap.style.setProperty("--sr-dx-10",  ((Math.random() * 2 - 1)  | 0) + "px");
+  wrap.style.setProperty("--sr-dx-35",  ((Math.random() * 4 - 2)  | 0) + "px");
+  wrap.style.setProperty("--sr-dx-70",  ((Math.random() * 8 - 4)  | 0) + "px");
+  wrap.style.setProperty("--sr-dx-100", ((Math.random() * 12 - 6) | 0) + "px");
+  wrap.innerHTML = `<svg viewBox="-32 -32 64 64" width="26" height="60"><path class="sr-stroke" d="${pathD}"/></svg>`;
+  srwHost.appendChild(wrap);
+  setTimeout(() => wrap.remove(), 8200);
+}
+if (srwEl) {
+  srwEl.addEventListener("click", () => {
+    srwEl.classList.remove("smoking");
+    void srwEl.offsetWidth;
+    srwEl.classList.add("smoking");
+    setTimeout(() => srwEl.classList.remove("smoking"), 420);
+    srInscribed++;
+    try { localStorage.setItem(SR_KEY, String(srInscribed)); } catch {}
+    renderSrStat();
+    srSpawn();
+    // very soft white-noise puff via a square wave through a bandpass-ish
+    // envelope, but we just use a low sine for simplicity
+    playFeatureSine(420, 0.28, 0.10, "triangle");
+    if (srInscribed === 1 && typeof toast === "function") toast("wax lit · the smoke takes a shape", 2100);
+  });
+}
+
+// ---------- 4) aurora needle (#aurora-needle) ----------
+const AN_KEY       = "biosphere02.auroraneedle.v1";
+const AN_ANGLE_KEY = "biosphere02.auroraneedle.angle.v1";
+const anEl         = document.getElementById("aurora-needle");
+const anPulseHost  = document.getElementById("an-pulse-host");
+const anStatEl     = document.getElementById("aurora-needle-stat");
+let   anLocked     = (() => { try { return +localStorage.getItem(AN_KEY) || 0; } catch { return 0; } })();
+let   anLockedDeg  = (() => { try { return +(localStorage.getItem(AN_ANGLE_KEY) || 0); } catch { return 0; } })();
+function renderAnStat() { if (anStatEl) anStatEl.textContent = String(anLocked); }
+renderAnStat();
+if (anEl && anLockedDeg) {
+  anEl.style.setProperty("--an-locked", anLockedDeg + "deg");
+}
+function anSpawnPulse(x, y) {
+  if (!anPulseHost) return;
+  const p = document.createElement("div");
+  p.className = "an-pulse";
+  p.style.left = x + "px";
+  p.style.top  = y + "px";
+  p.style.width = "44px";
+  p.style.height = "44px";
+  anPulseHost.appendChild(p);
+  setTimeout(() => p.remove(), 1300);
+}
+if (anEl) {
+  anEl.style.setProperty("--an-locked", anLockedDeg + "deg");
+  anEl.addEventListener("click", (e) => {
+    // match the an-tilt keyframe (0%: -22deg, 50%: +18deg) so the angle the
+    // eye was tracking matches the angle we persist. phase is sin-based —
+    // sin returns [-1, +1]; at phase=-1 we render -22deg; at +1 we render
+    // +18deg. liner interp gets us there cleanly.
+    const phase = Math.sin(Date.now() / 1100);
+    const approx = Math.round(-22 + (phase + 1) * (40 / 2));
+    anLockedDeg = approx;
+    anEl.style.setProperty("--an-locked", anLockedDeg + "deg");
+    try { localStorage.setItem(AN_ANGLE_KEY, String(anLockedDeg)); } catch {}
+    anLocked++;
+    try { localStorage.setItem(AN_KEY, String(anLocked)); } catch {}
+    renderAnStat();
+    anEl.classList.remove("locked");
+    void anEl.offsetWidth;
+    anEl.classList.add("locked");
+    setTimeout(() => anEl.classList.remove("locked"), 760);
+    const rect = anEl.getBoundingClientRect();
+    const ox = (e && e.clientX) ? e.clientX : (rect.left + rect.width / 2);
+    const oy = (e && e.clientY) ? e.clientY : (rect.top + rect.height * 0.40);
+    anSpawnPulse(ox, oy);
+    playFeatureSine(880, 0.42, 0.10, "sine");
+    if (anLocked === 1 && typeof toast === "function") toast("the needle finds its north · a moment", 2200);
+  });
+}
+
+// ---------- 5) shadow cloth theater (#shadow-theater) ----------
+const ST_KEY         = "biosphere02.shadowtheater.v1";
+const ST_PUPPET_KEY  = "biosphere02.shadowtheater.puppet.v1";
+const stEl           = document.getElementById("shadow-theater");
+const stPuppetEl     = document.getElementById("st-current-puppet");
+const stStatEl       = document.getElementById("shadow-theater-stat");
+let   stCasts        = (() => { try { return +localStorage.getItem(ST_KEY) || 0; } catch { return 0; } })();
+let   stPuppetIdx    = (() => { try { return +localStorage.getItem(ST_PUPPET_KEY) || 0; } catch { return 0; } })();
+// 6 curated silhouettes drawn as svg path strings (small enough to fit
+// inside ~22x14 box centered on (35, 31) in the cloth viewBox 70x56)
+const ST_PUPPETS = [
+  // 1. bird — simple V-winging silhouette
+  `<path d="M-16 -4 Q-6 -10 0 -2 Q6 -10 16 -4 Q6 -2 0 0 Q-6 -2 -16 -4 Z M-1 -1 L-2 8 M1 -1 L2 8"/>`,
+  // 2. fish — leaf-shape with a fin
+  `<path d="M-16 0 Q-10 -8 0 -8 Q10 -8 16 0 Q10 8 0 8 Q-10 8 -16 0 Z M14 -4 L22 0 L14 4 Z"/>`,
+  // 3. fox — sitting pose: head + body + tail
+  `<path d="M-4 -10 L0 -14 L4 -10 L0 -2 Z M-6 -2 Q-8 4 -4 8 L4 8 Q8 4 6 -2 Z M6 0 Q14 -2 14 6"/>`,
+  // 4. moth — wide bell wings
+  `<path d="M-1 -2 L0 -10 L1 -2 Z M-12 -2 Q-2 -14 -1 -2 Q-2 8 -12 2 Z M12 -2 Q2 -14 1 -2 Q2 8 12 2 Z"/>`,
+  // 5. leaf — almond with central vein
+  `<path d="M0 -14 Q14 -4 0 12 Q-14 -4 0 -14 Z M0 -10 L0 8"/>`,
+  // 6. wave — three small humps
+  `<path d="M-16 -2 Q-10 -10 -4 -2 Q2 -10 8 -2 Q14 -10 16 -2 L16 6 L-16 6 Z"/>`,
+];
+function renderStStat() { if (stStatEl) stStatEl.textContent = String(stCasts); }
+renderStStat();
+function renderStPuppet() {
+  if (!stPuppetEl) return;
+  const idx = ((stPuppetIdx % ST_PUPPETS.length) + ST_PUPPETS.length) % ST_PUPPETS.length;
+  // Preserve the .st-puppet class on the wrapper (#st-current-puppet) so the
+  // CSS .st-puppet / #shadow-theater.casting .st-puppet keyframe rules still
+  // apply after each re-render. Replace only the children of the wrapper,
+  // and build the inner <g> with createElementNS so it inherits the parent
+  // svg namespace (innerHTML-template trickery was generating SVG-attr-parse
+  // warnings because px-units in attribute transforms are not valid SVG).
+  //
+  // The inner <g> intentionally has NO transform attribute — the CSS
+  // `.st-puppet { transform: translate(35px,31px) scale(1.1) }` already
+  // positions the wrapper in the cloth viewBox. Adding another transform
+  // here would render the puppet at ≈(70, 62) at scale 1.21 (off the right
+  // edge of the 70×56 viewBox). Puppet paths use coords centered on (0,0)
+  // and are scaled into place by the wrapper.
+  while (stPuppetEl.firstChild) stPuppetEl.removeChild(stPuppetEl.firstChild);
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.innerHTML = ST_PUPPETS[idx];
+  stPuppetEl.appendChild(g);
+}
+renderStPuppet();
+if (stEl) {
+  stEl.addEventListener("click", () => {
+    stCasts++;
+    try { localStorage.setItem(ST_KEY, String(stCasts)); } catch {}
+    stPuppetIdx++;
+    try { localStorage.setItem(ST_PUPPET_KEY, String(stPuppetIdx)); } catch {}
+    renderStStat();
+    stEl.classList.remove("casting");
+    void stEl.offsetWidth;
+    stEl.classList.add("casting");
+    setTimeout(() => stEl.classList.remove("casting"), 480);
+    // mid-flip, swap the puppet so the new one is shown when scaleX returns
+    setTimeout(renderStPuppet, 230);
+    playFeatureSine(380, 0.18, 0.06, "triangle");
+    if (stCasts === 1 && typeof toast === "function") toast("a cloth, two pins, six shapes", 1900);
+  });
+}
+
+/* ===== devlog #40 — petrified acorn, dusk gnat swarm, glass dewdrop, haiku slip
+   four small shoreline / sky pieces. counter keys named without prefix
+   collision risk against earlier features (no "drum" / "rune" / "ice" etc.
+   overlap). the acorn has a one-bit "open" key, the dewdrop has a "last
+   popped" timestamp key for the 60-second regen gate, the haiku slip has a
+   "last shown idx" key so reload mid-cycle reads back the same poem the
+   user was reading. audio routes through the devlog #39 _featureCtxRef
+   pool shared with the previous five shoreline instruments. */
+
+// ---------- 1) petrified acorn (#petrified-acorn) ----------
+const PA_KEY      = "biosphere02.petrifiedacorn.v1";
+const PA_OPEN_KEY = "biosphere02.petrifiedacorn.open.v1";
+const paEl     = document.getElementById("petrified-acorn");
+const paStatEl = document.getElementById("petrified-acorn-stat");
+
+function paReadOpen() { try { return localStorage.getItem(PA_OPEN_KEY) === "1"; } catch { return false; } }
+function paWriteOpen(v) { try { localStorage.setItem(PA_OPEN_KEY, v ? "1" : "0"); } catch {} }
+let paCount = (() => { try { return +(localStorage.getItem(PA_KEY) || 0); } catch { return 0; } })();
+
+if (paEl) {
+  if (paReadOpen()) paEl.classList.add("cracked");
+  if (paStatEl) paStatEl.textContent = String(paCount);
+  paEl.addEventListener("click", () => {
+    paCount += 1;
+    if (paStatEl) paStatEl.textContent = String(paCount);
+    try { localStorage.setItem(PA_KEY, String(paCount)); } catch {}
+    // Re-trigger keyframes if already cracked: remove + add class after a frame.
+    if (paEl.classList.contains("cracked")) {
+      paEl.classList.remove("cracked");
+      requestAnimationFrame(() => paEl.classList.add("cracked"));
+      playFeatureSine(220, 0.16, 0.09, "triangle");
+    } else {
+      paEl.classList.add("cracked");
+      paWriteOpen(true);
+      // first crack: low woody thump + small agate chime
+      playFeatureSine(180, 0.18, 0.10, "triangle");
+      playFeatureSine(1320, 0.06, 0.09, "sine");
+    }
+    if (paCount === 1 && typeof toast === "function") toast("a fossil seed cracked — red agate within", 2200);
+  });
+}
+
+// ---------- 2) dusk gnat swarm (#dusk-gnat-swarm) ----------
+const DGS_KEY = "biosphere02.duskgnatswarm.v1";
+const dgsEl     = document.getElementById("dusk-gnat-swarm");
+const dgsStatEl = document.getElementById("dusk-gnat-swarm-stat");
+let dgsCount = (() => { try { return +(localStorage.getItem(DGS_KEY) || 0); } catch { return 0; } })();
+
+function dgsAssignAngles(scale) {
+  if (!dgsEl) return;
+  dgsEl.querySelectorAll(".dgs-gnat").forEach((g, i) => {
+    const angle = (i / 7) * Math.PI * 2 + (Math.random() - 0.5) * scale;
+    const dist  = 60 + Math.random() * 60;
+    g.style.setProperty("--dgs-dx", `${Math.cos(angle) * dist}px`);
+    g.style.setProperty("--dgs-dy", `${Math.sin(angle) * dist}px`);
+  });
+}
+
+if (dgsEl) {
+  dgsAssignAngles(0.6);
+  dgsEl.classList.add("drifting");
+  if (dgsStatEl) dgsStatEl.textContent = String(dgsCount);
+  dgsEl.addEventListener("click", () => {
+    dgsCount += 1;
+    if (dgsStatEl) dgsStatEl.textContent = String(dgsCount);
+    try { localStorage.setItem(DGS_KEY, String(dgsCount)); } catch {}
+    dgsEl.classList.remove("drifting");
+    dgsAssignAngles(0.8);             // per-click unique dispersion pattern
+    dgsEl.classList.add("dispersing");
+    playFeatureSine(2400, 0.04, 0.05, "sine");
+    setTimeout(() => {
+      if (!dgsEl) return;
+      dgsEl.classList.remove("dispersing");
+      dgsEl.classList.add("drifting");
+    }, 1500);
+    if (dgsCount === 1 && typeof toast === "function") toast("a small cloud of midges", 1900);
+  });
+}
+
+// ---------- 3) glass dewdrop (#glass-dewdrop) ----------
+const GDD_KEY      = "biosphere02.glassdewdrop.v1";
+const GDD_LAST_KEY = "biosphere02.glassdewdrop.last.v1";
+const GDD_REGEN_MS = 60000;
+const gddEl     = document.getElementById("glass-dewdrop");
+const gddStatEl = document.getElementById("glass-dewdrop-stat");
+let gddCount = (() => { try { return +(localStorage.getItem(GDD_KEY) || 0); } catch { return 0; } })();
+let gddLast  = (() => { try { return +(localStorage.getItem(GDD_LAST_KEY) || 0); } catch { return 0; } })();
+
+function gddIsPresent() {
+  if (!gddEl) return false;
+  if (!gddLast) return true;                         // never popped: visible
+  return (Date.now() - gddLast) > GDD_REGEN_MS;
+}
+
+if (gddEl) {
+  if (!gddIsPresent()) {
+    gddEl.classList.add("popped");
+    // schedule a fresh regen timer for the REMAINING portion of the 60s
+    // window — the setTimeout from the click is lost across a reload, so a
+    // user who pops the bead, reloads 30s later, and waits would otherwise
+    // see the bead stay invisible forever.
+    const elapsed   = Date.now() - gddLast;
+    const remaining = Math.max(0, GDD_REGEN_MS - elapsed);
+    setTimeout(() => { if (gddEl) gddEl.classList.remove("popped"); }, remaining);
+  }
+  if (gddStatEl) gddStatEl.textContent = String(gddCount);
+  gddEl.addEventListener("click", () => {
+    if (gddEl.classList.contains("popped")) return;  // ignore clicks during regen
+    gddCount += 1;
+    if (gddStatEl) gddStatEl.textContent = String(gddCount);
+    try { localStorage.setItem(GDD_KEY, String(gddCount)); } catch {}
+    gddLast = Date.now();
+    try { localStorage.setItem(GDD_LAST_KEY, String(gddLast)); } catch {}
+    gddEl.classList.add("popped");
+    const r = gddEl.getBoundingClientRect();
+    const halo = document.createElement("div");
+    halo.className = "gdd-halo";
+    halo.style.left = (r.left + r.width  / 2) + "px";
+    halo.style.top  = (r.top  + r.height / 2) + "px";
+    document.body.appendChild(halo);
+    setTimeout(() => { if (halo.parentNode) halo.remove(); }, 800);
+    setTimeout(() => { if (gddEl) gddEl.classList.remove("popped"); }, GDD_REGEN_MS);
+    // bell-like ping: two detuned sines
+    playFeatureSine(1480, 0.06, 0.10, "sine");
+    playFeatureSine(2240, 0.05, 0.08, "sine");
+    if (gddCount === 1 && typeof toast === "function") toast("a bead of morning — it gathers again", 2200);
+  });
+}
+
+// ---------- 4) haiku slip (#haiku-slip) ----------
+const HS_KEY     = "biosphere02.haikuslip.v1";
+const HS_IDX_KEY = "biosphere02.haikuslip.idx.v1";
+const HAIKU_SLIPS = [
+  "the pond's respiration —<br>stones throw back<br>the night",
+  "drawn on water<br>by the moon's<br>light brush",
+  "slow boats.<br>a heron<br>counts the ripples",
+  "the moonflower closes —<br>the lichen keeps<br>its own time",
+  "tide rises<br>my grandfather's<br>pocket-watch ticks",
+  "the lantern goes out —<br>the stars learn<br>a quieter tone",
+];
+const hsEl     = document.getElementById("haiku-slip");
+const hsTextEl = document.getElementById("haiku-text");
+const hsStatEl = document.getElementById("haiku-slip-stat");
+let hsCount = (() => { try { return +(localStorage.getItem(HS_KEY) || 0); } catch { return 0; } })();
+let hsIdx   = (() => { try {
+  const raw = +(localStorage.getItem(HS_IDX_KEY) || 0);
+  const v   = Number.isFinite(raw) ? raw : 0;
+  return ((v % HAIKU_SLIPS.length) + HAIKU_SLIPS.length) % HAIKU_SLIPS.length;
+} catch { return 0; } })();
+
+function hsRenderText(newIdx) {
+  if (!hsTextEl) return;
+  hsTextEl.classList.add("fading");
+  setTimeout(() => {
+    const safeIdx = ((newIdx % HAIKU_SLIPS.length) + HAIKU_SLIPS.length) % HAIKU_SLIPS.length;
+    hsTextEl.innerHTML = HAIKU_SLIPS[safeIdx];
+    hsTextEl.classList.remove("fading");
+  }, 220);
+}
+
+if (hsEl && hsTextEl) {
+  if (hsStatEl) hsStatEl.textContent = String(hsCount);
+  hsTextEl.innerHTML = HAIKU_SLIPS[hsIdx];        // initial paint: persisted poem
+  hsEl.addEventListener("click", () => {
+    hsCount += 1;
+    hsIdx += 1;
+    if (hsStatEl) hsStatEl.textContent = String(hsCount);
+    try { localStorage.setItem(HS_KEY, String(hsCount)); } catch {}
+    const safeIdx = ((hsIdx % HAIKU_SLIPS.length) + HAIKU_SLIPS.length) % HAIKU_SLIPS.length;
+    try { localStorage.setItem(HS_IDX_KEY, String(safeIdx)); } catch {}
+    hsRenderText(hsIdx);
+    // pen-scratch audio: two quick triangle blips 40ms apart
+    playFeatureSine(240, 0.05, 0.05, "triangle");
+    setTimeout(() => playFeatureSine(320, 0.04, 0.04, "triangle"), 40);
+    if (hsCount === 1 && typeof toast === "function") toast("a slip pinned to the dusk", 1900);
+  });
+}
+
+/* ============================================================
+   devlog #41 — tin-whistle, iron-keys, lichen-mandala, tally-stick,
+                 paper-boat
+
+   five small shelf & shore pieces, none of them creatures (sixteen plus
+   the luna moth is plenty), none of them opening new windows, none adding
+   fresh dependency trees. each one latches onto a system already running
+   rather than spawning fresh pollers: the iron-keys reads body.aurora-peak
+   for free iron-storm coupling (no js poll); the lichen-mandala reads
+   body.dusk + body.night + body.season-winter via css filter rules; the
+   tally-stick reads body.season-winter + body.season-summer + body.aurora-
+   peak via css fill and filter rules; the paper-boat reads body.wind-gust
+   for the sail flutter and body.rain-day for the wet-paper darken. the
+   tin-whistle is the only one of the five without a body-class latch; it
+   is pure-dom on click.
+
+   each counter follows the established biosphere02.<name>.v1 convention
+   with no cross-references. the lichen-mandala additionally has a
+   biosphere02.lichenmandala.rings.v1 subkey (current ring count, cap 8) and
+   tally-stick has a biosphere02.tallystick.ticks.v1 subkey (current tick
+   count, cap 20) so a returning user sees their last growth state rather
+   than starting from scratch. audio routes through the devlog #39 +
+   devlog #40 _featureCtxRef pool shared with the previous nine features —
+   adding five more oscillators doesn't require a sixth pool.
+
+   ============================================================ */
+
+// ---------- 1) tin-whistle (#tin-whistle) ----------
+const TW2_KEY      = "biosphere02.tinwhistle.v1";
+const tw2El        = document.getElementById("tin-whistle");
+const tw2StatEl    = document.getElementById("tin-whistle-stat");
+let tw2Count       = (() => { try { return +localStorage.getItem(TW2_KEY) || 0; } catch { return 0; } })();
+function renderTw2Stat() { if (tw2StatEl) tw2StatEl.textContent = String(tw2Count); }
+renderTw2Stat();
+function tinWhistlePlay() {
+  if (!tw2El) return;
+  tw2Count++;
+  try { localStorage.setItem(TW2_KEY, String(tw2Count)); } catch {}
+  renderTw2Stat();
+  // bounce keyframe — remove + force reflow + add so a fast double-click still
+  // re-fires rather than swallowing the second click into the still-running
+  // animation (matches the established petrified-acorn re-trigger pattern in
+  // devlog #40: pa-line uses the same remove/rAF dance).
+  tw2El.classList.remove("played");
+  void tw2El.offsetWidth;
+  tw2El.classList.add("played");
+  setTimeout(() => tw2El.classList.remove("played"), 400);
+  // 4-note ascending cascade: 200/280/380/480hz, 70ms staggered setTimeouts
+  playFeatureSine(200, 0.10, 0.06, "sine");
+  setTimeout(() => playFeatureSine(280, 0.10, 0.06, "sine"), 70);
+  setTimeout(() => playFeatureSine(380, 0.10, 0.06, "sine"), 140);
+  setTimeout(() => playFeatureSine(480, 0.12, 0.07, "sine"), 210);
+  if (tw2Count === 1 && typeof toast === "function") toast("a tin-whistle · four notes up the pond", 2000);
+}
+if (tw2El) tw2El.addEventListener("click", tinWhistlePlay);
+
+// ---------- 2) iron-keys (#iron-keys) ----------
+const IK_KEY      = "biosphere02.ironkeys.v1";
+const ikEl        = document.getElementById("iron-keys");
+const ikStatEl    = document.getElementById("iron-keys-stat");
+let ikCount       = (() => { try { return +localStorage.getItem(IK_KEY) || 0; } catch { return 0; } })();
+function renderIkStat() { if (ikStatEl) ikStatEl.textContent = String(ikCount); }
+renderIkStat();
+function ironKeysJingle() {
+  if (!ikEl) return;
+  ikCount++;
+  try { localStorage.setItem(IK_KEY, String(ikCount)); } catch {}
+  renderIkStat();
+  // shake keyframe — the .ik-cluster is the rotating parent, so apply class
+  // on the wrapper element via a re-trigger dance.
+  ikEl.classList.remove("jingled");
+  void ikEl.offsetWidth;
+  ikEl.classList.add("jingled");
+  setTimeout(() => ikEl.classList.remove("jingled"), 340);
+  playFeatureSine(760, 0.16, 0.10, "sine");
+  if (ikCount === 1 && typeof toast === "function") toast("iron is older than brass · it remembers", 2000);
+}
+if (ikEl) ikEl.addEventListener("click", ironKeysJingle);
+
+// ---------- 3) lichen-mandala (#lichen-mandala) ----------
+const LM_KEY        = "biosphere02.lichenmandala.v1";
+const LM_RINGS_KEY  = "biosphere02.lichenmandala.rings.v1";
+const LM_MAX_RINGS  = 8;
+const lmEl          = document.getElementById("lichen-mandala");
+const lmRingsEl     = document.getElementById("lm-rings");
+const lmStatEl      = document.getElementById("lichen-mandala-stat");
+let lmSteps         = (() => { try { return +localStorage.getItem(LM_KEY) || 0; } catch { return 0; } })();
+let lmRings         = (() => { try {
+  const raw = +localStorage.getItem(LM_RINGS_KEY);
+  return Number.isFinite(raw) ? Math.min(LM_MAX_RINGS, Math.max(4, raw)) : 4;
+} catch { return 4; } })();
+
+// 4 base-fill colors that CSS can hue-rotate via body.dusk / body.night.
+// keeping them as a tuple rather than hardcoded in markup lets us rebuild
+// the rings group without re-defining the colors each side.
+const LM_FILLS = ["#7fae86", "#6a9670", "#516e54", "#3d5840"];
+
+function lmBuildRings(n, withGrowthAnim) {
+  if (!lmRingsEl) return;
+  while (lmRingsEl.firstChild) lmRingsEl.removeChild(lmRingsEl.firstChild);
+  // CSS keyframe growth (rather than transition: r) so a freshly-inserted
+  // ring visibly expands from scale 0 → 1 over 280ms. Only the outermost
+  // newly-added ring is animated — re-rendering all rings on every grow
+  // would also re-animate the older rings, which would be a flicker.
+  const BASE_R = 2.4;
+  const GAP    = 2.2;
+  for (let i = 0; i < n; i++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", "25"); c.setAttribute("cy", "22");
+    c.setAttribute("r", (BASE_R + i * GAP).toFixed(2));
+    const animOnlyNewest = withGrowthAnim && i === n - 1 && n > 4;
+    c.setAttribute("class", animOnlyNewest ? "lm-ring lm-ring-enter" : "lm-ring");
+    c.setAttribute("fill", LM_FILLS[i % LM_FILLS.length]);
+    c.setAttribute("opacity", (0.92 - i * 0.12).toFixed(2));
+    lmRingsEl.appendChild(c);
+  }
+}
+lmBuildRings(lmRings);
+function renderLmStat() { if (lmStatEl) lmStatEl.textContent = String(lmSteps); }
+renderLmStat();
+
+function lichenGrow() {
+  if (!lmEl || !lmRingsEl) return;
+  lmSteps++;
+  if (lmRings < LM_MAX_RINGS) lmRings++;
+  try { localStorage.setItem(LM_KEY, String(lmSteps)); } catch {}
+  try { localStorage.setItem(LM_RINGS_KEY, String(lmRings)); } catch {}
+  renderLmStat();
+  // pulse the whole rings group + rebuild the rings.
+  lmEl.classList.remove("grown");
+  void lmEl.offsetWidth;
+  lmEl.classList.add("grown");
+  setTimeout(() => lmEl.classList.remove("grown"), 440);
+  // rebuild with growth-anim only on the newest ring (the last index n-1)
+  lmBuildRings(lmRings, true);
+  playFeatureSine(880, 0.10, 0.06, "sine");
+  if (lmSteps === 1 && typeof toast === "function") toast("lichen grows in concentric quiet", 2000);
+}
+if (lmEl) lmEl.addEventListener("click", lichenGrow);
+
+// ---------- 4) tally-stick (#tally-stick) ----------
+const TS_KEY        = "biosphere02.tallystick.v1";
+const TS_TICKS_KEY  = "biosphere02.tallystick.ticks.v1";
+const TS_MAX_TICKS  = 20;
+const tsEl          = document.getElementById("tally-stick");
+const tsTicksEl     = document.getElementById("ts-ticks");
+const tsStatEl      = document.getElementById("tally-stick-stat");
+let tsCount         = (() => { try { return +localStorage.getItem(TS_KEY) || 0; } catch { return 0; } })();
+let tsTicks         = (() => { try {
+  const raw = +localStorage.getItem(TS_TICKS_KEY);
+  return Number.isFinite(raw) ? Math.min(TS_MAX_TICKS, Math.max(0, raw)) : 0;
+} catch { return 0; } })();
+
+// ticks distributed evenly down the wood from y=14 to y=72; every 5th tick
+// adds a longer carve mark (a "bundle stroke") so a viewer can read the
+// tally even at glance without counting individual marks.
+function tsBuildTicks(n) {
+  if (!tsTicksEl) return;
+  while (tsTicksEl.firstChild) tsTicksEl.removeChild(tsTicksEl.firstChild);
+  for (let i = 0; i < n; i++) {
+    const y = 14 + (58 * i / (TS_MAX_TICKS - 1));
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", "3.5"); line.setAttribute("x2", "10.5");
+    line.setAttribute("y1", y.toFixed(2)); line.setAttribute("y2", y.toFixed(2));
+    line.setAttribute("class", "ts-tick");
+    line.setAttribute("stroke-width", "0.5");
+    tsTicksEl.appendChild(line);
+    // every 5 ticks: a slightly longer carve mark, baseline ±1.2px
+    if ((i + 1) % 5 === 0) {
+      const longTick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      longTick.setAttribute("x1", "3.5"); longTick.setAttribute("x2", "10.5");
+      longTick.setAttribute("y1", (y - 1.2).toFixed(2));
+      longTick.setAttribute("y2", (y + 1.2).toFixed(2));
+      longTick.setAttribute("class", "ts-tick");
+      longTick.setAttribute("stroke-width", "0.8");
+      tsTicksEl.appendChild(longTick);
+    }
+  }
+}
+tsBuildTicks(tsTicks);
+function renderTsStat() { if (tsStatEl) tsStatEl.textContent = String(tsCount); }
+renderTsStat();
+
+function tallyCarve() {
+  if (!tsEl || !tsTicksEl) return;
+  tsCount++;
+  // cap ticks at TS_MAX_TICKS; on the 21st carve the bundle resets to
+  // 0 ticks for visual variety (the count keeps incrementing so the user
+  // never feels like their progress was wiped).
+  if (tsTicks >= TS_MAX_TICKS) tsTicks = 0;
+  else tsTicks++;
+  try { localStorage.setItem(TS_KEY, String(tsCount)); } catch {}
+  try { localStorage.setItem(TS_TICKS_KEY, String(tsTicks)); } catch {}
+  renderTsStat();
+  tsEl.classList.remove("carved");
+  void tsEl.offsetWidth;
+  tsEl.classList.add("carved");
+  setTimeout(() => tsEl.classList.remove("carved"), 240);
+  tsBuildTicks(tsTicks);
+  playFeatureSine(320, 0.06, 0.05, "sine");
+  if (tsCount === 1 && typeof toast === "function") toast("the wood keeps the count", 1900);
+  // every 20 ticks: a louder 220hz thunk so a "full bundle" reads as a hit.
+  if (tsTicks === TS_MAX_TICKS && typeof playFeatureSine === "function") playFeatureSine(220, 0.18, 0.10, "sine");
+}
+if (tsEl) tsEl.addEventListener("click", tallyCarve);
+
+// ---------- 5) paper-boat (#paper-boat) ----------
+const PB_KEY      = "biosphere02.paperboat.v1";
+const pbEl        = document.getElementById("paper-boat");
+const pbStatEl    = document.getElementById("paper-boat-stat");
+let pbCount       = (() => { try { return +localStorage.getItem(PB_KEY) || 0; } catch { return 0; } })();
+function renderPbStat() { if (pbStatEl) pbStatEl.textContent = String(pbCount); }
+renderPbStat();
+function paperBoatLaunch() {
+  if (!pbEl) return;
+  pbCount++;
+  try { localStorage.setItem(PB_KEY, String(pbCount)); } catch {}
+  renderPbStat();
+  // 720ms pb-launch keyframe (animation-fill-mode forwards in the css rule)
+  // carries the boat forward and fades it out. animation-fill-mode: forwards
+  // would otherwise leave the boat at the 100% (opacity:0) state forever,
+  // so the 750ms setTimeout below is essential — it removes .launched so
+  // the implicit animation reset returns the boat to its initial state.
+  // The remove + force-reflow + add dance re-fires on rapid clicks rather
+  // than swallowing the second click into the still-running animation.
+  pbEl.classList.remove("launched");
+  void pbEl.offsetWidth;
+  pbEl.classList.add("launched");
+  setTimeout(() => pbEl.classList.remove("launched"), 750);
+  playFeatureSine(110, 0.18, 0.08, "sine");
+  if (pbCount === 1 && typeof toast === "function") toast("a paper boat for a paper pond", 2000);
+}
+if (pbEl) pbEl.addEventListener("click", paperBoatLaunch);
+

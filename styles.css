@@ -6526,3 +6526,716 @@ body.stargazer .lyre-stat-wrap,
 body.stargazer .raindrum-stat-wrap,
 body.stargazer .musicbox-stat-wrap,
 body.stargazer .bronzebell-stat-wrap { opacity: 0.5; }
+
+/* ==== devlog #39 — echo drum, ice-bubbles wand, smoke rune writer, aurora needle, shadow cloth theater ==== */
+
+/* ---- echo drum (lower-left shore · hits emit a water-ring pulse + echoes) ----
+   sits on the gravel band to the left of the dock-end and below the
+   bench. the drum skin + frame fill the 50x26 viewBox; the dune rings
+   are position:fixed elements spawned in #ed-rings-host at drum-strike
+   time. the .struck keyframe is a 380ms squash on the skin; ed-ring-
+   expand keyframe runs on each spawned .ed-ring child. */
+#echo-drum {
+  position: fixed;
+  left: 96px;
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 50px; height: 26px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#echo-drum:hover { transform: translateY(-1px); filter: drop-shadow(0 0 7px rgba(255, 220, 150, 0.40)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.ed-svg { width: 100%; height: 100%; display: block; overflow: visible; pointer-events: auto; }
+#echo-drum.struck .ed-svg .ed-skin { animation: ed-struck 380ms cubic-bezier(.2, .8, .3, 1); transform-origin: 25px 12px; }
+@keyframes ed-struck {
+  0%   { transform: scaleY(1)    translateY(0);     }
+  35%  { transform: scaleY(0.86) translateY(1px);   }
+  70%  { transform: scaleY(1.06) translateY(-0.6px);}
+  100% { transform: scaleY(1)    translateY(0);     }
+}
+.ed-rings-host { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+.ed-ring {
+  position: fixed;
+  border: 1.5px solid rgba(220, 234, 245, 0.7);
+  border-radius: 50%;
+  pointer-events: none;
+  background: transparent;
+  animation: ed-ring-expand 1.6s cubic-bezier(.2, .5, .3, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes ed-ring-expand {
+  0%   { transform: translate(-50%, -50%) scale(0.10); opacity: 0.95; }
+  60%  { transform: translate(-50%, -50%) scale(0.78); opacity: 0.55; }
+  100% { transform: translate(-50%, -50%) scale(1.10); opacity: 0.0;  }
+}
+body.motion-reduced #echo-drum.struck .ed-skin,
+body.motion-reduced .ed-ring { animation: none; display: none; }
+body.stargazer #echo-drum { opacity: 0.55; }
+
+/* ---- ice-bubbles wand (lower-right shore · only on cold / winter days).
+   positioned opposite the existing bubble-wand at left:632 so the two
+   wands read as a pair across the pond. the .ibw-loop svg ring tilts on
+   .blowing; the air-bubble children are .ice-bubble divs appended at
+   click time with their own ice-bubble-crackle animation. */
+#ice-bubbles {
+  position: fixed;
+  right: 96px;
+  bottom: calc(38px + var(--pond-h) - 4px);
+  width: 18px; height: 56px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 220ms ease, filter 220ms ease;
+}
+#ice-bubbles:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(190, 230, 250, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.ibw-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#ice-bubbles.blowing .ibw-stem { animation: ibw-dip 380ms cubic-bezier(.4, .0, .4, 1); }
+#ice-bubbles.blowing .ibw-loop { animation: ibw-flash 380ms ease-out; }
+@keyframes ibw-dip {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(4px); }
+  100% { transform: translateY(0); }
+}
+@keyframes ibw-flash {
+  0%   { fill: rgba(220, 232, 245, 0.18); }
+  40%  { fill: rgba(240, 250, 255, 0.55); }
+  100% { fill: rgba(220, 232, 245, 0.18); }
+}
+.ice-bubble {
+  position: fixed;
+  width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%,
+    rgba(240, 250, 255, 0.85) 0%,
+    rgba(180, 220, 245, 0.40) 55%,
+    rgba(140, 200, 235, 0.10) 100%);
+  border: 1px solid rgba(220, 235, 250, 0.55);
+  box-shadow: inset 0 0 2px rgba(255, 255, 255, 0.55), 0 0 3px rgba(180, 220, 245, 0.30);
+  pointer-events: auto;
+  cursor: pointer;
+  animation: ice-bubble-float 30s cubic-bezier(.3, .2, .6, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes ice-bubble-float {
+  0%   { transform: translate(var(--ib-dx-0, 0px), 0)             scale(0.45); opacity: 0; }
+  6%   { transform: translate(var(--ib-dx-6, 0px), -4px)          scale(0.78); opacity: 0.92; }
+  30%  { transform: translate(var(--ib-dx-30, 0px), -28px)        scale(1.0);  opacity: 0.96; }
+  70%  { transform: translate(var(--ib-dx-70, 0px), -68px)        scale(0.92); opacity: 0.78; }
+  92%  { transform: translate(var(--ib-dx-92, 0px), -92px)        scale(0.78); opacity: 0.42; }
+  100% { transform: translate(var(--ib-dx-100, 0px), -118px)      scale(0.40); opacity: 0; }
+}
+.ice-bubble.popped {
+  animation: ice-bubble-pop 420ms cubic-bezier(.4, .0, .4, 1) forwards;
+  pointer-events: none;
+}
+@keyframes ice-bubble-pop {
+  0%   { transform: var(--ib-pop-base, scale(1)) translate(0,0); opacity: 1; }
+  60%  { transform: var(--ib-pop-base, scale(1)) translate(0,0) scale(1.18); opacity: 0.4; }
+  100% { transform: var(--ib-pop-base, scale(1)) translate(0,0) scale(0.2); opacity: 0; }
+}
+.ice-fleck {
+  position: fixed;
+  width: 4px; height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), rgba(220, 235, 250, 0.85));
+  pointer-events: none;
+  animation: ice-fleck-fly 760ms cubic-bezier(.3, .6, .5, 1) forwards;
+}
+@keyframes ice-fleck-fly {
+  0%   { transform: translate(0,0) rotate(0deg);   opacity: 0.95; }
+  100% { transform: translate(var(--fl-dx,0), var(--fl-dy,12px)) rotate(var(--fl-rot,24deg)); opacity: 0; }
+}
+/* ice-bubbles is inert on non-cold seasons: the wand sits on the
+   shore but the .blowing class is gated at js-init time. */
+body:not(.season-winter):not(.motion-cold) #ice-bubbles { opacity: 0.55; }
+body.motion-reduced #ice-bubbles.blowing .ibw-stem,
+body.motion-reduced #ice-bubbles.blowing .ibw-loop,
+body.motion-reduced .ice-bubble,
+body.motion-reduced .ice-fleck { animation: none; display: none; }
+body.stargazer #ice-bubbles { opacity: 0.55; }
+
+/* ---- smoke rune writer (top-left shelf · 8s curling smoke runes).
+   brass pipe with a beeswax tip; click dips the tip and emits a
+   curling smoke trail in one of 8 rune shapes. smoke bends ~18deg
+   with body.wind-gust via a transform on the .srw-runes-host. */
+#smoke-rune-writer {
+  position: fixed;
+  top: 108px;
+  left: 70px;
+  width: 28px; height: 40px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#smoke-rune-writer:hover { transform: translateY(-1px); filter: drop-shadow(0 0 7px rgba(196, 168, 140, 0.45)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.srw-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#smoke-rune-writer.smoking .srw-tip { animation: srw-ignite 380ms cubic-bezier(.2, .8, .3, 1); }
+@keyframes srw-ignite {
+  0%   { fill: #d9a05b; transform: translateY(0); }
+  45%  { fill: #ffe2a4; transform: translateY(0); filter: drop-shadow(0 0 4px rgba(255, 222, 160, 0.65)); }
+  100% { fill: #d9a05b; transform: translateY(0); }
+}
+.srw-runes-host {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  transition: transform 1.4s cubic-bezier(.3, .7, .5, 1);
+}
+body.wind-gust .srw-runes-host { transform: skewX(-14deg) translateX(18px); }
+.smoke-rune {
+  position: fixed;
+  width: 26px; height: 60px;
+  margin-left: -13px;
+  pointer-events: none;
+  opacity: 0;
+  animation: smoke-rune-rise 8s cubic-bezier(.3, .3, .6, 1) forwards;
+  will-change: transform, opacity;
+}
+.smoke-rune svg .sr-stroke {
+  stroke: rgba(220, 220, 220, 0.55);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.30));
+}
+@keyframes smoke-rune-rise {
+  0%   { transform: translate(var(--sr-dx-0,   0px), 0)     rotate(0deg)  scale(0.50); opacity: 0; }
+  10%  { transform: translate(var(--sr-dx-10, -2px), -8px)  rotate(-2deg) scale(0.85); opacity: 0.55; }
+  35%  { transform: translate(var(--sr-dx-35, -4px), -28px) rotate(-3deg) scale(1.0);  opacity: 0.78; }
+  70%  { transform: translate(var(--sr-dx-70, -8px), -54px) rotate(-4deg) scale(1.05); opacity: 0.45; }
+  100% { transform: translate(var(--sr-dx-100,-12px), -86px) rotate(-5deg) scale(0.70); opacity: 0; }
+}
+body.motion-reduced #smoke-rune-writer.smoking .srw-tip,
+body.motion-reduced .smoke-rune { animation: none; display: none; }
+body.stargazer #smoke-rune-writer { opacity: 0.55; }
+
+/* ---- aurora needle (top-right back-of-shore · brass sextant).
+   distinct from the existing #magnetometer (which fetches live Kp via
+   NOAA SWPC); this needle responds to the existing aurora-peak body
+   window set by aurora-day forecast logic. the .locked class adds a
+   1.2s expanding arc via child .an-pulse circles. */
+#aurora-needle {
+  position: fixed;
+  top: 88px;
+  right: 64px;
+  width: 50px; height: 60px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#aurora-needle:hover { transform: translateY(-1px); filter: drop-shadow(0 0 8px rgba(207, 224, 238, 0.55)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.an-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.an-needle {
+  animation: an-tilt 7s ease-in-out infinite;
+  transition: transform 760ms cubic-bezier(.4, 0, .3, 1);
+  transform-origin: 25px 22px;
+}
+@keyframes an-tilt {
+  0%   { transform: rotate(-22deg); }
+  50%  { transform: rotate(18deg);  }
+  100% { transform: rotate(-22deg); }
+}
+body.aurora-peak .an-needle { animation-duration: 3.4s; }
+body.aurora-storm .an-needle { animation: an-shake 0.18s linear infinite; }
+@keyframes an-shake {
+  0%   { transform: rotate(var(--an-storm, -28deg)); }
+  50%  { transform: rotate(calc(var(--an-storm, -28deg) + 6deg)); }
+  100% { transform: rotate(calc(var(--an-storm, -28deg) - 6deg)); }
+}
+#aurora-needle.locked .an-needle { animation: none; transform: rotate(var(--an-locked, 0deg)); }
+.an-pulse-host { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+.an-pulse {
+  position: fixed;
+  border: 1.5px solid rgba(207, 224, 238, 0.85);
+  border-radius: 50%;
+  pointer-events: none;
+  background: transparent;
+  animation: an-pulse-expand 1.2s cubic-bezier(.2, .6, .3, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes an-pulse-expand {
+  0%   { transform: translate(-50%, -50%) scale(0.10); opacity: 0.95; }
+  60%  { transform: translate(-50%, -50%) scale(0.65); opacity: 0.55; }
+  100% { transform: translate(-50%, -50%) scale(1.10); opacity: 0.0;  }
+}
+body.motion-reduced .an-needle,
+body.motion-reduced .an-pulse { animation: none; display: none; }
+body.stargazer #aurora-needle { opacity: 0.55; }
+
+/* ---- shadow cloth theater (between third cattail bunch · 6 puppets).
+   cloth is pinned with two visible twine lines that look like they
+   hook the cattails at left:66vw. the .casting class triggers a flip
+   keyframe (scaleX 1 → 0 → 1, 380ms) on the puppet group each click. */
+#shadow-theater {
+  position: fixed;
+  left: 62vw;
+  bottom: calc(38px + var(--pond-h) + 8px);
+  width: 70px; height: 56px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#shadow-theater:hover { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(238, 232, 204, 0.40)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.st-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.st-puppet {
+  transform-origin: 35px 31px;
+  transform: translate(35px, 31px) scale(1.1);
+}
+#shadow-theater.casting .st-puppet { animation: st-flip 460ms cubic-bezier(.4, .0, .4, 1); }
+@keyframes st-flip {
+  0%   { transform: translate(35px, 31px) scale(1.1, 1.1); opacity: 1; }
+  50%  { transform: translate(35px, 31px) scale(0.05, 1.1); opacity: 0.2; }
+  100% { transform: translate(35px, 31px) scale(1.1, 1.1); opacity: 1; }
+}
+body.motion-reduced #shadow-theater.casting .st-puppet { animation: none; }
+body.stargazer #shadow-theater { opacity: 0.55; }
+
+/* ---- devlog #39 stat-wrap band (bottom:166px row, just above the
+   existing bottom:148 row). five wraps share the same vw positions
+   the previous five-piece batches used. muted under stargazer. */
+.echodrum-stat-wrap,
+.icebubbles-stat-wrap,
+.smokerune-stat-wrap,
+.auroraneedle-stat-wrap,
+.shadowtheater-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 4;
+  letter-spacing: 0.02em;
+  bottom: 166px;
+}
+.echodrum-stat-wrap     { left: 8vw;  }
+.icebubbles-stat-wrap   { left: 24vw; }
+.smokerune-stat-wrap    { left: 40vw; }
+.auroraneedle-stat-wrap { left: 56vw; }
+.shadowtheater-stat-wrap{ left: 72vw; }
+.echodrum-stat-wrap #echo-drum-stat,
+.icebubbles-stat-wrap #ice-bubbles-stat,
+.smokerune-stat-wrap #smoke-rune-stat,
+.auroraneedle-stat-wrap #aurora-needle-stat,
+.shadowtheater-stat-wrap #shadow-theater-stat { color: var(--moss); margin-left: 4px; }
+body.stargazer .echodrum-stat-wrap,
+body.stargazer .icebubbles-stat-wrap,
+body.stargazer .smokerune-stat-wrap,
+body.stargazer .auroraneedle-stat-wrap,
+body.stargazer .shadowtheater-stat-wrap { opacity: 0.5; }
+body.motion-reduced .echodrum-stat-wrap,
+body.motion-reduced .icebubbles-stat-wrap,
+body.motion-reduced .smokerune-stat-wrap,
+body.motion-reduced .auroraneedle-stat-wrap,
+body.motion-reduced .shadowtheater-stat-wrap { display: none; }
+
+/* ==== devlog #40 — petrified acorn, dusk gnat swarm, glass dewdrop, haiku slip ==== */
+
+/* ---- petrified acorn (left-shore gravel at left:168 · click to crack,
+   revealing a polished red agate within). state persists; counter persists.
+   body.aurora-peak sets a faint red glow filter on the revealed agate (the
+   agate is hidden until cracked, so the glow filter only applies once-open).
+   second-click re-triggers the keyframes (remove + add via rAF) so a bead
+   that’s already cracked still gets the wobble + chime, instead of no-op. */
+#petrified-acorn {
+  position: fixed;
+  left: 168px;
+  bottom: calc(38px + var(--pond-h));
+  width: 30px; height: 28px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 220ms ease, filter 220ms ease;
+}
+#petrified-acorn:hover { transform: translateY(-1px); filter: drop-shadow(0 0 7px rgba(168, 50, 68, 0.32)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55)); }
+.pa-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#petrified-acorn .pa-agate { opacity: 0; transform-origin: 15px 22px; }
+#petrified-acorn.cracked .pa-shell { animation: pa-shell-shake 700ms cubic-bezier(.4, .0, .3, 1); transform-origin: 15px 22px; }
+#petrified-acorn.cracked .pa-cap { animation: pa-cap-lift 700ms cubic-bezier(.4, .0, .3, 1) forwards; transform-origin: 15px 18px; }
+#petrified-acorn.cracked .pa-cap-stem { animation: pa-cap-lift 700ms cubic-bezier(.4, .0, .3, 1) forwards; transform-origin: 15px 4px; }
+#petrified-acorn.cracked .pa-agate { animation: pa-appear 700ms cubic-bezier(.2, .8, .3, 1) forwards; }
+@keyframes pa-shell-shake {
+  0%   { transform: translate(0,0); }
+  20%  { transform: translate( 0.6px, -0.4px); }
+  40%  { transform: translate(-0.6px,  0.6px); }
+  60%  { transform: translate( 0.4px, -0.2px); }
+  100% { transform: translate(0,0); }
+}
+@keyframes pa-cap-lift {
+  0%   { transform: translateY(0)     rotate(0deg); }
+  60%  { transform: translateY(-3.5px) rotate(-14deg); }
+  100% { transform: translateY(-7px)   rotate(-22deg); }
+}
+@keyframes pa-appear {
+  0%   { opacity: 0; transform: scale(0.4); }
+  55%  { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+body.aurora-peak #petrified-acorn.cracked .pa-agate { filter: drop-shadow(0 0 4px rgba(220, 100, 120, 0.7)); }
+body.motion-reduced #petrified-acorn.cracked .pa-shell,
+body.motion-reduced #petrified-acorn.cracked .pa-cap,
+body.motion-reduced #petrified-acorn.cracked .pa-cap-stem,
+body.motion-reduced #petrified-acorn.cracked .pa-agate { animation: none; }
+#petrified-acorn.cracked .pa-cap,
+#petrified-acorn.cracked .pa-cap-stem { transform: translateY(-7px) rotate(-22deg); }
+body.stargazer #petrified-acorn { opacity: 0.55; }
+
+/* ---- dusk gnat swarm (over the right cattails at top:32vh left:32vw ·
+   seven small dots drift in lazy per-gnat figure-eight micro-loops via
+   seven per-gnat @keyframes dgs-drift-N. click removes .drifting, adds
+   .dispersing; the per-gnat CSS custom props --dgs-dx/--dgs-dy (set in
+   app.js at init AND re-assigned each click) fly each gnat to its own
+   disperse angle. after 1500ms .drifting re-applies. opacity 0.4 on
+   body.day; full on .night / .aurora-peak / .dusk. */
+#dusk-gnat-swarm {
+  position: fixed;
+  top: 32vh;
+  left: 32vw;
+  width: 64px; height: 64px;
+  z-index: 6;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.40));
+  transition: opacity 600ms ease;
+}
+#dusk-gnat-swarm .dgs-gnat { opacity: 0.82; transform-origin: center; will-change: transform; }
+#dusk-gnat-swarm.drifting .dgs-g1 { animation: dgs-drift-1 6.4s ease-in-out infinite; }
+#dusk-gnat-swarm.drifting .dgs-g2 { animation: dgs-drift-2 7.0s ease-in-out infinite; }
+#dusk-gnat-swarm.drifting .dgs-g3 { animation: dgs-drift-3 6.8s ease-in-out infinite; }
+#dusk-gnat-swarm.drifting .dgs-g4 { animation: dgs-drift-4 7.2s ease-in-out infinite; }
+#dusk-gnat-swarm.drifting .dgs-g5 { animation: dgs-drift-5 6.6s ease-in-out infinite; }
+#dusk-gnat-swarm.drifting .dgs-g6 { animation: dgs-drift-6 7.4s ease-in-out infinite; }
+#dusk-gnat-swarm.drifting .dgs-g7 { animation: dgs-drift-7 6.2s ease-in-out infinite; }
+#dusk-gnat-swarm.dispersing .dgs-gnat { animation: dgs-disperse 1500ms cubic-bezier(.4, .0, .6, 1) forwards; }
+@keyframes dgs-drift-1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate( 6px,-4px); } }
+@keyframes dgs-drift-2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-7px, 3px); } }
+@keyframes dgs-drift-3 { 0%,100% { transform: translate(0,0); } 50% { transform: translate( 4px, 6px); } }
+@keyframes dgs-drift-4 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-5px,-5px); } }
+@keyframes dgs-drift-5 { 0%,100% { transform: translate(0,0); } 50% { transform: translate( 7px, 2px); } }
+@keyframes dgs-drift-6 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-3px, 6px); } }
+@keyframes dgs-drift-7 { 0%,100% { transform: translate(0,0); } 50% { transform: translate( 5px,-6px); } }
+@keyframes dgs-disperse {
+  /* outward to ~per-gnat (dx,dy) at 40%, then return to 0,0 at 100% with
+     opacity back to 0.82 — so when .dispersing is removed at 1500ms and
+     .drifting re-applies, dgs-drift-N's 0% (translate(0,0)) picks up
+     exactly where dgs-disperse ended, no visual snap on regather. */
+  0%   { transform: translate(0,0);                                            opacity: 0.82; }
+  40%  { transform: translate(var(--dgs-dx, 80px), var(--dgs-dy, -60px));     opacity: 0.45; }
+  100% { transform: translate(0, 0);                                            opacity: 0.82; }
+}
+body.day #dusk-gnat-swarm { opacity: 0.4; }
+body:not(.day) #dusk-gnat-swarm { opacity: 1; }
+body.motion-reduced #dusk-gnat-swarm .dgs-gnat { animation: none !important; }
+body.stargazer #dusk-gnat-swarm { opacity: 0.4; }
+
+/* ---- glass dewdrop (upper-right back shore at top:240 right:92 · a tiny
+   glass bead hangs from a chrome-sounding pendulum keyframe. click pops; a
+   .gdd-halo div is spawned at the bead’s center coordinate by app.js and
+   removed after 800ms — the bead regenerates after 60s (the gate is fully
+   in app.js; no body class involved since regen is per-pop, not env). */
+#glass-dewdrop {
+  position: fixed;
+  top: 240px;
+  right: 92px;
+  width: 18px; height: 18px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 0 3px rgba(190, 230, 250, 0.55)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.50));
+  transition: transform 200ms ease, filter 200ms ease, opacity 220ms ease;
+}
+#glass-dewdrop:hover { transform: translateY(-1px) scale(1.05); filter: drop-shadow(0 0 8px rgba(220, 240, 255, 0.7)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.50)); }
+.gdd-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#glass-dewdrop .gdd-bead { transform-origin: 9px 9px; animation: gdd-pendulum 4.5s ease-in-out infinite; }
+@keyframes gdd-pendulum {
+  0%, 100% { transform: rotate(-4deg); }
+  50%      { transform: rotate( 4deg); }
+}
+#glass-dewdrop.popped { opacity: 0; }
+body.motion-reduced #glass-dewdrop .gdd-bead { animation: none; }
+body.stargazer #glass-dewdrop { opacity: 0.55; }
+
+.gdd-halo {
+  position: fixed;
+  pointer-events: none;
+  width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  border: 0.6px solid rgba(190, 230, 250, 0.6);
+  z-index: 1;
+  animation: gdd-halo-pulse 720ms cubic-bezier(.2, .8, .3, 1) forwards;
+}
+@keyframes gdd-halo-pulse {
+  0%   { transform: scale(0.5); opacity: 0;    border-width: 0.8px; }
+  30%  { opacity: 0.85; }
+  100% { transform: scale(3.5); opacity: 0;    border-width: 0.2px; }
+}
+
+/* ---- haiku slip (above the dock zone at top:168 left:30vw · a small slip of
+   cream paper pinned at the top with a red pin. foreignObject hosts the
+   body // <div class="hs-text">; .hs-text fades on cycle via opacity 220ms
+   then app.js swaps innerHTML. body.night deepens the ink slightly so the
+   text reads warmer against the paper. hover tilts -1deg. */
+#haiku-slip {
+  position: fixed;
+  top: 168px;
+  left: 30vw;
+  width: 100px; height: 84px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease, filter 200ms ease;
+}
+#haiku-slip:hover { transform: translateY(-1px) rotate(-1deg); filter: drop-shadow(0 0 8px rgba(240, 220, 180, 0.5)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55)); }
+.hs-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.hs-text {
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-size: 6.4px;
+  line-height: 1.35;
+  color: #2a2018;
+  text-align: center;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  padding: 0 4px;
+  transition: opacity 220ms ease;
+}
+.hs-text.fading { opacity: 0; }
+body.night .hs-text { color: #1c1408; }
+body.motion-reduced .hs-text { transition: none; }
+body.stargazer #haiku-slip { opacity: 0.55; }
+
+/* ==== devlog #41 — tin-whistle, iron-keys, lichen-mandala, tally-stick, paper-boat ==== */
+
+/* ---- tin-whistle (top:96 right:300) ----
+   a 6-hole tin whistle hanging from a leather-lanyard knot. click bounces the
+   whole element on a 380ms tw2-bounce keyframe and fires a 4-note ascending
+   sine cascade via a 70ms staggered setTimeout chain. holes briefly brighten
+   via the .played class so the keystroke reads as visible feedback. */
+#tin-whistle {
+  position: fixed;
+  top: 96px;
+  right: 300px;
+  width: 40px;
+  height: 64px;
+  z-index: 3;
+}
+#tin-whistle:hover { transform: translateY(-1px) rotate(-1deg); filter: drop-shadow(0 0 7px rgba(255, 232, 168, 0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+.tw2-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tw2-hole { transition: fill 220ms, r 220ms; }
+#tin-whistle.played .tw2-tube { animation: tw2-bounce 380ms cubic-bezier(.3, .8, .3, 1); transform-origin: 18px 32px; }
+@keyframes tw2-bounce {
+  0%   { transform: rotate(0deg)   scale(1);    }
+  20%  { transform: rotate(-3deg)  scale(1.05); }
+  50%  { transform: rotate(2deg)   scale(0.97); }
+  100% { transform: rotate(0deg)   scale(1);    }
+}
+#tin-whistle.played .tw2-hole { fill: #d9a05b; r: 1.2; }
+body.motion-reduced #tin-whistle.played .tw2-tube { animation: none; }
+body.stargazer #tin-whistle { opacity: 0.55; }
+
+/* ---- iron-keys (top:240 right:300) ----
+   a ring of three antique skeleton keys on a brass hook, opposite the glass
+   dewdrop (right:92). cluster idles via an ik-idle 5.4s keyframe (rotate
+   ±2deg). body.aurora-peak speeds it to 2.4s — folk tradition: iron "knows"
+   aurora weather. click fires an ik-shake 320ms keyframe (rotate ±4deg four
+   times) + one 760hz sine clink. */
+#iron-keys {
+  position: fixed;
+  top: 240px;
+  right: 300px;
+  width: 36px; height: 48px;
+  z-index: 3;
+}
+#iron-keys:hover { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(200, 220, 230, 0.35)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+.ik-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ik-cluster { transform-origin: 18px 14px; animation: ik-idle 5.4s ease-in-out infinite; }
+@keyframes ik-idle {
+  0%, 100% { transform: rotate(-2deg); }
+  50%      { transform: rotate(2deg);  }
+}
+body.aurora-peak .ik-cluster { animation-duration: 2.4s; }
+#iron-keys.jingled .ik-cluster { animation: ik-shake 320ms cubic-bezier(.2, .8, .3, 1); }
+@keyframes ik-shake {
+  0%, 100% { transform: rotate(0deg);  }
+  20%      { transform: rotate(-4deg); }
+  40%      { transform: rotate(4deg);  }
+  60%      { transform: rotate(-3deg); }
+  80%      { transform: rotate(2deg);  }
+}
+body.motion-reduced .ik-cluster,
+body.motion-reduced #iron-keys.jingled .ik-cluster { animation: none; }
+body.stargazer #iron-keys { opacity: 0.55; }
+
+/* ---- lichen-mandala (left:96 bottom:240) ----
+   a flat stone with concentric lichen rings, well below the echo-drum and
+   well above bottom:38. js grows one new outer ring per click (cap 8) by
+   rebuilding the inner SVG group; the css transition: r 280ms ease still
+   fires on the newly-added ring. body.dusk and body.night filter-hue-rotate
+   the lichen colors so the colony visibly resonates with the time of day
+   without a js poll. */
+#lichen-mandala {
+  position: fixed;
+  left: 96px;
+  bottom: 240px;
+  width: 56px; height: 36px;
+  z-index: 3;
+}
+#lichen-mandala:hover { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(143, 212, 154, 0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+.lm-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.lm-ring { transition: fill 600ms ease, filter 600ms ease; transform-origin: 25px 22px; }
+/* Each newly-grown ring carries the .lm-ring-enter class for one frame; the
+   lm-ring-grow keyframe interpolates scale 0→1 over 280ms, so the new ring
+   visibly expands into place. Without this keyframe, freshly-inserted SVG
+   circles don't transition their attributes from a non-existent prior
+   state, so growth would appear instant. (transition: r 280ms looks right
+   but doesn't interpolate on insertion — only on mutation of an existing
+   element's r attribute.) */
+@keyframes lm-ring-grow {
+  0%   { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+.lm-ring.lm-ring-enter { animation: lm-ring-grow 280ms ease-out; }
+@keyframes lm-pulse {
+  0%   { transform: scale(1);    }
+  50%  { transform: scale(1.05); }
+  100% { transform: scale(1);    }
+}
+#lichen-mandala.grown .lm-rings { animation: lm-pulse 420ms ease-out; transform-origin: 25px 22px; }
+body.dusk  .lm-ring { filter: hue-rotate(-8deg);  }
+body.night .lm-ring { filter: hue-rotate(-22deg) brightness(0.86); }
+body.season-winter .lm-ring { filter: contrast(0.92) brightness(1.04); }
+body.motion-reduced #lichen-mandala.grown .lm-rings { animation: none; }
+body.stargazer #lichen-mandala { opacity: 0.55; }
+
+/* ---- tally-stick (top:128 left:8) ----
+   a short driftwood plank on the upper-left edge. each click adds one tick
+   (cap 20) via createElementNS; at 20 the bundle resets for visual variety.
+   tick fill shifts by season (winter = frost-bright, summer = warm-amber) and
+   the whole wood adds a red drop-shadow filter on aurora-peak nights. */
+#tally-stick {
+  position: fixed;
+  top: 128px;
+  left: 8px;
+  width: 18px; height: 88px;
+  z-index: 3;
+}
+#tally-stick:hover { transform: translateY(-1px); filter: drop-shadow(0 0 5px rgba(220, 180, 110, 0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+.ts-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ts-tick { fill: #1a1408; transition: opacity 240ms; }
+#tally-stick.carved .ts-wood { animation: ts-tap 220ms ease-out; transform-origin: 7px 80px; }
+@keyframes ts-tap {
+  0%   { transform: rotate(0deg);    }
+  40%  { transform: rotate(-1.4deg); }
+  100% { transform: rotate(0deg);    }
+}
+body.season-winter .ts-tick { fill: #d9e8ee; }
+body.season-summer .ts-tick { fill: #8c4a26; }
+body.aurora-peak .ts-wood { filter: drop-shadow(0 0 4px rgba(220, 100, 100, 0.45)); }
+body.motion-reduced #tally-stick.carved .ts-wood { animation: none; }
+body.stargazer #tally-stick { opacity: 0.55; }
+
+/* ---- paper-boat (left:152 bottom:170) ----
+   a folded paper boat on the lower shore, 6px horizontally clear of the
+   echo-drum's worst-case x:146 footprint and 70px above the lichen-mandala.
+   click triggers 720ms pb-launch keyframe (translate +34px, scale 0.92,
+   rotate 8°, opacity →0). the keyframe uses animation-fill-mode: forwards
+   which keeps the boat at the 100% (opacity:0) state until app.js removes
+   the .launched class via a 750ms setTimeout — without that setTimeout the
+   boat would stay invisible forever. do not delete the JS setTimeout.
+   body.wind-gust skews the sail (-6deg, 1.4s ease-in-out infinite).
+   body.rain-day darkens the hull (brightness 0.86 saturate 0.7) so the
+   paper visibly "gets wet." 110hz whisper on click. */
+#paper-boat {
+  position: fixed;
+  left: 152px;
+  bottom: 170px;
+  width: 44px; height: 24px;
+  z-index: 3;
+}
+#paper-boat:hover { transform: translateY(-1px) translateX(2px); filter: drop-shadow(0 0 6px rgba(220, 240, 250, 0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+.pb-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pb-hull-back, .pb-hull-front { transition: opacity 240ms; }
+@keyframes pb-launch {
+  0%   { transform: translate(0,   0) scale(1)    rotate(0deg);  opacity: 1; }
+  40%  { transform: translate(8px, -4px) scale(1.06) rotate(-4deg); opacity: 1; }
+  100% { transform: translate(34px, -1px) scale(0.92) rotate(8deg); opacity: 0; }
+}
+#paper-boat.launched { animation: pb-launch 720ms cubic-bezier(.3, .7, .4, 1) forwards; }
+.pb-sail { transform-origin: 20px 12px; }
+body.wind-gust .pb-sail { animation: pb-sail-flutter 1.4s ease-in-out infinite; }
+@keyframes pb-sail-flutter {
+  0%, 100% { transform: skewX(0deg);   }
+  50%      { transform: skewX(-6deg);  }
+}
+body.rain-day #paper-boat { filter: brightness(0.86) saturate(0.7); }
+body.motion-reduced #paper-boat.launched { animation: none; }
+body.stargazer #paper-boat { opacity: 0.55; }
+
+/* ---- devlog #41 stat-wrap band (bottom:212px row · one row above devlog
+   #40’s bottom:184). five wraps at 16vw spacing — 8, 24, 40, 56, 72. */
+.tin-whistle-stat-wrap,
+.iron-keys-stat-wrap,
+.lichen-mandala-stat-wrap,
+.tally-stick-stat-wrap,
+.paper-boat-stat-wrap {
+  position: fixed;
+  bottom: 212px;
+  font-size: 11.5px;
+  color: var(--ink, #d3cfbf);
+  font-family: Georgia, serif;
+  pointer-events: none;
+  z-index: 4;
+}
+.tin-whistle-stat-wrap    { left: 8vw;  }
+.iron-keys-stat-wrap      { left: 24vw; }
+.lichen-mandala-stat-wrap { left: 40vw; }
+.tally-stick-stat-wrap    { left: 56vw; }
+.paper-boat-stat-wrap     { left: 72vw; }
+.tin-whistle-stat-wrap #tin-whistle-stat,
+.iron-keys-stat-wrap #iron-keys-stat,
+.lichen-mandala-stat-wrap #lichen-mandala-stat,
+.tally-stick-stat-wrap #tally-stick-stat,
+.paper-boat-stat-wrap #paper-boat-stat { color: var(--moss, #8fd49a); margin-left: 4px; }
+body.motion-reduced .tin-whistle-stat-wrap,
+body.motion-reduced .iron-keys-stat-wrap,
+body.motion-reduced .lichen-mandala-stat-wrap,
+body.motion-reduced .tally-stick-stat-wrap,
+body.motion-reduced .paper-boat-stat-wrap { display: none; }
+body.stargazer .tin-whistle-stat-wrap,
+body.stargazer .iron-keys-stat-wrap,
+body.stargazer .lichen-mandala-stat-wrap,
+body.stargazer .tally-stick-stat-wrap,
+body.stargazer .paper-boat-stat-wrap { opacity: 0.55; }
+
+/* ---- devlog #40 stat-wrap band (bottom:184px row · one row above devlog
+   #39’s bottom:166). the four classes sit at left:8/24/40/56vw on the same
+   16vw ladder. */
+.petrifiedacorn-stat-wrap,
+.duskgnatswarm-stat-wrap,
+.glassdewdrop-stat-wrap,
+.haikuslip-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  user-select: none;
+  bottom: 184px;
+  z-index: 12;
+}
+.petrifiedacorn-stat-wrap { left:  8vw; }
+.duskgnatswarm-stat-wrap   { left: 24vw; }
+.glassdewdrop-stat-wrap    { left: 40vw; }
+.haikuslip-stat-wrap       { left: 56vw; }
+body.motion-reduced .petrifiedacorn-stat-wrap,
+body.motion-reduced .duskgnatswarm-stat-wrap,
+body.motion-reduced .glassdewdrop-stat-wrap,
+body.motion-reduced .haikuslip-stat-wrap { display: none; }
+
