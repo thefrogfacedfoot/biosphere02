@@ -12691,3 +12691,168 @@ function paperBoatLaunch() {
 }
 if (pbEl) pbEl.addEventListener("click", paperBoatLaunch);
 
+/* ============================================================
+   devlog #42 — six small additions (dew-catcher, prism-stone,
+   copper-rain-gauge, acorn-top, driftwood-rider, brass-astrolabe).
+   each latches onto a different system already in use:
+   dew-catcher       → body.dawn (drop swells at dawn)
+   prism-stone       → body.aurora-peak (rotating refraction)
+   copper-rain-gauge → body.rain-day (water level fills)
+   acorn-top         → body.season-autumn (leaves appear)
+   driftwood-rider   → --pond-h + body.wind-gust (sail flutter)
+   brass-astrolabe   → body.stargazer (ring alignment keyframe)
+   counter keys are biosphere02.<name>.v1 with no cross-references.
+   audio routes through the devlog #39 _featureCtxRef pool that
+   already serves the previous 9 click-driven features, so adding
+   six more oscillators doesn't spawn a seventh pool.
+   ============================================================ */
+
+// ---------- 1) dew-catcher (#dew-catcher) ----------
+const DC_KEY   = "biosphere02.dewcatcher.v1";
+const dcEl     = document.getElementById("dew-catcher");
+let   dcCount  = (() => { try { return +localStorage.getItem(DC_KEY) || 0; } catch { return 0; } })();
+const dcStatEl = document.getElementById("dew-catcher-stat");
+function renderDcStat() { if (dcStatEl) dcStatEl.textContent = dcCount; }
+renderDcStat();
+function dewCatch() {
+  if (!dcEl) return;
+  dcEl.classList.remove("shaken"); void dcEl.offsetWidth; dcEl.classList.add("shaken");
+  setTimeout(() => dcEl.classList.remove("shaken"), 470);
+  dcCount++;
+  try { localStorage.setItem(DC_KEY, String(dcCount)); } catch {}
+  renderDcStat();
+  if (typeof playFeatureSine === "function") playFeatureSine(1320, 0.38, 0.10, "sine");
+  if (dcCount === 1 && typeof toast === "function") toast("a tiny bead — shaken loose at dawn", 2000);
+}
+if (dcEl) dcEl.addEventListener("click", dewCatch);
+
+// ---------- 2) prism-stone (#prism-stone) ----------
+const PS_KEY   = "biosphere02.prismstone.v1";
+const psEl     = document.getElementById("prism-stone");
+let   psCount  = (() => { try { return +localStorage.getItem(PS_KEY) || 0; } catch { return 0; } })();
+const psStatEl = document.getElementById("prism-stone-stat");
+function renderPsStat() { if (psStatEl) psStatEl.textContent = psCount; }
+renderPsStat();
+function prismStrike() {
+  if (!psEl) return;
+  psEl.classList.remove("tapped"); void psEl.offsetWidth; psEl.classList.add("tapped");
+  setTimeout(() => psEl.classList.remove("tapped"), 520);
+  psCount++;
+  try { localStorage.setItem(PS_KEY, String(psCount)); } catch {}
+  renderPsStat();
+  if (typeof playFeatureSine === "function") playFeatureSine(580, 0.42, 0.10, "triangle");
+  if (psCount === 1 && typeof toast === "function") toast("the prism remembers light better than glass", 2200);
+}
+if (psEl) psEl.addEventListener("click", prismStrike);
+
+// ---------- 3) copper-rain-gauge (#copper-rain-gauge) ----------
+const CRG_KEY   = "biosphere02.copperraingauge.v1";
+const crgEl     = document.getElementById("copper-rain-gauge");
+let   crgCount  = (() => { try { return +localStorage.getItem(CRG_KEY) || 0; } catch { return 0; } })();
+const crgStatEl = document.getElementById("copper-rain-gauge-stat");
+function renderCrgStat() { if (crgStatEl) crgStatEl.textContent = crgCount; }
+renderCrgStat();
+const crgWater = crgEl ? crgEl.querySelector(".crg-water") : null;
+function updateGaugeFill() {
+  if (!crgWater) return;
+  // rain-day class is set by the late-day forecast check (and
+  // forecast-rain is the legacy alias some earlier scripts still write),
+  // drain otherwise.
+  const isRain = document.body.classList.contains("rain-day")
+                 || document.body.classList.contains("forecast-rain");
+  if (isRain) {
+    crgWater.setAttribute("y", "12");
+    crgWater.setAttribute("height", "38");
+  } else {
+    crgWater.setAttribute("y", "50");
+    crgWater.setAttribute("height", "0");
+  }
+}
+updateGaugeFill();
+function gaugeTip() {
+  if (!crgEl) return;
+  crgEl.classList.remove("tipped"); void crgEl.offsetWidth; crgEl.classList.add("tipped");
+  setTimeout(() => crgEl.classList.remove("tipped"), 420);
+  crgCount++;
+  try { localStorage.setItem(CRG_KEY, String(crgCount)); } catch {}
+  renderCrgStat();
+  if (typeof playFeatureSine === "function") playFeatureSine(220, 0.46, 0.10, "sine");
+  if (crgCount === 1 && typeof toast === "function") toast("a copper tide that calls itself rain", 2100);
+}
+if (crgEl) crgEl.addEventListener("click", gaugeTip);
+// poll once per minute so the gauge fills/drains in step with the
+// body.rain-day class set by the forecast check; cheap read of classList.
+setInterval(updateGaugeFill, 60_000);
+
+// ---------- 4) acorn-top (#acorn-top) ----------
+const AC_KEY   = "biosphere02.acorntop.v1";
+const acEl     = document.getElementById("acorn-top");
+let   acCount  = (() => { try { return +localStorage.getItem(AC_KEY) || 0; } catch { return 0; } })();
+const acStatEl = document.getElementById("acorn-top-stat");
+function renderAcStat() { if (acStatEl) acStatEl.textContent = acCount; }
+renderAcStat();
+const acTopEl = acEl ? acEl.querySelector(".ac-top") : null;
+function acornSpin() {
+  if (!acEl) return;
+  acEl.classList.remove("tipped"); void acEl.offsetWidth; acEl.classList.add("tipped");
+  setTimeout(() => acEl.classList.remove("tipped"), 410);
+  if (acTopEl) {
+    // independent transform on .ac-top; re-arming the keyframe via
+    // remove + rAF add so a top that's already spinning still gets the
+    // visible wobble instead of no-op.
+    acTopEl.classList.remove("spinning"); void acTopEl.offsetWidth;
+    acTopEl.classList.add("spinning");
+    setTimeout(() => acTopEl.classList.remove("spinning"), 1700);
+  }
+  acCount++;
+  try { localStorage.setItem(AC_KEY, String(acCount)); } catch {}
+  renderAcStat();
+  if (typeof playFeatureSine === "function") playFeatureSine(180, 0.40, 0.10, "sawtooth");
+  if (acCount === 1 && typeof toast === "function") toast("an acorn cap — top of the season", 2000);
+}
+if (acEl) acEl.addEventListener("click", acornSpin);
+
+// ---------- 5) driftwood-rider (#driftwood-rider) ----------
+const DR_KEY   = "biosphere02.driftwoodrider.v1";
+const drEl     = document.getElementById("driftwood-rider");
+let   drCount  = (() => { try { return +localStorage.getItem(DR_KEY) || 0; } catch { return 0; } })();
+const drStatEl = document.getElementById("driftwood-rider-stat");
+function renderDrStat() { if (drStatEl) drStatEl.textContent = drCount; }
+renderDrStat();
+function riderNudge() {
+  if (!drEl) return;
+  drEl.classList.remove("nudged"); void drEl.offsetWidth; drEl.classList.add("nudged");
+  setTimeout(() => drEl.classList.remove("nudged"), 520);
+  drCount++;
+  try { localStorage.setItem(DR_KEY, String(drCount)); } catch {}
+  renderDrStat();
+  // a creak-then-tick: low creak first (wooden spine),
+  // then a small splash tick after 220ms (the water the rider pushes).
+  if (typeof playFeatureSine === "function") {
+    playFeatureSine(120, 0.22, 0.10, "triangle");
+    setTimeout(() => playFeatureSine(2200, 0.10, 0.05, "sine"), 220);
+  }
+  if (drCount === 1 && typeof toast === "function") toast("a rider kept by string — the tide knows where", 2200);
+}
+if (drEl) drEl.addEventListener("click", riderNudge);
+
+// ---------- 6) brass-astrolabe (#brass-astrolabe) ----------
+const BA_KEY   = "biosphere02.brassastrolabe.v1";
+const baEl     = document.getElementById("brass-astrolabe");
+const baInner  = baEl ? baEl.querySelector(".ba-inner-ring") : null;
+let   baCount  = (() => { try { return +localStorage.getItem(BA_KEY) || 0; } catch { return 0; } })();
+const baStatEl = document.getElementById("brass-astrolabe-stat");
+function renderBaStat() { if (baStatEl) baStatEl.textContent = baCount; }
+renderBaStat();
+function astrolabeTurn() {
+  if (!baEl || !baInner) return;
+  baInner.classList.remove("turned"); void baInner.offsetWidth; baInner.classList.add("turned");
+  setTimeout(() => baInner.classList.remove("turned"), 410);
+  baCount++;
+  try { localStorage.setItem(BA_KEY, String(baCount)); } catch {}
+  renderBaStat();
+  if (typeof playFeatureSine === "function") playFeatureSine(880, 0.16, 0.08, "square");
+  if (baCount === 1 && typeof toast === "function") toast("the rings remember their bearings", 2000);
+}
+if (baEl) baEl.addEventListener("click", astrolabeTurn);
+

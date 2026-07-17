@@ -7239,3 +7239,240 @@ body.motion-reduced .duskgnatswarm-stat-wrap,
 body.motion-reduced .glassdewdrop-stat-wrap,
 body.motion-reduced .haikuslip-stat-wrap { display: none; }
 
+/* ==== devlog #42 — dew-catcher, prism-stone, copper-rain-gauge, acorn-top, driftwood-rider, brass-astrolabe ==== */
+
+/* ---- dew-catcher (left shore, beneath the moss runestone & moonflower) ----
+   the bead at the web center swells on body.dawn via a transition on the
+   .dc-drop body's transform/opacity; other moods it sits compact. */
+#dew-catcher {
+  position: fixed;
+  left: 88px;
+  bottom: calc(38px + var(--pond-h) + 60px);
+  width: 44px; height: 40px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+  transition: transform 180ms ease;
+}
+#dew-catcher:hover { transform: translateY(-1px); }
+.dc-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.dc-drop { transform-origin: 22px 16px; transform-box: fill-box; }
+.dc-drop-body { transition: transform 480ms ease, opacity 480ms ease; transform-origin: 22px 14.5px; transform-box: fill-box; }
+body.dawn .dc-drop-body { transform: scale(1.45); opacity: 1; filter: drop-shadow(0 0 5px rgba(190, 220, 240, 0.85)); }
+#dew-catcher.shaken .dc-drop { animation: dc-shake 460ms ease-out; }
+@keyframes dc-shake {
+  0%   { transform: translate(0,0) scale(1); }
+  20%  { transform: translate(-1.4px, 0.6px) scale(0.92); }
+  40%  { transform: translate(1.4px, -0.4px) scale(0.92); }
+  60%  { transform: translate(-1px, 0.4px) scale(0.94); }
+  100% { transform: translate(0,0) scale(1); }
+}
+body.motion-reduced #dew-catcher.shaken .dc-drop,
+body.motion-reduced .dc-drop-body { transition: none; }
+body.motion-reduced #dew-catcher.shaken .dc-drop { animation: none; }
+body.stargazer #dew-catcher { opacity: 0.55; }
+
+/* ---- prism-stone (left shore, just below the paper boat row) ----
+   body.aurora-peak rotates the prism 360deg slowly + hue-rotates the fill;
+   click triggers a one-shot glint via the .tapped class. */
+#prism-stone {
+  position: fixed;
+  left: 200px;
+  bottom: calc(38px + var(--pond-h) + 24px);
+  width: 44px; height: 36px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease;
+}
+#prism-stone:hover { transform: translateY(-1px) rotate(-2deg); }
+.ps-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ps-prism { transition: fill 600ms ease, filter 800ms ease; transform-origin: 22px 18px; transform-box: fill-box; }
+body.aurora-peak .ps-prism {
+  animation: ps-rotate 8s linear infinite;
+  filter: hue-rotate(60deg) saturate(2.0) brightness(1.25);
+  fill: rgba(180, 230, 220, 0.85);
+}
+@keyframes ps-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+#prism-stone.tapped .ps-prism { animation: ps-glint 480ms ease-out; }
+@keyframes ps-glint {
+  0%   { filter: brightness(1.6); }
+  100% { filter: brightness(1.0); }
+}
+body.motion-reduced #prism-stone.tapped .ps-prism,
+body.motion-reduced.aurora-peak .ps-prism { animation: none; }
+body.stargazer #prism-stone { opacity: 0.55; }
+
+/* ---- copper-rain-gauge (center shore, between the prism and any moonflower/sundial row) ----
+   the water in the .crg-water rect fills at y:12 height:38 on rain-forecast
+   days; otherwise drains to y:50 height:0. fill/drain uses a 1100ms easing
+   so it tracks the forecast check rather than snapping. */
+#copper-rain-gauge {
+  position: fixed;
+  left: 340px;
+  bottom: calc(38px + var(--pond-h) + 30px);
+  width: 32px; height: 60px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease;
+}
+#copper-rain-gauge:hover { transform: translateY(-1px); }
+.crg-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.crg-water { transition: y 1100ms cubic-bezier(.4, 0, .3, 1), height 1100ms cubic-bezier(.4, 0, .3, 1); }
+#copper-rain-gauge.tipped { animation: crg-tip 400ms cubic-bezier(.2, .8, .3, 1); }
+@keyframes crg-tip {
+  0%   { transform: rotate(0deg); }
+  35%  { transform: rotate(9deg); }
+  100% { transform: rotate(0deg); }
+}
+body.motion-reduced #copper-rain-gauge.tipped { animation: none; }
+body.motion-reduced .crg-water { transition: none; }
+body.stargazer #copper-rain-gauge { opacity: 0.55; }
+
+/* ---- acorn-top (right shore near the bench and dock-bell) ----
+   body.season-autumn fades the .ac-autumn-leaves group in via opacity;
+   other seasons it reads as bare stone with a top sitting in blank gravel.
+   the .ac-top group spins on click via a one-shot 1.6s keyframe. */
+#acorn-top {
+  position: fixed;
+  right: 140px;
+  bottom: calc(38px + var(--pond-h) + 16px);
+  width: 40px; height: 36px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 180ms ease;
+}
+#acorn-top:hover { transform: translateY(-1px); }
+.ac-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ac-top { transform-origin: 20px 14px; transform-box: fill-box; }
+.ac-top.spinning { animation: ac-spin 1.6s cubic-bezier(.3, .8, .3, 1); }
+@keyframes ac-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.ac-autumn-leaves { opacity: 0; transition: opacity 600ms ease; }
+body.season-autumn .ac-autumn-leaves { opacity: 1; }
+#acorn-top.tipped .ac-svg { animation: ac-tip 380ms cubic-bezier(.2, .8, .3, 1); }
+@keyframes ac-tip {
+  0%   { transform: rotate(-3deg) translateY(0); }
+  50%  { transform: rotate(1deg) translateY(-2px); }
+  100% { transform: rotate(0deg) translateY(0); }
+}
+body.motion-reduced #acorn-top .ac-top.spinning,
+body.motion-reduced #acorn-top.tipped .ac-svg { animation: none; }
+body.motion-reduced .ac-autumn-leaves { transition: none; }
+body.stargazer #acorn-top { opacity: 0.55; }
+
+/* ---- driftwood-rider (center pond surface, right of the dock) ----
+   rides the live --pond-h via the bottom transition shared by every other
+   shore element (the tide-flutes, the wooden fish, the paper boat, the
+   lit buoy, the lily pad, the small whale). body.wind-gust flutters the
+   .dr-sail polygon via rotate + skewX. */
+#driftwood-rider {
+  position: fixed;
+  left: calc(50% + 80px);
+  bottom: calc(38px + var(--pond-h) - 6px);
+  width: 44px; height: 36px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+  transition: bottom 1100ms ease, transform 200ms ease;
+  animation: dr-bob 5.2s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+@keyframes dr-bob {
+  0%,100% { transform: rotate(-1.6deg) translateY(0); }
+  50%     { transform: rotate(-1.2deg) translateY(-1.2px); }
+}
+.dr-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.dr-sail { transform-origin: 22px 18px; transform-box: fill-box; transition: transform 240ms ease; }
+body.wind-gust .dr-sail { transform: rotate(-10deg) skewX(-4deg); transition: transform 700ms ease; }
+#driftwood-rider.nudged .dr-svg { animation: dr-nudge 480ms cubic-bezier(.3, .8, .3, 1) 1; }
+@keyframes dr-nudge {
+  0%   { transform: translateX(0) rotate(-1.6deg); }
+  50%  { transform: translateX(8px) rotate(2deg); }
+  100% { transform: translateX(0) rotate(-1.6deg); }
+}
+body.motion-reduced #driftwood-rider { animation: none; }
+body.motion-reduced #driftwood-rider.nudged .dr-svg { animation: none; }
+body.stargazer #driftwood-rider { opacity: 0.55; }
+
+/* ---- brass-astrolabe (top shelf between the devlog #36 row at top:64
+   and the devlog #37 row at top:184 — top:148 lands in the gap) ----
+   body.stargazer triggers a slow one-shot 4s alignment keyframe on the
+   .ba-inner-ring group, filling back to 0deg so the rings end coincident
+   with the outer compass rose. clicks re-arm the ratchet for 360ms. */
+#brass-astrolabe {
+  position: fixed;
+  left: 32vw;
+  top: 148px;
+  width: 44px; height: 44px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  transition: transform 200ms ease;
+}
+#brass-astrolabe:hover { transform: translateY(-1px) rotate(-3deg); }
+.ba-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.ba-inner-ring { transform-origin: 22px 22px; transform-box: fill-box; transition: transform 2200ms cubic-bezier(.4, 0, .3, 1); }
+body.stargazer #brass-astrolabe { filter: drop-shadow(0 0 14px rgba(255, 217, 160, 0.55)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+body.stargazer .ba-inner-ring { animation: ba-align 4s ease-in-out forwards; }
+@keyframes ba-align {
+  0%   { transform: rotate(-24deg); }
+  50%  { transform: rotate(8deg); }
+  100% { transform: rotate(0deg); }
+}
+#brass-astrolabe.turned .ba-inner-ring { animation: ba-ratchet 380ms ease-out; }
+@keyframes ba-ratchet {
+  0%   { transform: rotate(0deg); }
+  20%  { transform: rotate(-12deg); }
+  40%  { transform: rotate(6deg); }
+  60%  { transform: rotate(-3deg); }
+  100% { transform: rotate(0deg); }
+}
+body.motion-reduced #brass-astrolabe .ba-inner-ring,
+body.motion-reduced #brass-astrolabe.turned .ba-inner-ring { animation: none; }
+body.stargazer #brass-astrolabe { opacity: 0.92; }
+
+/* ---- devlog #42 stat wraps on the bottom:200 row (6 evenly spaced at 15vw) ---- */
+.dew-catcher-stat-wrap,
+.prism-stone-stat-wrap,
+.copper-rain-gauge-stat-wrap,
+.acorn-top-stat-wrap,
+.driftwood-rider-stat-wrap,
+.brass-astrolabe-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+}
+.dew-catcher-stat-wrap     { bottom: 200px; left: 4vw;  }
+.prism-stone-stat-wrap     { bottom: 200px; left: 19vw; }
+.copper-rain-gauge-stat-wrap { bottom: 200px; left: 34vw; }
+.acorn-top-stat-wrap       { bottom: 200px; left: 49vw; }
+.driftwood-rider-stat-wrap { bottom: 200px; left: 64vw; }
+.brass-astrolabe-stat-wrap { bottom: 200px; left: 79vw; }
+.dew-catcher-stat-wrap #dew-catcher-stat,
+.prism-stone-stat-wrap #prism-stone-stat,
+.copper-rain-gauge-stat-wrap #copper-rain-gauge-stat,
+.acorn-top-stat-wrap #acorn-top-stat,
+.driftwood-rider-stat-wrap #driftwood-rider-stat,
+.brass-astrolabe-stat-wrap #brass-astrolabe-stat { color: var(--moss); margin-left: 4px; }
+body.stargazer .dew-catcher-stat-wrap,
+body.stargazer .prism-stone-stat-wrap,
+body.stargazer .copper-rain-gauge-stat-wrap,
+body.stargazer .acorn-top-stat-wrap,
+body.stargazer .driftwood-rider-stat-wrap,
+body.stargazer .brass-astrolabe-stat-wrap { opacity: 0.5; }
+body.motion-reduced .dew-catcher-stat-wrap,
+body.motion-reduced .prism-stone-stat-wrap,
+body.motion-reduced .copper-rain-gauge-stat-wrap,
+body.motion-reduced .acorn-top-stat-wrap,
+body.motion-reduced .driftwood-rider-stat-wrap,
+body.motion-reduced .brass-astrolabe-stat-wrap { display: none; }
+
