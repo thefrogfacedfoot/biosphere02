@@ -232,7 +232,7 @@ body.stargazer .luna-moth-stat-wrap { opacity: 0.5; }
   --bark:    #2d3a2a;
   --star:    #f6f1d8;
   --warm:    #ffd9a0;
-  --window:  rgba(14, 20, 40, 0.78);
+  --window:  rgba(14, 20, 40, 0.55);
   --window-edge: rgba(143, 212, 154, 0.22);
   --window-edge-bright: rgba(143, 212, 154, 0.55);
   --shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(143,212,154,0.06) inset;
@@ -381,7 +381,16 @@ body.motion-reduced .raindrop { animation: none !important; display: none; }
 #desktop {
   position: fixed;
   top: 38px; left: 0; right: 0; bottom: 38px;
-  z-index: 2;
+  /* devlog #44.1 — was z-index:2. the windows inside this container are
+     computed-z 10+ (bringTofront increments topz), but the desktop's own
+     2 created a stacking context *below* the field of background features
+     (bench, dock, cattails, driftwood, copper-rain-gauge, etc., all sitting
+     at z-index 3-5). so when a window opened, the bench drew on top of
+     it. bumped to 50: above every background feature (max ~5), still
+     below topbar/taskbar (100), search-dropdown (110), palette (500),
+     and welcome-overlay / toast (600). frosted-glass look comes from
+     --window background alpha 0.55 + backdrop-filter: blur(16px). */
+  z-index: 50;
   pointer-events: none; /* let constellation canvas catch clicks; windows re-enable */
 }
 
@@ -7475,4 +7484,429 @@ body.motion-reduced .copper-rain-gauge-stat-wrap,
 body.motion-reduced .acorn-top-stat-wrap,
 body.motion-reduced .driftwood-rider-stat-wrap,
 body.motion-reduced .brass-astrolabe-stat-wrap { display: none; }
+
+/* ==== devlog #44 — moss-flea, bog-lantern, midge-trio, wood-spider, frost-glint ==== */
+
+/* ---- moss-flea beetle (#moss-flea) — right shore gravel ---- */
+#moss-flea {
+  position: fixed;
+  right: 140px;
+  bottom: 110px;
+  width: 32px; height: 18px;
+  z-index: 3;
+  cursor: pointer;
+  transition: transform 220ms ease, filter 220ms ease;
+}
+#moss-flea:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 0 5px rgba(180, 230, 130, 0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.55));
+}
+#moss-flea.hopped .mfb-svg { animation: mfb-hop 480ms cubic-bezier(.3,.7,.3,1.1); }
+body.day #moss-flea {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.55)) drop-shadow(0 0 3px rgba(180, 230, 130, 0.22));
+}
+body.dusk #moss-flea { opacity: 0.95; }
+body.wind-gust #moss-flea .mfb-svg { animation: mfb-scuttle 800ms ease-out infinite alternate; }
+@keyframes mfb-hop {
+  0%   { transform: translate(0, 0) rotate(0); }
+  35%  { transform: translate(-3px, -8px) rotate(-7deg); }
+  100% { transform: translate(0, 0) rotate(0); }
+}
+@keyframes mfb-scuttle {
+  0%   { transform: translate(-10px, 0); }
+  100% { transform: translate(10px, 0); }
+}
+
+/* ---- bog-lantern mushroom (#bog-lantern) — lower-left grove ---- */
+#bog-lantern {
+  position: fixed;
+  left: 540px;
+  top: 480px;
+  width: 32px; height: 40px;
+  z-index: 3;
+  cursor: pointer;
+  transition: transform 240ms ease, filter 240ms ease;
+}
+#bog-lantern:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 0 7px rgba(140, 220, 220, 0.50)) drop-shadow(0 2px 4px rgba(0,0,0,0.55));
+}
+/* baseline .bl-pulse-ring: invisible at rest, sized at the resting radius.
+   the .pulsed class on the host kicks off the keyframe which ramps opacity
+   0.75 → 0, stroke-width 0.8 → 0, and scales the circle 1 → 6.875 via
+   transform with transform-box: fill-box + transform-origin: center
+   (Safari < 14 no-ops CSS animation of the SVG `r` geometry property, so
+   we expand the ring via transform instead — 6.875 ≈ 11 / 1.6 = the
+   target radius scale). without this baseline rule the ring's attribute
+   defaults (opacity:1, stroke-width:0.8) would render a permanent cyan
+   halo around the cap center instead of an on-click pulse. */
+#bog-lantern .bl-pulse-ring {
+  opacity: 0;
+  stroke-width: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(1);
+}
+#bog-lantern.pulsed .bl-cap,
+#bog-lantern.pulsed .bl-core {
+  animation: bl-glow 600ms cubic-bezier(.3,.7,.3,1);
+}
+#bog-lantern.pulsed .bl-pulse-ring {
+  animation: bl-ring 600ms cubic-bezier(.3,.7,.3,1) forwards;
+}
+body.night #bog-lantern .bl-cap,
+body.night #bog-lantern .bl-core {
+  filter: drop-shadow(0 0 6px rgba(140, 220, 220, 0.65));
+}
+body.dawn #bog-lantern .bl-core {
+  filter: drop-shadow(0 0 3px rgba(180, 220, 220, 0.45));
+}
+@keyframes bl-glow {
+  0%   { filter: drop-shadow(0 0 3px rgba(140, 220, 220, 0.30)) brightness(1.0); }
+  50%  { filter: drop-shadow(0 0 14px rgba(140, 220, 220, 0.95)) brightness(1.4); }
+  100% { filter: drop-shadow(0 0 3px rgba(140, 220, 220, 0.30)) brightness(1.0); }
+}
+@keyframes bl-ring {
+  0%   { opacity: 0.75; stroke-width: 0.8; transform: scale(1); }
+  60%  { opacity: 0.0;  stroke-width: 0.3; transform: scale(6.875); }
+  100% { opacity: 0.0;  stroke-width: 0.0; transform: scale(6.875); }
+}
+
+/* ---- midge-trio (#midge-trio) — three tiny hovering sprites mid-canvas ---- */
+#midge-trio {
+  position: fixed;
+  left: 62vw;
+  top: 14vh;
+  width: 24px; height: 24px;
+  z-index: 3;
+  cursor: pointer;
+  transition: transform 240ms ease, filter 240ms ease;
+}
+#midge-trio:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 0 6px rgba(220, 240, 220, 0.40));
+}
+#midge-trio .pm-dot { animation: pm-breathe 1.6s ease-in-out infinite alternate; }
+#midge-trio .midge-b { animation-delay: 0.4s; }
+#midge-trio .midge-c { animation-delay: 0.8s; }
+#midge-trio.startled .pm-dot { animation: pm-startle 600ms ease-out forwards; }
+body.day  #midge-trio .pm-dot { opacity: 0.32; }
+body.dawn #midge-trio .pm-dot { filter: drop-shadow(0 0 2px rgba(180, 240, 240, 0.45)); }
+body.dusk #midge-trio { filter: brightness(1.10); }
+@keyframes pm-breathe {
+  0%   { opacity: 0.45; }
+  100% { opacity: 0.85; }
+}
+@keyframes pm-startle {
+  0%   { transform: translate(0, 0); opacity: 1; }
+  60%  { transform: translate(var(--midge-dx, 6px), var(--midge-dy, -6px)); opacity: 0.45; }
+  100% { transform: translate(calc(var(--midge-dx, 6px) * 0.55), calc(var(--midge-dy, -6px) * 0.55)); opacity: 0.7; }
+}
+
+/* ---- wood-spider quill (#wood-spider) — corner web, upper-left grove ---- */
+#wood-spider {
+  position: fixed;
+  /* devlog #44.1 — was top:264 left:6vw, but on 800-1000px tall viewports
+     that puts the web right on top of the search bar (.hero-search-wrap
+     at top:30vh with a 360px dropdown extending downward). the user
+     reported "features also covers the search signal" specifically with
+     this corner web in mind: the threads bled behind the input pill even
+     though z-index put the input over the spider. moved down to top:524
+     left:5vw so the spider sits below the search zone (top:30vh → 30vh +
+     32px ≈ 32vh) and below the listening-conch band at top:325. still on
+     the upper-left-grove vertical column — the same neighbor as the
+     moss-runestone at left:316 and the magnetometer at left:418, but at
+     a non-overlapping y. */
+  top: 524px;
+  left: 5vw;
+  width: 32px; height: 32px;
+  z-index: 3;
+  cursor: pointer;
+  transition: transform 220ms ease, filter 220ms ease;
+  transform-origin: 16px 16px;
+}
+#wood-spider:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 0 6px rgba(245, 230, 200, 0.40));
+}
+#wood-spider.plucked .wsp-spider,
+#wood-spider.plucked .wsp-web {
+  animation: wsp-pluck 480ms cubic-bezier(.3,.7,.3,1);
+}
+body.wind-gust #wood-spider { animation: wsp-sway 1.6s ease-in-out infinite alternate; }
+body.rain-day #wood-spider .wsp-bead {
+  fill: rgba(220, 240, 255, 0.85);
+  animation: wsp-bead-pulse 1.4s ease-in-out infinite;
+}
+@keyframes wsp-pluck {
+  0%   { transform: scaleY(1) translateY(0); }
+  40%  { transform: scaleY(1.10) translateY(-1px); }
+  100% { transform: scaleY(1) translateY(0); }
+}
+@keyframes wsp-sway {
+  0%   { transform: rotate(-2deg); }
+  100% { transform: rotate(2deg); }
+}
+@keyframes wsp-bead-pulse {
+  0%, 100% { fill: rgba(220, 240, 255, 0.85); }
+  50%      { fill: rgba(240, 250, 255, 1.00); filter: drop-shadow(0 0 3px rgba(220, 240, 255, 0.85)); }
+}
+
+/* ---- frost-glint beetle (#frost-glint) — right shore mid band ---- */
+#frost-glint {
+  position: fixed;
+  right: 380px;
+  top: 340px;
+  width: 36px; height: 18px;
+  z-index: 3;
+  cursor: pointer;
+  transition: transform 240ms ease, filter 240ms ease;
+}
+#frost-glint:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 0 6px rgba(180, 240, 230, 0.40)) drop-shadow(0 2px 4px rgba(0,0,0,0.55));
+}
+#frost-glint.flashed .fgb-svg { animation: fgb-flash 700ms cubic-bezier(.3,.7,.3,1); }
+body.season-winter #frost-glint { filter: brightness(1.10) contrast(1.05); }
+body.day #frost-glint .fgb-body { filter: hue-rotate(180deg) saturate(1.15); }
+body.dawn #frost-glint { filter: drop-shadow(0 0 4px rgba(255, 200, 130, 0.45)); }
+@keyframes fgb-flash {
+  0%   { transform: rotate(0) scale(1); filter: brightness(1); }
+  30%  { transform: rotate(35deg) scale(1.15); filter: brightness(1.5) saturate(1.4); }
+  100% { transform: rotate(0) scale(1); filter: brightness(1); }
+}
+
+/* devlog #44 motion-reduced: hide stat wraps, stop all animations + transitions */
+body.motion-reduced .moss-flea-stat-wrap,
+body.motion-reduced .bog-lantern-stat-wrap,
+body.motion-reduced .midge-trio-stat-wrap,
+body.motion-reduced .wood-spider-stat-wrap,
+body.motion-reduced .frost-glint-stat-wrap { display: none; }
+body.motion-reduced #moss-flea,
+body.motion-reduced #bog-lantern,
+body.motion-reduced #midge-trio,
+body.motion-reduced #wood-spider,
+body.motion-reduced #frost-glint { animation: none !important; transition: none !important; }
+body.motion-reduced #moss-flea .mfb-svg,
+body.motion-reduced #bog-lantern .bl-svg,
+body.motion-reduced #midge-trio .pm-svg,
+body.motion-reduced #wood-spider .wsp-svg,
+body.motion-reduced #frost-glint .fgb-svg { animation: none !important; }
+
+/* ==== devlog #43 — study-book, corked-flask, iron-hinge, walnut-galleon, dragonfly-pivot ==== */
+
+/* ---- study-book (right:24 bottom:pond) ---- */
+#study-book {
+  position: fixed;
+  right: 24px;
+  bottom: calc(38px + var(--pond-h) - 6px);
+  width: 50px; height: 64px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.55));
+  user-select: none;
+  transition: transform 200ms ease;
+}
+#study-book:hover { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(255, 232, 168, 0.4)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+.sb-svg { width: 100%; height: 100%; display: block; overflow: visible; pointer-events: none; }
+.sb-page { transition: filter 600ms ease; }
+.sb-sketch path, .sb-sketch line, .sb-sketch circle { stroke: rgba(60, 40, 20, 0.78); transition: stroke 700ms ease; }
+body.season-spring .sb-page { filter: hue-rotate(28deg) saturate(1.05); }
+body.season-summer .sb-page { filter: contrast(1.02); }
+body.season-autumn .sb-page { filter: hue-rotate(-22deg) saturate(1.10) sepia(0.06); }
+body.season-winter .sb-page { filter: hue-rotate(180deg) saturate(0.45) brightness(0.98); }
+#study-book.turned .sb-page-wrap { animation: sb-flip 600ms cubic-bezier(.3,.6,.4,1); }
+@keyframes sb-flip {
+  0%   { transform: translateY(0)    rotateY(0deg); }
+  40%  { transform: translateY(-2px) rotateY(40deg); }
+  100% { transform: translateY(0)    rotateY(0deg); }
+}
+body.motion-reduced #study-book.turned .sb-page-wrap { animation: none; }
+body.stargazer #study-book { opacity: 0.55; }
+
+/* ---- corked-flask (left:60 top:96, upper-left shelf) ---- */
+#corked-flask {
+  position: fixed;
+  left: 60px;
+  top: 96px;
+  width: 30px; height: 64px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.55));
+  transition: transform 220ms ease;
+}
+#corked-flask:hover { transform: translateY(-1px); filter: drop-shadow(0 0 7px rgba(180, 220, 240, 0.35)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+.cfl-svg { width: 100%; height: 100%; display: block; overflow: visible; pointer-events: none; }
+.cfl-cork { transition: transform 320ms cubic-bezier(.3,.9,.4,1.2); transform-origin: 15px 5px; }
+#corked-flask.uncorked .cfl-cork { animation: cf-uncork 380ms cubic-bezier(.3,.8,.4,1.2) forwards; }
+@keyframes cf-uncork {
+  0%   { transform: translateY(0)    rotate(0deg); }
+  60%  { transform: translateY(-22px) rotate(-12deg); }
+  100% { transform: translateY(-18px) rotate(-14deg); }
+}
+.cfl-puffs circle {
+  fill: rgba(220, 230, 240, 0.65);
+  filter: blur(1.8px);
+  animation: cf-puff 1300ms cubic-bezier(.3,.2,.6,1) forwards;
+}
+@keyframes cf-puff {
+  0%   { transform: translate(0,0) scale(0.45); opacity: 0; }
+  18%  { opacity: 0.75; }
+  100% { transform: translate(var(--cf-px, 0px), -54px) scale(2.4); opacity: 0; }
+}
+body.wind-gust .cfl-puffs circle {
+  animation-duration: 800ms;
+  --cf-px: 18px;
+}
+body.wind-gust #corked-flask .cfl-puffs {
+  transform: translate(6px,-2px) rotate(8deg);
+  transform-origin: 50% 100%;
+  transition: transform 900ms ease;
+}
+body:not(.wind-gust) .cfl-puffs {
+  transform: translate(0,0) rotate(0deg);
+  transition: transform 900ms ease;
+}
+body.motion-reduced #corked-flask .cfl-puffs,
+body.motion-reduced .cfl-puffs circle { animation: none !important; display: none; }
+body.motion-reduced #corked-flask.uncorked .cfl-cork { animation: none; }
+body.stargazer #corked-flask { opacity: 0.55; }
+
+/* ---- iron-hinge (left:38 bottom:110, lower-left below tally-stick) ---- */
+#iron-hinge {
+  position: fixed;
+  left: 38px;
+  bottom: 110px;
+  width: 42px; height: 26px;
+  z-index: 3;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.55));
+  transition: transform 200ms ease;
+}
+#iron-hinge:hover { transform: translateY(-1px); filter: drop-shadow(0 0 5px rgba(220, 180, 110, 0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+.ih-svg { width: 100%; height: 100%; display: block; overflow: visible; pointer-events: none; }
+.ih-arm, .ih-leaves { transform-origin: 21px 17px; transition: transform 200ms ease; }
+#iron-hinge.swung .ih-arm { animation: ih-swing 600ms cubic-bezier(.3,.8,.3,1.05); }
+@keyframes ih-swing {
+  0%   { transform: rotate(0deg); }
+  18%  { transform: rotate(28deg); }
+  36%  { transform: rotate(-22deg); }
+  54%  { transform: rotate(20deg); }
+  72%  { transform: rotate(-14deg); }
+  88%  { transform: rotate(8deg); }
+  100% { transform: rotate(0deg); }
+}
+body.aurora-peak #iron-hinge .ih-leaves { filter: drop-shadow(0 0 6px rgba(255, 100, 60, 0.55)); transition: filter 900ms ease; }
+body.motion-reduced #iron-hinge.swung .ih-arm { animation: none; }
+body.stargazer #iron-hinge { opacity: 0.55; }
+
+/* ---- walnut-galleon (left:38vw bottom:pond+4, rides --pond-h) ---- */
+#walnut-galleon {
+  position: fixed;
+  left: 38vw;
+  bottom: calc(38px + var(--pond-h) + 4px);
+  width: 56px; height: 28px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.55));
+  transition: bottom 1100ms ease, transform 200ms ease;
+}
+#walnut-galleon:hover { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(220, 200, 170, 0.50)) drop-shadow(0 2px 4px rgba(0,0,0,0.55)); }
+.wg-svg { width: 100%; height: 100%; display: block; overflow: visible; pointer-events: none; }
+.wg-sail { transition: transform 240ms ease; transform-origin: 14px 6px; }
+body.wind-gust .wg-sail { animation: wg-sway 1.4s ease-in-out infinite; }
+@keyframes wg-sway {
+  0%   { transform: skewX(-6deg) rotate(-3deg); }
+  50%  { transform: skewX(2deg)  rotate(2deg); }
+  100% { transform: skewX(-6deg) rotate(-3deg); }
+}
+#walnut-galleon.nudged .wg-svg { animation: wg-nudge 480ms cubic-bezier(.3,.8,.3,1); }
+@keyframes wg-nudge {
+  0%   { transform: translate(0,0)   rotate(0deg); }
+  40%  { transform: translate(-2px,2px) rotate(-2deg); }
+  100% { transform: translate(0,0)   rotate(0deg); }
+}
+body.motion-reduced .wg-sail,
+body.motion-reduced #walnut-galleon.nudged .wg-svg { animation: none; }
+body.stargazer #walnut-galleon { opacity: 0.55; }
+
+/* ---- dragonfly-pivot (right:96 top:200, on a cattail stub) ----
+     note: dpf-flap is applied to .dpf-wing without infinite — wings
+     settle to flat once first paint. the click animation is what makes
+     them fan out. smaller edit surface than alternating offsets. */
+#dragonfly-pivot {
+  position: fixed;
+  right: 108px;
+  top: 224px;
+  width: 36px; height: 56px;
+  z-index: 4;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55));
+  transition: transform 200ms ease, filter 700ms ease;
+}
+#dragonfly-pivot:hover { transform: translateY(-1px); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.55)) drop-shadow(0 0 6px rgba(160, 200, 220, 0.35)); }
+.dpf-svg { width: 100%; height: 100%; display: block; overflow: visible; pointer-events: none; }
+.dpf-wing { transform-origin: 20px 32px; transition: transform 240ms ease; }
+/* wings flap from spread (the resting pose) inward toward the spine.
+   both keyframes start from a wider angle and end narrower so the wings
+   meet at the body instead of crossing it (the original dpf-flap-r had
+   a from-state mirroring left but in the wrong sign — fixed).
+   phase model: forewing + hindwing on each side are paired (slight 120°
+   stagger within a side so they read as a thorax-coupled movement); the
+   right side is locked 180° out of phase with the left so the two sides
+   alternate, which is what real dragonflies do. */
+.dpf-fw-l { animation: dpf-flap-l 0.36s ease-in-out infinite alternate; }
+.dpf-fw-r { animation: dpf-flap-r 0.36s ease-in-out infinite alternate; animation-delay: -0.18s; }
+.dpf-hw-l { animation: dpf-flap-l 0.42s ease-in-out infinite alternate; animation-delay: -0.12s; }
+.dpf-hw-r { animation: dpf-flap-r 0.42s ease-in-out infinite alternate; animation-delay: -0.30s; }
+@keyframes dpf-flap-l { from { transform: rotate(-22deg) scaleX(0.95); } to { transform: rotate(-4deg) scaleX(0.55); } }
+@keyframes dpf-flap-r { from { transform: rotate(22deg)  scaleX(0.95); } to { transform: rotate(4deg)  scaleX(0.55); } }
+body.day #dragonfly-pivot { filter: drop-shadow(0 0 6px rgba(180, 220, 240, 0.35)) drop-shadow(0 1px 2px rgba(0,0,0,0.55)); }
+body.night #dragonfly-pivot { opacity: 0.45; }
+#dragonfly-pivot.leaped .dpf-body { animation: dpf-leap 800ms cubic-bezier(.3,.8,.3,1); }
+@keyframes dpf-leap {
+  0%   { transform: translateY(0); }
+  20%  { transform: translate(0, -32px); }
+  60%  { transform: translate(-1px, -6px); }
+  100% { transform: translate(0, 0); }
+}
+body.motion-reduced #dragonfly-pivot .dpf-wing,
+body.motion-reduced #dragonfly-pivot.leaped .dpf-body { animation: none; }
+body.stargazer #dragonfly-pivot { opacity: 0.55; }
+
+/* ---- devlog #43 stat wraps in the bottom band (bottom:166 row,
+     between the shrine row at 130 and the devlog #42 row at 200) ---- */
+.study-book-stat-wrap,
+.corked-flask-stat-wrap,
+.iron-hinge-stat-wrap,
+.walnut-galleon-stat-wrap,
+.dragonfly-pivot-stat-wrap {
+  position: fixed;
+  color: var(--ink-dim);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 4;
+}
+.study-book-stat-wrap        { bottom: 166px; left: 8vw;  }
+.corked-flask-stat-wrap      { bottom: 166px; left: 24vw; }
+.iron-hinge-stat-wrap        { bottom: 166px; left: 40vw; }
+.walnut-galleon-stat-wrap    { bottom: 166px; left: 56vw; }
+.dragonfly-pivot-stat-wrap   { bottom: 166px; left: 72vw; }
+.study-book-stat-wrap #study-book-stat,
+.corked-flask-stat-wrap #corked-flask-stat,
+.iron-hinge-stat-wrap #iron-hinge-stat,
+.walnut-galleon-stat-wrap #walnut-galleon-stat,
+.dragonfly-pivot-stat-wrap #dragonfly-pivot-stat { color: var(--moss); margin-left: 4px; }
+body.motion-reduced .study-book-stat-wrap,
+body.motion-reduced .corked-flask-stat-wrap,
+body.motion-reduced .iron-hinge-stat-wrap,
+body.motion-reduced .walnut-galleon-stat-wrap,
+body.motion-reduced .dragonfly-pivot-stat-wrap { display: none; }
+body.stargazer .study-book-stat-wrap,
+body.stargazer .corked-flask-stat-wrap,
+body.stargazer .iron-hinge-stat-wrap,
+body.stargazer .walnut-galleon-stat-wrap,
+body.stargazer .dragonfly-pivot-stat-wrap { opacity: 0.55; }
 

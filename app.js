@@ -12856,3 +12856,371 @@ function astrolabeTurn() {
 }
 if (baEl) baEl.addEventListener("click", astrolabeTurn);
 
+/* ============================================================
+   devlog #43 — five new shoreline pieces latching onto systems
+   already running. Each independent — tapping into body.day,
+   body.night, body.aurora-peak, body.wind-gust, and --pond-h
+   rather than spawning fresh pollers. Counters all use the
+   established biosphere02.<name>.v1 convention with no
+   cross-references; audio routes through the devlog #39
+   _featureCtxRef pool that already serves the previous
+   click-driven features — adding five more oscillators
+   doesn't spawn a seventh pool.
+   ============================================================ */
+
+// ---------- 1) study-book (#study-book) ----------
+// note: the SKB prefix (rather than SB_) is deliberate to avoid clashing with
+// the pre-existing SB_KEY / sbStrikes pair the devlog #33 singing-bowl uses
+// (line ~10991). reusing SB_KEY here would shadow the bowl counter for the
+// remainder of the file and silently zero out its `localStorage` write.
+const skbEl     = document.getElementById("study-book");
+const skbSketch = document.getElementById("sb-sketch");
+const skbTitle  = skbEl ? skbEl.querySelector(".sb-title") : null;
+const skbStatEl = document.getElementById("study-book-stat");
+const SKB_KEY   = "biosphere02.studybook.v1";
+let   skbCount  = (() => { try { return +localStorage.getItem(SKB_KEY) || 0; } catch { return 0; } })();
+let   skbIdx    = 0;
+
+// 8 inline-svg nature studies. each kept small (~10 nodes) so cycling
+// rebuilds the innerHTML cheaply. dot-marker stroke picks up the
+// body.season-* CSS filter on .sb-page for palette cue.
+const SKB_STUDIES = [
+  { title: "study no. 1 — a leaf",     draw() {
+      return `<g><path d="M22 11 Q14 14 10 26 Q12 38 22 41 Q32 38 34 26 Q30 14 22 11" fill="none"/>` +
+             `<path d="M22 11 L22 41" /><path d="M16 18 L20 20" /><path d="M28 18 L24 20" />` +
+             `<path d="M14 26 L20 25" /><path d="M30 26 L24 25" /><path d="M16 33 L20 31" />` +
+             `<path d="M28 33 L24 31" /></g>`;
+  }},
+  { title: "study no. 2 — a fish",     draw() {
+      return `<g><path d="M8 28 Q14 18 26 20 Q36 22 38 28 Q36 34 26 36 Q14 38 8 28 Z" fill="none"/>` +
+             `<path d="M38 28 L44 22 L44 34 Z" fill="none"/>` +
+             `<path d="M22 26 Q24 24 20 24" fill="none"/>` +
+             `<circle cx="32" cy="26" r="1.2" fill="rgba(60,40,20,0.78)" stroke="none"/>` +
+             `<path d="M14 30 Q18 32 14 34" fill="none"/></g>`;
+  }},
+  { title: "study no. 3 — a moth",     draw() {
+      return `<g><ellipse cx="20" cy="28" rx="11" ry="9" fill="none"/>` +
+             `<ellipse cx="28" cy="28" rx="9"  ry="7" fill="none"/>` +
+             `<line x1="22" y1="20" x2="22" y2="38" />` +
+             `<path d="M19 19 L17 16" /><path d="M25 19 L27 16" />` +
+             `<circle cx="22" cy="22" r="1.2" fill="rgba(60,40,20,0.78)" stroke="none"/></g>`;
+  }},
+  { title: "study no. 4 — a wave",     draw() {
+      return `<g><path d="M8 30 Q14 22 20 30 Q26 38 32 30 Q38 22 42 30" fill="none"/>` +
+             `<path d="M8 34 Q14 26 20 34 Q26 42 32 34 Q38 26 42 34" fill="none"/>` +
+             `<path d="M8 38 Q14 30 20 38 Q26 46 32 38 Q38 30 42 38" fill="none"/></g>`;
+  }},
+  { title: "study no. 5 — a shell",    draw() {
+      return `<g><path d="M12 36 Q14 18 28 18 Q36 22 38 36" fill="none"/>` +
+             `<path d="M16 36 Q18 24 28 24" fill="none"/>` +
+             `<path d="M20 36 Q22 28 28 28" fill="none"/>` +
+             `<path d="M14 30 L38 30" /><path d="M14 33 L38 33" />` +
+             `<path d="M16 27 L36 27" /><path d="M14 24 L38 24" /></g>`;
+  }},
+  { title: "study no. 6 — a feather",  draw() {
+      return `<g><line x1="14" y1="38" x2="34" y2="10" />` +
+             `<path d="M14 38 Q20 30 28 22 Q34 14 38 8" fill="none"/>` +
+             `<path d="M17 35 L20 33" /><path d="M21 30 L24 28" />` +
+             `<path d="M25 25 L28 23" /><path d="M29 19 L32 17" />` +
+             `<path d="M14 38 L11 36" /><path d="M14 38 L11 41" /></g>`;
+  }},
+  { title: "study no. 7 — a stone",    draw() {
+      return `<g><path d="M10 32 Q12 22 22 22 Q34 22 38 32 Q34 38 22 38 Q10 38 10 32 Z" fill="none"/>` +
+             `<line x1="14" y1="28" x2="20" y2="29" />` +
+             `<line x1="22" y1="25" x2="32" y2="27" />` +
+             `<line x1="14" y1="34" x2="22" y2="35" />` +
+             `<line x1="24" y1="33" x2="34" y2="32" /></g>`;
+  }},
+  { title: "study no. 8 — a frog",     draw() {
+      return `<g><ellipse cx="22" cy="32" rx="14" ry="7" fill="none"/>` +
+             `<path d="M12 26 Q8 22 12 18" fill="none"/>` +
+             `<path d="M32 26 Q36 22 32 18" fill="none"/>` +
+             `<circle cx="12" cy="18" r="2" fill="none"/>` +
+             `<circle cx="32" cy="18" r="2" fill="none"/>` +
+             `<circle cx="12" cy="18" r="0.7" fill="rgba(60,40,20,0.78)" stroke="none"/>` +
+             `<circle cx="32" cy="18" r="0.7" fill="rgba(60,40,20,0.78)" stroke="none"/>` +
+             `<path d="M16 36 Q22 38 28 36" fill="none"/></g>`;
+  }},
+];
+
+function skbRender() {
+  if (!skbSketch) return;
+  skbSketch.innerHTML = SKB_STUDIES[skbIdx].draw();
+  if (skbTitle) skbTitle.textContent = SKB_STUDIES[skbIdx].title;
+}
+function skbFlip() {
+  if (!skbEl) return;
+  skbIdx = (skbIdx + 1) % SKB_STUDIES.length;
+  skbCount++;
+  try { localStorage.setItem(SKB_KEY, String(skbCount)); } catch {}
+  if (skbStatEl) skbStatEl.textContent = skbCount;
+  skbEl.classList.remove("turned");
+  void skbEl.offsetWidth; // restart keyframe so re-flips still animate
+  skbEl.classList.add("turned");
+  skbRender();
+  setTimeout(() => skbEl.classList.remove("turned"), 620);
+  if (skbCount === 1 && typeof toast === "function") toast(SKB_STUDIES[skbIdx].title, 1800);
+}
+if (skbEl) skbEl.addEventListener("click", skbFlip);
+skbRender();
+
+// ---------- 2) corked-flask (#corked-flask) ----------
+const cflEl     = document.getElementById("corked-flask");
+const cflPuffs  = document.getElementById("cfl-puffs");
+const cflStatEl = document.getElementById("corked-flask-stat");
+const CFL_KEY   = "biosphere02.corkedflask.v1";
+let   cflCount  = (() => { try { return +localStorage.getItem(CFL_KEY) || 0; } catch { return 0; } })();
+function cflUncork() {
+  if (!cflEl) return;
+  cflCount++;
+  try { localStorage.setItem(CFL_KEY, String(cflCount)); } catch {}
+  if (cflStatEl) cflStatEl.textContent = cflCount;
+  cflEl.classList.remove("uncorked");
+  void cflEl.offsetWidth; // restart keyframe otherwise re-uncorks are no-ops
+  cflEl.classList.add("uncorked");
+  // append 2-4 puffs into the .cfl-puffs host; each carries its own
+  // --cf-px to make the dispersion feel different per click. pulse the
+  // cork pop with a high sine tinkle to feel like airflow through glass.
+  if (typeof playFeatureSine === "function") {
+    playFeatureSine(1480, 0.08, 0.10, "sine");
+    setTimeout(() => playFeatureSine(2240, 0.06, 0.08, "sine"), 60);
+  }
+  if (cflPuffs && typeof document !== "undefined") {
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      const px = (Math.random() - 0.5) * 12;
+      c.setAttribute("cx",  String(15 + (Math.random() - 0.5) * 6));
+      c.setAttribute("cy",  String(20 + (Math.random() - 0.5) * 4));
+      c.setAttribute("r",   (2.2 + Math.random() * 1.4).toFixed(2));
+      c.style.setProperty("--cf-px", px.toFixed(1) + "px");
+      c.style.animationDelay = (i * 90) + "ms";
+      cflPuffs.appendChild(c);
+      // remove after the 1300ms keyframe finishes so subsequent uncorkings
+      // start with an empty host (otherwise puffs accumulate and the next
+      // batch overlays + the host grows without bound). timeout is 1700ms
+      // (not 1500) — the cf-puff cubic-bezier easing tail still has 5-8%
+      // opacity past 1300ms, removing earlier produces a visible pop-out.
+      setTimeout(() => { if (c.parentNode) c.parentNode.removeChild(c); }, 1700);
+    }
+  }
+  // reset after enough time so a second click in the same second still
+  // re-triggers the cork pop. uncorked class is held only for ~380ms.
+  setTimeout(() => cflEl.classList.remove("uncorked"), 420);
+  if (cflCount === 1 && typeof toast === "function") toast("uncorked · the mist remembers the morning", 2200);
+}
+if (cflEl) cflEl.addEventListener("click", cflUncork);
+
+// ---------- 3) iron-hinge (#iron-hinge) ----------
+const ihEl     = document.getElementById("iron-hinge");
+const ihStatEl = document.getElementById("iron-hinge-stat");
+const IH_KEY   = "biosphere02.ironhinge.v1";
+let   ihCount  = (() => { try { return +localStorage.getItem(IH_KEY) || 0; } catch { return 0; } })();
+function ihSwing() {
+  if (!ihEl) return;
+  ihCount++;
+  try { localStorage.setItem(IH_KEY, String(ihCount)); } catch {}
+  if (ihStatEl) ihStatEl.textContent = ihCount;
+  ihEl.classList.remove("swung");
+  void ihEl.offsetWidth; // force reflow so re-adds restart the keyframe
+  ihEl.classList.add("swung");
+  if (typeof playFeatureSine === "function") playFeatureSine(460, 0.12, 0.12, "square");
+  setTimeout(() => ihEl.classList.remove("swung"), 620);
+  if (ihCount === 1 && typeof toast === "function") toast("an old iron hinge · the rust does not mind", 2200);
+}
+if (ihEl) ihEl.addEventListener("click", ihSwing);
+
+// ---------- 4) walnut-galleon (#walnut-galleon) ----------
+const wgEl     = document.getElementById("walnut-galleon");
+const wgStatEl = document.getElementById("walnut-galleon-stat");
+const WG_KEY   = "biosphere02.walnutgalleon.v1";
+let   wgCount  = (() => { try { return +localStorage.getItem(WG_KEY) || 0; } catch { return 0; } })();
+function wgNudge() {
+  if (!wgEl) return;
+  wgCount++;
+  try { localStorage.setItem(WG_KEY, String(wgCount)); } catch {}
+  if (wgStatEl) wgStatEl.textContent = wgCount;
+  wgEl.classList.remove("nudged");
+  void wgEl.offsetWidth;
+  wgEl.classList.add("nudged");
+  // sawtooth reads "creaky wood" without band-passing; the low 220hz end
+  // sits below the iron-hinge 460hz so the two never muddy each other.
+  if (typeof playFeatureSine === "function") playFeatureSine(220, 0.16, 0.10, "sawtooth");
+  setTimeout(() => wgEl.classList.remove("nudged"), 500);
+  if (wgCount === 1 && typeof toast === "function") toast("a walnut shell out on the pond · very small", 2200);
+}
+if (wgEl) wgEl.addEventListener("click", wgNudge);
+
+// ---------- 5) dragonfly-pivot (#dragonfly-pivot) ----------
+const dpfEl     = document.getElementById("dragonfly-pivot");
+const dpfStatEl = document.getElementById("dragonfly-pivot-stat");
+const DPF_KEY   = "biosphere02.dragonflypivot.v1";
+let   dpfCount  = (() => { try { return +localStorage.getItem(DPF_KEY) || 0; } catch { return 0; } })();
+function dpfLeap() {
+  if (!dpfEl) return;
+  dpfCount++;
+  try { localStorage.setItem(DPF_KEY, String(dpfCount)); } catch {}
+  if (dpfStatEl) dpfStatEl.textContent = dpfCount;
+  dpfEl.classList.remove("leaped");
+  void dpfEl.offsetWidth;
+  dpfEl.classList.add("leaped");
+  // 1800hz sine reads as insectoid without buzzing (the existing 2400hz
+  // is reserved for ice-bubble pops; 1800 sits just under so they
+  // don't collide).
+  if (typeof playFeatureSine === "function") playFeatureSine(1800, 0.06, 0.08, "sine");
+  setTimeout(() => dpfEl.classList.remove("leaped"), 820);
+  if (dpfCount === 1 && typeof toast === "function") toast("a bronze dragonfly · it returns to the same reed", 2200);
+}
+if (dpfEl) dpfEl.addEventListener("click", dpfLeap);
+
+/* ============================================================
+   devlog #44 — five small micro-fauna / flora-fae pieces
+   each independent — tapping into body.day, body.dusk, body.dawn,
+   body.night, body.wind-gust, body.rain-day, body.season-winter.
+   counters all use biosphere02.<name>.v1 (no cross-references);
+   audio routes through the devlog #39 _featureCtxRef pool — every
+   new oscillator reuses the lazy shared context. features added
+   here do NOT spawn fresh audit/counters, do NOT open windows.
+   ============================================================ */
+
+// ---------- 1) moss-flea beetle (#moss-flea) ----------
+const mfbEl     = document.getElementById("moss-flea");
+const mfbStatEl = document.getElementById("moss-flea-stat");
+const MFB_KEY   = "biosphere02.mossflea.v1";
+let   mfbCount  = (() => { try { return +localStorage.getItem(MFB_KEY) || 0; } catch { return 0; } })();
+function mfbHop() {
+  if (!mfbEl) return;
+  mfbCount++;
+  try { localStorage.setItem(MFB_KEY, String(mfbCount)); } catch {}
+  if (mfbStatEl) mfbStatEl.textContent = mfbCount;
+  mfbEl.classList.remove("hopped");
+  void mfbEl.offsetWidth; // force reflow so re-clicks while already hopped still animate
+  mfbEl.classList.add("hopped");
+  if (typeof playFeatureSine === "function") playFeatureSine(1640, 0.06, 0.08, "sine");
+  setTimeout(() => mfbEl.classList.remove("hopped"), 500);
+  if (mfbCount === 1 && typeof toast === "function") toast("a moss-flea · small, listening", 2000);
+}
+if (mfbEl) mfbEl.addEventListener("click", mfbHop);
+
+// ---------- 2) bog-lantern mushroom (#bog-lantern) ----------
+const blEl     = document.getElementById("bog-lantern");
+const blStatEl = document.getElementById("bog-lantern-stat");
+const BL_KEY   = "biosphere02.boglantern.v1";
+let   blCount  = (() => { try { return +localStorage.getItem(BL_KEY) || 0; } catch { return 0; } })();
+function blPulse() {
+  if (!blEl) return;
+  blCount++;
+  try { localStorage.setItem(BL_KEY, String(blCount)); } catch {}
+  if (blStatEl) blStatEl.textContent = blCount;
+  blEl.classList.remove("pulsed");
+  void blEl.offsetWidth;
+  blEl.classList.add("pulsed");
+  // 940Hz triangle-wave hums "glass / air" — well below the dpf 1800Hz, sits
+  // in the same gap as the cfl 1480Hz pair, so the three share the air without
+  // masking each other.
+  if (typeof playFeatureSine === "function") playFeatureSine(940, 0.10, 0.06, "triangle");
+  setTimeout(() => blEl.classList.remove("pulsed"), 620);
+  if (blCount === 1 && typeof toast === "function") toast("the bog-lantern dims then steadies", 2200);
+}
+if (blEl) blEl.addEventListener("click", blPulse);
+
+// ---------- 3) midge-trio (#midge-trio) ----------
+//   note: the id is `midge-trio` rather than `peeper-midge` so this feature
+//   shares no key prefix with the existing #peepers HOST div / peeper.spotted
+//   localStorage key (devlog #29's peeper creature). a future ambient midge
+//   creature or a separate midge-class feature can therefore hash to a fresh
+//   key without colliding with biosphere02.midgetrio.v1.
+//
+//   the local js handles (mgeEl, mgeStatEl, mgeCount, MGE_KEY, mgeStartle)
+//   use the `mge-` prefix rather than `pm-` because `pm` already exists in
+//   the early engine history (a peeper-midges scratch from devlog #29 that
+//   was removed before #29 shipped). redeclaring `pm-` would throw a
+//   SyntaxError under node --check and any browser's script parser.
+const mgeEl     = document.getElementById("midge-trio");
+const mgeStatEl = document.getElementById("midge-trio-stat");
+const MGE_KEY   = "biosphere02.midgetrio.v1";
+let   mgeCount  = (() => { try { return +localStorage.getItem(MGE_KEY) || 0; } catch { return 0; } })();
+// per-click randomization: each midge gets a unique dx/dy so the swarm
+// actually parts in three directions on every startle. without these vars,
+// the keyframe falls back to (6,-6) for all three — works, but reads as a
+// synchronized jump rather than three midges splitting. the inline style
+// is needed because CSS custom-props can't be animated via the keyframe
+// without per-element override, and we WANT each midge unique this click.
+function mgeStartle() {
+  if (!mgeEl) return;
+  mgeCount++;
+  try { localStorage.setItem(MGE_KEY, String(mgeCount)); } catch {}
+  if (mgeStatEl) mgeStatEl.textContent = mgeCount;
+  for (const cls of ["midge-a", "midge-b", "midge-c"]) {
+    const dot = mgeEl.querySelector("." + cls);
+    if (!dot) continue;
+    const a = Math.random() * Math.PI * 2;
+    const r = 8 + Math.random() * 6;
+    dot.style.setProperty("--midge-dx", (Math.cos(a) * r).toFixed(1) + "px");
+    dot.style.setProperty("--midge-dy", (Math.sin(a) * r - 4).toFixed(1) + "px");
+  }
+  mgeEl.classList.remove("startled");
+  void mgeEl.offsetWidth;
+  mgeEl.classList.add("startled");
+  // 1240Hz sits in the gap below the dpf 1800Hz — reads as insectoid presence
+  // rather than buzz because it's a single pulse + sine shape, not sustained.
+  if (typeof playFeatureSine === "function") playFeatureSine(1240, 0.04, 0.05, "sine");
+  setTimeout(() => {
+    if (mgeEl) mgeEl.classList.remove("startled");
+    // reset the per-midge custom props so the inline cssText doesn't
+    // accumulate across clicks. harmless if left in, but cleaner to clear.
+    for (const cls of ["midge-a", "midge-b", "midge-c"]) {
+      const dot = mgeEl ? mgeEl.querySelector("." + cls) : null;
+      if (!dot) continue;
+      dot.style.removeProperty("--midge-dx");
+      dot.style.removeProperty("--midge-dy");
+    }
+  }, 620);
+  if (mgeCount === 1 && typeof toast === "function") toast("they lift away · then settle", 2000);
+}
+if (mgeEl) mgeEl.addEventListener("click", mgeStartle);
+
+// ---------- 4) wood-spider quill (#wood-spider) ----------
+const wspEl      = document.getElementById("wood-spider");
+const wspStatEl  = document.getElementById("wood-spider-stat");
+const WSP_KEY    = "biosphere02.woodspider.v1";
+let   wspCount   = (() => { try { return +localStorage.getItem(WSP_KEY) || 0; } catch { return 0; } })();
+function wspPluck() {
+  if (!wspEl) return;
+  wspCount++;
+  try { localStorage.setItem(WSP_KEY, String(wspCount)); } catch {}
+  if (wspStatEl) wspStatEl.textContent = wspCount;
+  wspEl.classList.remove("plucked");
+  void wspEl.offsetWidth;
+  wspEl.classList.add("plucked");
+  // 540Hz triangle reads "snapped thread" — single short pulse. sits below
+  // the mfb 1640Hz and dpf 1800Hz sine band so the three insect-adjacent
+  // features never mask each other in a click flurry.
+  if (typeof playFeatureSine === "function") playFeatureSine(540, 0.08, 0.05, "triangle");
+  setTimeout(() => wspEl.classList.remove("plucked"), 500);
+  if (wspCount === 1 && typeof toast === "function") toast("a thread hums at the touch", 2000);
+}
+if (wspEl) wspEl.addEventListener("click", wspPluck);
+
+// ---------- 5) frost-glint beetle (#frost-glint) ----------
+const fgbEl      = document.getElementById("frost-glint");
+const fgbStatEl  = document.getElementById("frost-glint-stat");
+const FGB_KEY    = "biosphere02.frostglint.v1";
+let   fgbCount   = (() => { try { return +localStorage.getItem(FGB_KEY) || 0; } catch { return 0; } })();
+function fgbFlash() {
+  if (!fgbEl) return;
+  fgbCount++;
+  try { localStorage.setItem(FGB_KEY, String(fgbCount)); } catch {}
+  if (fgbStatEl) fgbStatEl.textContent = fgbCount;
+  fgbEl.classList.remove("flashed");
+  void fgbEl.offsetWidth;
+  fgbEl.classList.add("flashed");
+  // 1100Hz chosen over 880Hz to leave the existing 880Hz cluster (bronze bell,
+  // tide-flute, magnet-strike, etc.) untouched. same insectoid-vibe as the
+  // dpf 1800Hz, lower octave.
+  if (typeof playFeatureSine === "function") playFeatureSine(1100, 0.10, 0.06, "sine");
+  setTimeout(() => fgbEl.classList.remove("flashed"), 720);
+  if (fgbCount === 1 && typeof toast === "function") toast("an iridescent glint", 2000);
+}
+if (fgbEl) fgbEl.addEventListener("click", fgbFlash);
+

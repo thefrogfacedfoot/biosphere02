@@ -3416,5 +3416,359 @@
   <span id="brass-astrolabe-stat">0</span>
 </div>
 
+<!-- devlog #43 — five shoreline pieces (study-book, corked-flask, iron-hinge,
+     walnut-galleon, dragonfly-pivot). each latches onto an existing body
+     class without spawning new pollers; counters persist on the
+     biosphere02.<name>.v1 convention with no cross-references; audio through
+     the shared _featureCtxRef pool via playFeatureSine. -->
+
+<!-- 1) study-book — small leather sketch-book on the right shore. click
+     cycles through 8 hand-drawn nature studies rendered as inline svg line
+     work on a cream page. body.season-spring shifts the ink hue toward
+     emerald; body.season-autumn shifts it toward amber. -->
+<div id="study-book" title="browse the studies" aria-label="a small leather sketchbook">
+  <svg class="sb-svg" viewBox="0 0 50 64" aria-hidden="true">
+    <ellipse class="sb-shadow" cx="25" cy="62" rx="20" ry="1.6" fill="rgba(0,0,0,0.40)"/>
+    <!-- leather cover, slightly opened to suggest a bound book -->
+    <rect x="6" y="6" width="38" height="56" rx="2.5" fill="#5a3a1e"/>
+    <rect x="6" y="6" width="38" height="56" rx="2.5" fill="none" stroke="#3a2415" stroke-width="0.8"/>
+    <path d="M6 6 Q4 30 6 62" fill="none" stroke="#3a2415" stroke-width="0.6"/>
+    <path d="M44 6 Q46 30 44 62" fill="none" stroke="#3a2415" stroke-width="0.6"/>
+    <line x1="9"  y1="14" x2="41" y2="14" stroke="#7a5a32" stroke-width="0.4"/>
+    <line x1="9"  y1="54" x2="41" y2="54" stroke="#7a5a32" stroke-width="0.4"/>
+    <!-- the cream page is opened on top of the cover -->
+    <g class="sb-page-wrap">
+      <rect class="sb-page" x="9" y="9" width="32" height="46" rx="1.2" fill="rgba(238, 232, 204, 0.96)" stroke="rgba(120, 90, 60, 0.40)" stroke-width="0.5"/>
+      <g class="sb-sketch" id="sb-sketch"></g>
+      <text class="sb-title" x="25" y="51" text-anchor="middle" font-size="3.4" font-family="Georgia, serif" fill="rgba(60, 40, 20, 0.62)" font-style="italic">study no. 1</text>
+    </g>
+    <!-- leather strap holding the book closed -->
+    <rect x="6" y="32" width="38" height="2.4" fill="#3a2415"/>
+    <circle cx="25" cy="33.2" r="1.2" fill="#a8864a"/>
+  </svg>
+</div>
+<div class="study-book-stat-wrap" aria-hidden="true">
+  <span>studies</span>
+  <span id="study-book-stat">0</span>
+</div>
+
+<!-- 2) corked-flask — a small corked glass vial at the upper-left shelf,
+     above tally-stick. click uncorks: cork pops off via cps-uncork keyframe,
+     2-4 steam puffs (settle CSS .cps-puff) rise and skew; body.wind-gust
+     skews puffs -8deg and accelerates them. -->
+<div id="corked-flask" title="uncork the flask" aria-label="a corked glass vial">
+  <svg class="cfl-svg" viewBox="0 0 30 64" aria-hidden="true">
+    <ellipse class="cfl-shadow" cx="15" cy="62" rx="11" ry="1.4" fill="rgba(0,0,0,0.32)"/>
+    <!-- the cork pops off (translateY -22px at peak) -->
+    <g class="cfl-cork">
+      <rect x="11" y="2" width="8" height="6" rx="1.2" fill="#8a5a2a"/>
+      <rect x="11" y="2" width="8" height="2" fill="#a8784c"/>
+      <line x1="13" y1="3" x2="13" y2="7" stroke="#5a3a1e" stroke-width="0.4"/>
+      <line x1="17" y1="3" x2="17" y2="7" stroke="#5a3a1e" stroke-width="0.4"/>
+    </g>
+    <!-- neck -->
+    <rect x="11.5" y="8" width="7" height="4" fill="rgba(220, 232, 240, 0.20)" stroke="rgba(200, 230, 240, 0.55)" stroke-width="0.5"/>
+    <!-- glass body -->
+    <path d="M7 14 Q7 12 9 12 L21 12 Q23 12 23 14 L26 24 Q31 50 26 56 Q15 60 4 56 Q-1 50 4 24 Z"
+          fill="rgba(180, 220, 230, 0.22)" stroke="rgba(220, 240, 250, 0.55)" stroke-width="0.6"/>
+    <!-- a small wisp hint that shows what is inside -->
+    <g class="cfl-hint">
+      <path d="M11 32 Q15 36 13 42 Q19 44 16 50" fill="none" stroke="rgba(190, 220, 240, 0.55)" stroke-width="0.5"/>
+    </g>
+    <!-- steam puffs are appended into this host by js on click -->
+    <g class="cfl-puffs" id="cfl-puffs"></g>
+    <!-- a label -->
+    <rect x="9" y="36" width="12" height="6" rx="0.5" fill="rgba(238, 224, 184, 0.85)" stroke="rgba(120, 90, 60, 0.45)" stroke-width="0.4"/>
+    <text x="15" y="40.4" text-anchor="middle" font-size="2.6" font-family="Georgia, serif" fill="rgba(80, 50, 20, 0.78)">mist</text>
+  </svg>
+</div>
+<div class="corked-flask-stat-wrap" aria-hidden="true">
+  <span>vials</span>
+  <span id="corked-flask-stat">0</span>
+</div>
+
+<!-- 3) iron-hinge — antique iron strap-hinge on the lower-left shore,
+     below tally-stick. click fires ih-swing 600ms (rotate ±28deg four
+     times via cubic-bezier ease-out-back) + 460hz metallic clink.
+     body.aurora-peak adds a red drop-shadow filter via CSS so the iron
+     reads as warm on aurora nights. -->
+<div id="iron-hinge" title="swing the hinge" aria-label="an antique iron strap hinge">
+  <svg class="ih-svg" viewBox="0 0 42 26" aria-hidden="true">
+    <ellipse class="ih-shadow" cx="21" cy="24" rx="17" ry="1.5" fill="rgba(0,0,0,0.35)"/>
+    <g class="ih-leaves">
+      <!-- the fixed leaf (loose, flat on the gravel) -->
+      <rect x="3" y="14" width="14" height="6" rx="0.6" fill="#3a3a3a" stroke="#1a1a1a" stroke-width="0.4"/>
+      <circle cx="6"  cy="17" r="0.9" fill="#2a2a2a"/>
+      <circle cx="14" cy="17" r="0.9" fill="#2a2a2a"/>
+      <text x="10" y="22" text-anchor="middle" font-size="2.2" font-family="Georgia, serif" fill="rgba(220, 180, 110, 0.65)" font-style="italic">iii</text>
+      <!-- the rotating leaf (swinging on the knuckle) -->
+      <rect class="ih-arm" x="25" y="14" width="14" height="6" rx="0.6" fill="#4a4a4a" stroke="#1a1a1a" stroke-width="0.4"/>
+      <circle class="ih-knuckle" cx="21" cy="17" r="3.5" fill="#3a3a3a" stroke="#1a1a1a" stroke-width="0.4"/>
+      <circle cx="21" cy="17" r="1.2" fill="#a8864a"/>
+      <circle cx="29" cy="17" r="0.9" fill="#2a2a2a"/>
+      <circle cx="37" cy="17" r="0.9" fill="#2a2a2a"/>
+    </g>
+  </svg>
+</div>
+<div class="iron-hinge-stat-wrap" aria-hidden="true">
+  <span>hinges</span>
+  <span id="iron-hinge-stat">0</span>
+</div>
+
+<!-- 4) walnut-galleon — small two-plank walnut-shell boat with a leaf-mast
+     sail, riding the pond surface left:38vw out from the dock region.
+     bottom tracks --pond-h via the same 1100ms ease the shore elements
+     use. body.wind-gust flutters the leaf sail via wg-sway 1.4s skew.
+     click fires wg-nudge 480ms translate(10px) + rotate(2.6deg) +
+     220Hz sawtooth creak (the saw reads correct without band-shaping). -->
+<div id="walnut-galleon" title="nudge the galleon" aria-label="a walnut-shell boat on the pond">
+  <svg class="wg-svg" viewBox="0 0 56 28" aria-hidden="true">
+    <ellipse class="wg-shadow" cx="28" cy="22" rx="20" ry="1.8" fill="rgba(0,0,0,0.32)"/>
+    <!-- the walnut hull -->
+    <path d="M6 20 Q28 14 50 20 Q54 22 50 24 L6 24 Q2 22 6 20 Z" fill="#5a3a1e"/>
+    <path d="M6 20 Q28 14 50 20" fill="none" stroke="#3a2415" stroke-width="0.6"/>
+    <path d="M8 22 Q28 22 48 22" fill="none" stroke="#3a2415" stroke-width="0.5"/>
+    <!-- bulkhead lines carved into the hull -->
+    <line x1="20" y1="17" x2="20" y2="23" stroke="#2a1a0a" stroke-width="0.5"/>
+    <line x1="28" y1="16" x2="28" y2="24" stroke="#2a1a0a" stroke-width="0.5"/>
+    <line x1="36" y1="17" x2="36" y2="23" stroke="#2a1a0a" stroke-width="0.5"/>
+    <!-- the mast -->
+    <line x1="14" y1="20" x2="14" y2="4" stroke="#3a2415" stroke-width="1.0"/>
+    <!-- the leaf sail, skews on body.wind-gust -->
+    <g class="wg-sail" style="transform-origin: 14px 6px;">
+      <path d="M14 5 L34 12 L14 18 Z" fill="#8a6a32"/>
+      <path d="M14 5 L34 12 L14 18 Z" fill="rgba(180, 150, 80, 0.4)"/>
+      <line x1="14" y1="5" x2="14" y2="18" stroke="#5a3a26" stroke-width="0.4"/>
+      <line x1="20" y1="8" x2="20" y2="16" stroke="#5a3a26" stroke-width="0.35"/>
+      <line x1="26" y1="10" x2="26" y2="14" stroke="#5a3a26" stroke-width="0.3"/>
+    </g>
+    <!-- a small flag -->
+    <path d="M14 4 L20 6 L14 8 Z" fill="#c0533f"/>
+  </svg>
+</div>
+<div class="walnut-galleon-stat-wrap" aria-hidden="true">
+  <span>galleons</span>
+  <span id="walnut-galleon-stat">0</span>
+</div>
+
+<!-- 5) dragonfly-pivot — a small bronze dragonfly perched on a cattail
+     stub at right:96 top:200, in the right-shore mid band. wings idle
+     via dpf-flap 0.22s ease-in-out alternate (each side from a slightly
+     different transform-origin so the flapping reads 3d). body.day
+     pushes visibility up via drop-shadow saturate(1.15); body.night
+     dims to 0.45 so the bronze doesn't fight the moon. click fires
+     dpf-leap 800ms (translateY(-30px) → 0 settle) + 1800Hz sine tone. -->
+<div id="dragonfly-pivot" title="watch the dragonfly" aria-label="a small bronze dragonfly on a cattail stub">
+  <svg class="dpf-svg" viewBox="0 0 36 56" aria-hidden="true">
+    <!-- the cattail stub it perches on (re-uses the existing
+         cattail reed colors) -->
+    <line x1="6" y1="55" x2="6" y2="34" stroke="#4a6a44" stroke-width="1.4" stroke-linecap="round"/>
+    <ellipse cx="6" cy="30" rx="1.6" ry="5" fill="#5a3820"/>
+    <line class="dpf-reed-sway" x1="6" y1="34" x2="6" y2="32" stroke="#4a6a44" stroke-width="1.4"/>
+    <!-- the dragonfly, perched with abdomen angled up + 4 wings -->
+    <g class="dpf-body">
+      <!-- thorax -->
+      <ellipse cx="20" cy="32" rx="2.2" ry="1.6" fill="#9a8a72"/>
+      <ellipse cx="20" cy="32" rx="2.2" ry="1.6" fill="rgba(220, 200, 160, 0.45)"/>
+      <!-- abdomen -->
+      <ellipse cx="22" cy="28.6" rx="0.9" ry="4.6" fill="#7a6a52" transform="rotate(-22 22 32)"/>
+      <!-- head + eyes -->
+      <ellipse cx="18.2" cy="32.9" rx="1.2" ry="1.0" fill="#3a2a1a"/>
+      <circle  cx="17.6" cy="32.5" r="0.45" fill="#a8784c"/>
+      <circle  cx="18.8" cy="32.5" r="0.45" fill="#a8784c"/>
+      <!-- legs, six thin -->
+      <g stroke="#3a2a1a" stroke-width="0.35" fill="none" stroke-linecap="round">
+        <path d="M19 33 L17 35"/>
+        <path d="M20 33 L19 35"/>
+        <path d="M21 33 L20 35"/>
+        <path d="M19 31 L17 30"/>
+        <path d="M20 31 L19 30"/>
+        <path d="M21 31 L20 30"/>
+      </g>
+      <!-- the four wings: 2 forewing + 2 hindwing. the static angled pose
+           is owned by the keyframes' `from` rotation, NOT by an inline
+           transform="" — CSS transform on SVG elements overrides the
+           transform= attribute, so an inline rotation would be wiped out
+           the moment the dpf-flap-l/r animation runs on the same element. -->
+      <ellipse class="dpf-wing dpf-fw-l" cx="17.8" cy="30.4" rx="6.4" ry="2.0" fill="rgba(180, 210, 240, 0.55)" stroke="rgba(220, 235, 250, 0.6)" stroke-width="0.35"/>
+      <ellipse class="dpf-wing dpf-fw-r" cx="22.2" cy="30.4" rx="6.4" ry="2.0" fill="rgba(180, 210, 240, 0.55)" stroke="rgba(220, 235, 250, 0.6)" stroke-width="0.35"/>
+      <ellipse class="dpf-wing dpf-hw-l" cx="17.6" cy="32.5" rx="5.6" ry="1.7" fill="rgba(200, 220, 240, 0.45)" stroke="rgba(220, 235, 250, 0.55)" stroke-width="0.3"/>
+      <ellipse class="dpf-wing dpf-hw-r" cx="22.4" cy="32.5" rx="5.6" ry="1.7" fill="rgba(200, 220, 240, 0.45)" stroke="rgba(220, 235, 250, 0.55)" stroke-width="0.3"/>
+    </g>
+  </svg>
+</div>
+<div class="dragonfly-pivot-stat-wrap" aria-hidden="true">
+  <span>dragonflies</span>
+  <span id="dragonfly-pivot-stat">0</span>
+</div>
+
+<!-- devlog #44 — five small micro-fauna / flora-fae pieces. each latches
+     onto existing body classes via pure-CSS keyframes (no js pollers, no
+     new dependency trees, no new windows). the counters follow the
+     biosphere02.<name>.v1 convention with no cross-references; audio
+     routes through the devlog #39 _featureCtxRef pool that already
+     serves every prior click-driven feature. -->
+
+<!-- 1) moss-flea beetle — a tiny moss-green beetle on the right shore
+     gravel, well below the study-book at right:24. body.wind-gust
+     triggers an idle mfb-scuttle loop (the beetle is light enough to
+     feel the wind); body.day sharpens the drop-shadow so its legs read.
+     click fires mfb-hop 480ms cubic-bezier (.3 .7 .3 1.1) — translate
+     (-3px, -8px) + rotate(-7deg) at 35% then settles — plus a 1640Hz
+     sine pip (a thin bug-chirp, distinct from the dragonfly 1800Hz
+     sine by ~160Hz so neither reads as the other). -->
+<div id="moss-flea" title="a small moss-flea" aria-label="a small moss-flea beetle">
+  <svg class="mfb-svg" viewBox="0 0 32 18" aria-hidden="true">
+    <ellipse class="mfb-shadow" cx="16" cy="16" rx="6" ry="0.9" fill="rgba(0,0,0,0.32)"/>
+    <ellipse class="mfb-body" cx="16" cy="10" rx="6" ry="3.2" fill="#4a5a32"/>
+    <ellipse class="mfb-back" cx="16" cy="9.4" rx="5.2" ry="2.6" fill="#6a8a4a"/>
+    <line class="mfb-seam" x1="16" y1="7" x2="16" y2="13" stroke="#2a3a18" stroke-width="0.4"/>
+    <line class="mfb-leg" x1="11" y1="10" x2="7.5" y2="13.5" stroke="#2a3a18" stroke-width="0.4" stroke-linecap="round"/>
+    <line class="mfb-leg" x1="11" y1="11.5" x2="8" y2="15" stroke="#2a3a18" stroke-width="0.4" stroke-linecap="round"/>
+    <line class="mfb-leg" x1="21" y1="10" x2="24.5" y2="13.5" stroke="#2a3a18" stroke-width="0.4" stroke-linecap="round"/>
+    <line class="mfb-leg" x1="21" y1="11.5" x2="24" y2="15" stroke="#2a3a18" stroke-width="0.4" stroke-linecap="round"/>
+    <line class="mfb-feeler" x1="12" y1="7" x2="9.5" y2="3.6" stroke="#2a3a18" stroke-width="0.4" stroke-linecap="round"/>
+    <line class="mfb-feeler" x1="20" y1="7" x2="22.5" y2="3.6" stroke="#2a3a18" stroke-width="0.4" stroke-linecap="round"/>
+  </svg>
+</div>
+<div class="moss-flea-stat-wrap" aria-hidden="true">
+  <span>fleas</span>
+  <span id="moss-flea-stat">0</span>
+</div>
+
+<!-- 2) bog-lantern mushroom — a small glow-cap fungus on the lower-left
+     grove, well below the moss-runestone, between the ferns and the
+     column of shore. body.night lights the cap (cyan drop-shadow via a
+     single CSS filter rule on .bl-cap); body.dawn mid-glows. click fires
+     bl-glow 600ms on cap+core and bl-ring 600ms forwards on the
+     .bl-pulse-ring child circle (r: 1.6 → 11, opacity 0.7 → 0) — the
+     expanding ring is what makes the click feel like a glow-pulse
+     instead of a plain brightness flash. 940Hz triangle-wave ring. -->
+<div id="bog-lantern" title="tap the lantern-cap" aria-label="a bog-lantern mushroom">
+  <svg class="bl-svg" viewBox="0 0 32 40" aria-hidden="true">
+    <ellipse class="bl-shadow" cx="16" cy="38" rx="8" ry="1.2" fill="rgba(0,0,0,0.34)"/>
+    <g class="bl-gills">
+      <line x1="9"  y1="20" x2="23" y2="20" stroke="rgba(140, 220, 220, 0.55)" stroke-width="0.5"/>
+      <line x1="10" y1="22" x2="22" y2="22" stroke="rgba(140, 220, 220, 0.42)" stroke-width="0.5"/>
+      <line x1="11" y1="24" x2="21" y2="24" stroke="rgba(140, 220, 220, 0.30)" stroke-width="0.5"/>
+    </g>
+    <rect class="bl-stalk" x="14" y="20" width="4" height="14" fill="#a8a282"/>
+    <rect class="bl-stalk-hi" x="14.4" y="20" width="1.4" height="14" fill="#c8c298"/>
+    <path class="bl-cap" d="M6 18 Q6 6 16 4 Q26 6 26 18 Q20 22 16 22 Q12 22 6 18 Z" fill="#8a6848"/>
+    <path class="bl-cap-hi" d="M8 17 Q10 8 16 6 Q22 8 24 17 Q22 14 16 14 Q10 14 8 17 Z" fill="#a8865a"/>
+    <circle class="bl-core" cx="16" cy="14" r="1.6" fill="rgba(180, 240, 230, 0.85)"/>
+    <circle class="bl-pulse-ring" cx="16" cy="14" r="1.6" fill="none" stroke="rgba(180, 240, 230, 0.7)" stroke-width="0.8"/>
+  </svg>
+</div>
+<div class="bog-lantern-stat-wrap" aria-hidden="true">
+  <span>lanterns</span>
+  <span id="bog-lantern-stat">0</span>
+</div>
+
+<!-- 3) midge-trio — three tiny midge dots hovering mid-canvas. distinct
+     from the existing dusk-gnat-swarm (devlog #40, which scatters its
+     gnat drones on body.wind-gust) — the trio here is static (no js
+     drift), reads as a small covey, and stirs on click. each dot is
+     class .midge-a/.midge-b/.midge-c; the click handler assigns each
+     midge a unique --midge-dx and --midge-dy CSS custom prop so the
+     three midges part in different directions on every press. idle
+     opacity breathes 0.45–0.85 via 1.6s pm-breathe. body.day attenuates
+     them (sunlight washes them out); body.dawn adds a faint cyan
+     drop-shadow. 1240Hz sine pip. counter key is biosphere02.midgetrio.v1
+     (the prefix midge- deliberately avoids the peeper.spotted key from
+     devlog #29 so a future ambient midge creature cannot collide). -->
+<div id="midge-trio" title="stir the midges" aria-label="three tiny hovering midges">
+  <svg class="pm-svg" viewBox="0 0 24 24" aria-hidden="true">
+    <circle class="pm-dot midge-a" cx="8"  cy="10" r="1.2" fill="rgba(220, 240, 220, 0.88)"/>
+    <circle class="pm-dot midge-b" cx="15" cy="7"  r="1.2" fill="rgba(220, 240, 220, 0.88)"/>
+    <circle class="pm-dot midge-c" cx="13" cy="14" r="1.2" fill="rgba(220, 240, 220, 0.88)"/>
+  </svg>
+</div>
+<div class="midge-trio-stat-wrap" aria-hidden="true">
+  <span>midges</span>
+  <span id="midge-trio-stat">0</span>
+</div>
+
+<!-- 4) wood-spider quill — a small spider on a 4-spoke corner web in the
+     upper-left grove area (top:264 left:6vw, well clear of the moss-runestone
+     / ferns area). body.wind-gust sways the whole w via the wsp-sway
+     1.6s ease-in-out alternate ±2deg infinite; body.rain-day adds a
+     glistening bead on the upper web thread (.wsp-bead pulses fill
+     brightness over 1.4s). click fires wsp-pluck 480ms (the whole
+     web+spider scaleY 1.10 then settles — like a guitar string plucked
+     at its center). 540Hz triangle single click. -->
+<div id="wood-spider" title="pluck the web" aria-label="a small wood-spider on a web">
+  <svg class="wsp-svg" viewBox="0 0 32 32" aria-hidden="true">
+    <g class="wsp-web">
+      <line x1="16" y1="16" x2="16" y2="2"  stroke="rgba(220, 228, 240, 0.32)" stroke-width="0.5"/>
+      <line x1="16" y1="16" x2="30" y2="16" stroke="rgba(220, 228, 240, 0.32)" stroke-width="0.5"/>
+      <line x1="16" y1="16" x2="16" y2="30" stroke="rgba(220, 228, 240, 0.32)" stroke-width="0.5"/>
+      <line x1="16" y1="16" x2="2"  y2="16" stroke="rgba(220, 228, 240, 0.32)" stroke-width="0.5"/>
+      <line x1="16" y1="16" x2="6"  y2="6"  stroke="rgba(220, 228, 240, 0.22)" stroke-width="0.5"/>
+      <line x1="16" y1="16" x2="26" y2="6"  stroke="rgba(220, 228, 240, 0.22)" stroke-width="0.5"/>
+      <line x1="16" y1="16" x2="6"  y2="26" stroke="rgba(220, 228, 240, 0.22)" stroke-width="0.5"/>
+      <line x1="16" y1="16" x2="26" y2="26" stroke="rgba(220, 228, 240, 0.22)" stroke-width="0.5"/>
+    </g>
+    <circle class="wsp-bead" cx="16" cy="9" r="1.0" fill="rgba(220, 240, 255, 0.0)"/>
+    <g class="wsp-spider">
+      <ellipse cx="16" cy="16" rx="2.4" ry="2.6" fill="#2a1808"/>
+      <ellipse cx="16" cy="13.6" rx="2.0" ry="1.8" fill="#3a2415"/>
+      <g stroke="#2a1808" stroke-width="0.4" fill="none" stroke-linecap="round">
+        <path d="M14 17 L9 22"/>
+        <path d="M14 18 L10 22"/>
+        <path d="M18 17 L23 22"/>
+        <path d="M18 18 L22 22"/>
+        <path d="M14 16 L9 10"/>
+        <path d="M18 16 L23 10"/>
+      </g>
+      <circle cx="15.4" cy="12.4" r="0.6" fill="#d6c8a0"/>
+      <circle cx="16.6" cy="12.4" r="0.6" fill="#d6c8a0"/>
+    </g>
+  </svg>
+</div>
+<div class="wood-spider-stat-wrap" aria-hidden="true">
+  <span>spiders</span>
+  <span id="wood-spider-stat">0</span>
+</div>
+
+<!-- 5) frost-glint beetle — a tiny iridescent beetle on the right shore
+     mid band, well clear of the dragonfly-pivot at right:96 top:200.
+     the carapace uses a 3-stop linear gradient (#3a7a78 green → #5aa890
+     mid → #6a4e8a violet), which is what makes the iridescence read
+     without an actual mesh or filter trick. body.season-winter applies
+     brightness(1.10) contrast(1.05) on the whole svg (the beetle's edges
+     "frost" — a quiet visual gag — without per-element filter rules);
+     body.day cyan-shimmers via hue-rotate(180deg) saturate(1.15) on
+     .fgb-body so daylight catches the carapace; body.dawn adds a warm
+     drop-shadow. click fires fgb-flash 700ms (rotate 35deg → scale 1.15
+     → brightness 1.5 → back) — the single-rotation shimmer is the
+     difference between "tapped" and "flashed". 1100Hz sine click (chosen
+     over 880Hz to avoid the dense 880 cluster already used by half a
+     dozen other features). -->
+<div id="frost-glint" title="stir the beetle" aria-label="a small frost-glint beetle">
+  <svg class="fgb-svg" viewBox="0 0 36 18" aria-hidden="true">
+    <defs>
+      <linearGradient id="fgb-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%"   stop-color="#3a7a78"/>
+        <stop offset="50%"  stop-color="#5aa890"/>
+        <stop offset="100%" stop-color="#6a4e8a"/>
+      </linearGradient>
+    </defs>
+    <ellipse class="fgb-shadow" cx="18" cy="16" rx="9" ry="0.9" fill="rgba(0,0,0,0.32)"/>
+    <ellipse class="fgb-body" cx="18" cy="10" rx="9" ry="3.6" fill="url(#fgb-grad)"/>
+    <line class="fgb-seam" x1="18" y1="7" x2="18" y2="13" stroke="#2a4a4a" stroke-width="0.5"/>
+    <ellipse class="fgb-leg" cx="9"  cy="11" rx="0.4" ry="2.2" fill="#2a4a4a"/>
+    <ellipse class="fgb-leg" cx="11" cy="13" rx="0.4" ry="2.2" fill="#2a4a4a"/>
+    <ellipse class="fgb-leg" cx="27" cy="11" rx="0.4" ry="2.2" fill="#2a4a4a"/>
+    <ellipse class="fgb-leg" cx="25" cy="13" rx="0.4" ry="2.2" fill="#2a4a4a"/>
+    <line class="fgb-ant" x1="14" y1="7" x2="11" y2="4" stroke="#2a4a4a" stroke-width="0.3"/>
+    <line class="fgb-ant" x1="22" y1="7" x2="25" y2="4" stroke="#2a4a4a" stroke-width="0.3"/>
+  </svg>
+</div>
+<div class="frost-glint-stat-wrap" aria-hidden="true">
+  <span>glints</span>
+  <span id="frost-glint-stat">0</span>
+</div>
+
 </body>
 </html>
